@@ -183,8 +183,6 @@ export interface ResourcePack {
   id: string
   /** 资源包名称 */
   name: string
-  /** 资源包编码 */
-  code: string
   /** 上架 / 下架 */
   status: 'on' | 'off'
   /** 包内模型定价列表（模型单独计价） */

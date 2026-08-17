@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Card, Input, Select, Button, Breadcrumb, Table, Tag, Typography, Space, Modal, InputNumber, DatePicker, Tooltip, message, Popconfirm, Switch } from 'antd'
+import { Card, Input, Select, Button, Breadcrumb, Table, Tag, Typography, Space, Modal, InputNumber, DatePicker, message, Popconfirm, Switch, Form } from 'antd'
 const { confirm } = Modal
-const { RangePicker } = DatePicker
 import type { ColumnsType } from 'antd/es/table'
-import dayjs, { type Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
 import RequirementDot from '../components/RequirementDot'
 import { useResourcePacks } from '../store'
 import {
@@ -57,19 +56,21 @@ interface AccountRow {
 interface OpenedPack {
   packId: string
   packName: string
-  packCode: string
-  /** 生效时间范围 [开始, 结束] */
-  effectiveRange: [string, string]
   /** 计价方式：预付费 / 后付费 */
   billingMethod: 'prepaid' | 'postpaid'
+  /** 是否启用阶梯价 */
+  tieredPricing: boolean
+  /** 是否使用闲时/忙时价格 */
+  peakOffPeak: boolean
   openedAt: string
 }
 
 /** 开通资源包弹窗表单状态 */
 interface PackFormState {
   packId: string | null
-  range: [Dayjs, Dayjs] | null
   billingMethod: 'prepaid' | 'postpaid'
+  tieredPricing: boolean
+  peakOffPeak: boolean
 }
 
 const ROWS: AccountRow[] = [
@@ -250,15 +251,40 @@ export default function AccountList() {
   const [batchAmount, setBatchAmount] = useState<number | null>(null)
   const [batchEnabled, setBatchEnabled] = useState<boolean>(true)
   const [quotaRows, setQuotaRows] = useState<QuotaModelRow[]>([])
-  const [singleLimitEnabled, setSingleLimitEnabled] = useState(false)
-  const [totalCycle, setTotalCycle] = useState<QuotaModelRow['cycle']>('monthly')
-  const [totalAmount, setTotalAmount] = useState<number | null>(null)
-  const [totalEnabled, setTotalEnabled] = useState<boolean>(true)
   const [limitModalOpen, setLimitModalOpen] = useState(false)
   const [limitSearch, setLimitSearch] = useState('')
   const [batchLevel, setBatchLevel] = useState<string>('T1')
   const [limitRows, setLimitRows] = useState<LimitModelRow[]>([])
   const [selectedLimitKeys, setSelectedLimitKeys] = useState<React.Key[]>([])
+
+  /* 批量设置余额 */
+  const [balanceModalOpen, setBalanceModalOpen] = useState(false)
+  const [balanceType, setBalanceType] = useState<'once' | 'cycle'>('cycle')
+  const [balanceCycle, setBalanceCycle] = useState<string>('monthly')
+  const [balanceAmount, setBalanceAmount] = useState<number | null>(null)
+  const [balanceMode, setBalanceMode] = useState<'reset' | 'adjust'>('adjust')
+
+  const openBatchBalance = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请选择要设置的账户')
+      return
+    }
+    setBalanceType('cycle')
+    setBalanceCycle('monthly')
+    setBalanceAmount(null)
+    setBalanceMode('adjust')
+    setBalanceModalOpen(true)
+  }
+
+  const handleSaveBalance = () => {
+    if (balanceAmount === null || balanceAmount <= 0) {
+      message.warning('请输入消费总额度')
+      return
+    }
+    setBalanceModalOpen(false)
+    const modeText = balanceMode === 'reset' ? '清零重设' : '在现有基础上调整'
+    message.success(`已为 ${selectedRowKeys.length} 个账户设置余额：${balanceAmount}元，${modeText}`)
+  }
 
   /* 资源包开通 */
   const { packs } = useResourcePacks()
@@ -270,9 +296,21 @@ export default function AccountList() {
   const [packTargetKey, setPackTargetKey] = useState<string | null>(null)
   const [packForm, setPackForm] = useState<PackFormState>({
     packId: null,
-    range: null,
     billingMethod: 'prepaid',
+    tieredPricing: false,
+    peakOffPeak: false,
   })
+
+  /* 资源包详情弹窗 */
+  const [packDetailOpen, setPackDetailOpen] = useState(false)
+  const [packDetailPackId, setPackDetailPackId] = useState<string | null>(null)
+  const [packDetailRecord, setPackDetailRecord] = useState<OpenedPack | null>(null)
+
+  const openPackDetail = (packId: string, record: OpenedPack) => {
+    setPackDetailPackId(packId)
+    setPackDetailRecord(record)
+    setPackDetailOpen(true)
+  }
 
   const openPackModal = (row: AccountRow) => {
     setPackTargetKey(row.key)
@@ -281,11 +319,12 @@ export default function AccountList() {
       // 回填已有开通信息
       setPackForm({
         packId: existing.packId,
-        range: [dayjs(existing.effectiveRange[0]), dayjs(existing.effectiveRange[1])],
         billingMethod: existing.billingMethod,
+        tieredPricing: existing.tieredPricing,
+        peakOffPeak: existing.peakOffPeak,
       })
     } else {
-      setPackForm({ packId: null, range: null, billingMethod: 'prepaid' })
+      setPackForm({ packId: null, billingMethod: 'prepaid', tieredPricing: false, peakOffPeak: false })
     }
     setPackModalOpen(true)
   }
@@ -295,22 +334,17 @@ export default function AccountList() {
       message.error('请选择要开通的资源包')
       return
     }
-    if (!packForm.range) {
-      message.error('请选择生效时间范围')
-      return
-    }
     const pack = availablePacks.find((p) => p.id === packForm.packId)
     if (!pack) {
       message.error('资源包不存在或已下架')
       return
     }
-    const [start, end] = packForm.range
     const record: OpenedPack = {
       packId: pack.id,
       packName: pack.name,
-      packCode: pack.code,
-      effectiveRange: [start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD')],
       billingMethod: packForm.billingMethod,
+      tieredPricing: packForm.tieredPricing,
+      peakOffPeak: packForm.peakOffPeak,
       openedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
     }
     setOpenedPackMap((prev) => ({ ...prev, [packTargetKey!]: record }))
@@ -371,18 +405,6 @@ export default function AccountList() {
     setAppliedType('all')
     setAppliedStatus('all')
     setAppliedPackName('')
-  }
-
-  const openBatchQuota = () => {
-    if (selectedRowKeys.length === 0) {
-      message.warning('请选择要设置的账户')
-      return
-    }
-    setQuotaRows(DEFAULT_MODEL_ROWS.map((r) => ({ ...r })))
-    setBatchCycle('daily')
-    setBatchAmount(null)
-    setBatchEnabled(true)
-    setBatchModalOpen(true)
   }
 
   const cycleLabel = CYCLE_OPTIONS.find((o) => o.value === batchCycle)?.label || ''
@@ -598,20 +620,13 @@ export default function AccountList() {
         const op = openedPackMap[r.key]
         if (!op) return <Text type="secondary">—</Text>
         return (
-          <Tooltip
-            title={
-              <div style={{ lineHeight: 1.8 }}>
-                <div>编码：{op.packCode}</div>
-                <div>生效：{op.effectiveRange[0]} ~ {op.effectiveRange[1]}</div>
-                <div>计价：{op.billingMethod === 'prepaid' ? '预付费' : '后付费'}</div>
-                <div>开通时间：{op.openedAt}</div>
-              </div>
-            }
+          <Tag
+            color="blue"
+            style={{ margin: 0, cursor: 'pointer' }}
+            onClick={() => openPackDetail(op.packId, op)}
           >
-            <Tag color="blue" style={{ margin: 0 }}>
-              {op.packName}
-            </Tag>
-          </Tooltip>
+            {op.packName}
+          </Tag>
         )
       },
     },
@@ -753,12 +768,11 @@ export default function AccountList() {
                 {
                   label: '功能需求',
                   items: [
-                    '账户信息列表增加标签字段。展示用户的标签（不展示在个人的企业子账户上）；增加资源包列，展示已开通的资源包。',
+                    '账户信息列表增加标签字段。展示用户的标签（不展示在个人的企业子账户上）；增加资源包列，展示已开通的资源包，点击资源包名称展示资源包详情，具体如图。',
                     '支持按照标签搜索账户。标签支持多选；支持根据资源包名称模糊搜索；',
-                    '在账户前加复选框，支持批量选择账户，批量设置模型使用限额',
-                    '点击【批量设置模型消费额度】检查是否选择账户，未选择，提示"请选择要设置的账户"；选择后弹窗',
+                    '在账户前加复选框，支持批量选择账户，批量设置余额，点击是否选择账户，未选择，提示"请选择要设置的账户"；选择后弹窗如图',
                     '点击【调整配额】检查是否选择账户，未选择，提示"请选择要设置的账户"；选择后弹窗',
-                    '操作栏增加开通资源包功能，点击后如弹窗。开通资源包后，在生效时间范围内，则所有模型的使用按照资源包价格计费，不再走平台售价。超过生效时间，则继续按照平台价格计费。需要标记每一次价格是否采用资源包计费。',
+                    '操作栏增加开通资源包功能，点击后如弹窗。开通资源包后，则所有模型的使用按照资源包价格计费，不再走平台售价。需要标记每一次调用时是否走资源包，如果走资源包，资源包折扣是多少。',
                     '如为预付费，则每次调用需要验证账户金额。如为后付费，则不需要验证账户金额。',
                     '关闭资源包后，按照平台价计费。',
                     '开通资源包仅针对个人账号和企业账号，不包括企业子账号。企业子账号不展示该操作。',
@@ -768,8 +782,8 @@ export default function AccountList() {
             />
           </Space>
           <Space>
-            <Button icon={<SettingOutlined />} onClick={openBatchQuota}>
-              批量设置模型消费额度
+            <Button icon={<DollarOutlined />} onClick={openBatchBalance}>
+              批量设置余额
             </Button>
             <Button type="primary" icon={<SettingOutlined />} onClick={openBatchLimit}>
               调整配额
@@ -793,6 +807,99 @@ export default function AccountList() {
         />
       </Card>
 
+      {/* 批量设置余额 弹窗 */}
+      <Modal
+        title={
+          <Space size={6} align="center">
+            批量设置余额
+            <RequirementDot
+              title="批量设置余额需求"
+              sections={[
+                {
+                  label: '功能需求',
+                  items: [
+                    '1.选择账户后，点击【批量设置余额】按钮，检查是否选择账户，未选择提示"请选择要设置的账户"',
+                    '2.调整类型分为：一次性调整、周期性调整',
+                    '2.1 一次性调整',
+                    '  · 一次性调整，即为用户一次性调整账户金额。无需执行任务',
+                    '2.2 设置方式',
+                    '  · 在现有基础上调整：不改变账户金额，从设置后直接增加金额。即账户金额=原金额+本次调整金额',
+                    '  · 现有账户清零，重新设置：把现在账户清零，重新增加金额',
+                    '2.3 金额限制',
+                    '  · 金额为1-999999的数字，支持2位小数',
+                    '2.4 周期性调整',
+                    '  · 选择周期调整，需要设置周期，默认每月',
+                    '  · 每次调整，直接增加相应金额即可',
+                    '2.5 任务关联',
+                    '  · 周期性设置后，会将本次设置添加到定时充值任务中。',
+                  ],
+                },
+              ]}
+            />
+          </Space>
+        }
+        open={balanceModalOpen}
+        onCancel={() => setBalanceModalOpen(false)}
+        onOk={handleSaveBalance}
+        okText="保存"
+        cancelText="取消"
+        centered
+        width={520}
+        destroyOnClose
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Space size={8}>
+            <Text type="secondary">调整类型：</Text>
+            <Select
+              style={{ width: 180 }}
+              value={balanceType}
+              onChange={setBalanceType}
+              options={[
+                { value: 'cycle', label: '周期性调整' },
+                { value: 'once', label: '一次性调整' },
+              ]}
+            />
+          </Space>
+          {balanceType === 'cycle' && (
+            <Space size={8}>
+              <Text type="secondary">设置周期：</Text>
+              <Select
+                style={{ width: 140 }}
+                value={balanceCycle}
+                onChange={setBalanceCycle}
+                options={CYCLE_OPTIONS}
+              />
+            </Space>
+          )}
+          <Space size={8}>
+            <Text type="secondary">调增金额：</Text>
+            <InputNumber
+              min={1}
+              max={999999}
+              precision={2}
+              step={0.01}
+              placeholder="1~999999"
+              value={balanceAmount}
+              onChange={setBalanceAmount}
+              style={{ width: 180 }}
+              addonAfter="元"
+            />
+          </Space>
+          <Space size={8}>
+            <Text type="secondary">设置方式：</Text>
+            <Select
+              style={{ width: 200 }}
+              value={balanceMode}
+              onChange={setBalanceMode}
+              options={[
+                { value: 'reset', label: '现有账户清零，重新设置' },
+                { value: 'adjust', label: '在现有基础上调整设置' },
+              ]}
+            />
+          </Space>
+        </div>
+      </Modal>
+
       {/* 批量设置模型消费额度 弹窗 */}
       <Modal
         title={
@@ -804,19 +911,6 @@ export default function AccountList() {
                 {
                   label: '模型列表排序',
                   items: ['限额的模型列表按照模型上架时间倒序展示'],
-                },
-                {
-                  label: '模型总额限制',
-                  items: [
-                    '支持设置模型总额度，为消费周期上限费用。需要开启才生效',
-                  ],
-                },
-                {
-                  label: '单个模型限额',
-                  items: [
-                    '开启单个模型限额后，可为单个模型设置限额，不用约束与总额的关系',
-                    '用户使用时，优先验证总额，总额可用，再验证单个模型限额；总额不可用，则全部模型不可用',
-                  ],
                 },
                 {
                   label: '限额周期解释',
@@ -874,66 +968,10 @@ export default function AccountList() {
         destroyOnClose
       >
         <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Space size={12}>
-              <Text strong>模型总额限制：</Text>
-            </Space>
-            <Space size={12} wrap>
-              <Space size={8}>
-                <Text type="secondary">消费额度周期：</Text>
-                <Select
-                  style={{ width: 140 }}
-                  value={totalCycle}
-                  onChange={setTotalCycle}
-                  options={CYCLE_OPTIONS}
-                />
-              </Space>
-              <Space size={8}>
-                <Text type="secondary">消费总额度：</Text>
-                <InputNumber
-                  min={1}
-                  max={99999}
-                  placeholder="1~99999"
-                  value={totalAmount}
-                  onChange={setTotalAmount}
-                  style={{ width: 160 }}
-                  addonAfter="元"
-                />
-              </Space>
-              <Space size={8}>
-                <Text type="secondary">限额状态：</Text>
-                <Select
-                  style={{ width: 160 }}
-                  value={totalEnabled}
-                  onChange={setTotalEnabled}
-                  options={STATUS_OPTIONS}
-                />
-              </Space>
-            </Space>
-            <div
-              style={{
-                borderTop: '1px dashed #eef0f4',
-                margin: '8px 0',
-                paddingTop: 12,
-              }}
-            >
-              <Space size={12} align="center">
-                <Text strong>是否开启单个模型限额：</Text>
-                <Switch
-                  checked={singleLimitEnabled}
-                  onChange={setSingleLimitEnabled}
-                />
-              </Space>
-            </div>
-          </div>
+          <Text type="secondary">
+            在下方输入框中，可批量替换消费额度，批量设置会覆盖已设置的信息，替换后支持修改。
+          </Text>
         </div>
-        {singleLimitEnabled && (
-          <>
-            <div style={{ marginBottom: 16 }}>
-              <Text type="secondary">
-                在下方输入框中，可批量替换消费额度，批量设置会覆盖已设置的信息，替换后支持修改。
-              </Text>
-            </div>
             <div
               style={{
                 display: 'flex',
@@ -1053,8 +1091,6 @@ export default function AccountList() {
             },
           ]}
         />
-          </>
-        )}
       </Modal>
 
       {/* 调整配额 弹窗 */}
@@ -1166,7 +1202,25 @@ export default function AccountList() {
 
       {/* 开通/修改资源包 弹窗 */}
       <Modal
-        title={packTargetKey && openedPackMap[packTargetKey] ? '修改资源包' : '开通资源包'}
+        title={
+          <Space size={6} align="center">
+            {packTargetKey && openedPackMap[packTargetKey] ? '修改资源包' : '开通资源包'}
+            <RequirementDot
+              title="开通资源包需求"
+              sections={[
+                {
+                  label: '功能需求',
+                  items: [
+                    '1.下拉展示已上架的资源包',
+                    '2.计价方式为预付费，每次需要验证账户调用者账户余额是否充足；计价方式为后付费，每次无需验证余额',
+                    '3.开启阶梯价，则阶梯价与资源包叠加计算；关闭则不计算阶梯价',
+                    '4.开启闲时/忙时价格，则叠加计算，关闭则不计算',
+                  ],
+                },
+              ]}
+            />
+          </Space>
+        }
         open={packModalOpen}
         onCancel={() => setPackModalOpen(false)}
         onOk={handleSavePack}
@@ -1230,7 +1284,7 @@ export default function AccountList() {
               onChange={(v) => setPackForm((f) => ({ ...f, packId: v }))}
               options={availablePacks.map((p) => ({
                 value: p.id,
-                label: `${p.name}（${p.code}）`,
+                label: p.name,
               }))}
               notFoundContent="暂无可开通的资源包"
             />
@@ -1241,22 +1295,6 @@ export default function AccountList() {
                 </Text>
               </div>
             )}
-          </div>
-
-          {/* 生效时间范围 */}
-          <div>
-            <div style={{ marginBottom: 6 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                生效时间范围
-              </Text>
-            </div>
-            <RangePicker
-              style={{ width: '100%' }}
-              value={packForm.range}
-              onChange={(v) =>
-                setPackForm((f) => ({ ...f, range: v as [Dayjs, Dayjs] | null }))
-              }
-            />
           </div>
 
           {/* 计价方式 */}
@@ -1278,7 +1316,121 @@ export default function AccountList() {
               ]}
             />
           </div>
+
+          {/* 是否启用阶梯价 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              是否启用阶梯价
+            </Text>
+            <Switch
+              checked={packForm.tieredPricing}
+              onChange={(v) => setPackForm((f) => ({ ...f, tieredPricing: v }))}
+              size="small"
+            />
+          </div>
+
+          {/* 是否使用闲时/忙时价格 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              是否使用闲时/忙时价格
+            </Text>
+            <Switch
+              checked={packForm.peakOffPeak}
+              onChange={(v) => setPackForm((f) => ({ ...f, peakOffPeak: v }))}
+              size="small"
+            />
+          </div>
         </div>
+      </Modal>
+
+      {/* 资源包详情弹窗 */}
+      <Modal
+        title="资源包详情"
+        open={packDetailOpen}
+        onCancel={() => setPackDetailOpen(false)}
+        footer={<Button onClick={() => setPackDetailOpen(false)}>关闭</Button>}
+        centered
+        width={560}
+        destroyOnClose
+      >
+        {packDetailRecord && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 8 }}>
+            {/* 基础信息 */}
+            <div
+              style={{
+                background: '#fafafa',
+                border: '1px solid #eef0f4',
+                borderRadius: 8,
+                padding: '12px 16px',
+              }}
+            >
+              <div style={{ marginBottom: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>资源包名称</Text>
+                <div style={{ marginTop: 4 }}>
+                  <Text strong>{packDetailRecord.packName}</Text>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px' }}>
+                <div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>计价方式：</Text>
+                  <Text>{packDetailRecord.billingMethod === 'prepaid' ? '预付费' : '后付费'}</Text>
+                </div>
+                <div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>阶梯价：</Text>
+                  <Text>{packDetailRecord.tieredPricing ? '已启用' : '未启用'}</Text>
+                </div>
+                <div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>闲时/忙时：</Text>
+                  <Text>{packDetailRecord.peakOffPeak ? '已启用' : '未启用'}</Text>
+                </div>
+                <div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>开通时间：</Text>
+                  <Text>{packDetailRecord.openedAt}</Text>
+                </div>
+              </div>
+            </div>
+
+            {/* 包含模型与折扣 */}
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong>包含模型与折扣</Text>
+              </div>
+              {(() => {
+                const pack = packs.find((p) => p.id === packDetailPackId)
+                if (!pack || pack.models.length === 0) {
+                  return <Text type="secondary">无模型</Text>
+                }
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {pack.models.map((m) => (
+                      <div
+                        key={m.modelId}
+                        style={{
+                          border: '1px solid #eef0f4',
+                          borderRadius: 8,
+                          padding: '8px 12px',
+                          background: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <Text>{m.modelName}</Text>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          {m.tiers.map((t, i) => (
+                            <Text key={i} style={{ color: '#ff4d4f', fontSize: 12 }}>
+                              折扣 {t.discount}%
+                            </Text>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )

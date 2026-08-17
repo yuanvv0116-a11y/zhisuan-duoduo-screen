@@ -33,6 +33,7 @@ import type { ModelItem, TokenPriceBreakdown } from '../types'
 import { useModels, useChannels } from '../store'
 import { MODEL_TYPES, modelTypeLabel, MODALS } from '../constants'
 import RequirementDot from '../components/RequirementDot'
+import ModelModal from '../components/ModelModal'
 
 const { Text } = Typography
 
@@ -177,7 +178,7 @@ const applyDiscount = (bp: TokenPriceBreakdown, discount: number): TokenPriceBre
 })
 
 export default function ModelList() {
-  const { models } = useModels()
+  const { models, addModel, updateModel } = useModels()
   const { channels } = useChannels()
 
   const [kw, setKw] = useState('')
@@ -218,6 +219,31 @@ export default function ModelList() {
     () => channels.map((c) => ({ value: c.id, label: c.name })),
     [channels],
   )
+
+  /* ---------- 添加/编辑模型弹窗 ---------- */
+  const [modelModalOpen, setModelModalOpen] = useState(false)
+  const [editingModel, setEditingModel] = useState<ModelItem | null>(null)
+
+  const openAddModel = () => {
+    setEditingModel(null)
+    setModelModalOpen(true)
+  }
+
+  const openEditModel = (m: ModelItem) => {
+    setEditingModel(m)
+    setModelModalOpen(true)
+  }
+
+  const handleModelSubmit = (data: ModelItem) => {
+    if (editingModel) {
+      updateModel(editingModel.id, data)
+      message.success('模型已更新')
+    } else {
+      addModel(data)
+      message.success('模型已创建')
+    }
+    setModelModalOpen(false)
+  }
 
   /* ---------- 生成报价单弹窗 ---------- */
   const [quoteOpen, setQuoteOpen] = useState(false)
@@ -565,7 +591,7 @@ export default function ModelList() {
             <Button icon={<FileTextOutlined />} onClick={openQuote}>
               生成报价单
             </Button>
-            <Button type="primary" icon={<PlusOutlined />}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModel}>
               添加模型
             </Button>
           </Space>
@@ -1208,6 +1234,14 @@ export default function ModelList() {
           />
         </div>
       </Modal>
+
+      {/* 添加/编辑模型 弹窗 */}
+      <ModelModal
+        open={modelModalOpen}
+        model={editingModel}
+        onClose={() => setModelModalOpen(false)}
+        onSubmit={handleModelSubmit}
+      />
     </div>
   )
 }

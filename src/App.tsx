@@ -13,6 +13,7 @@ import ModelUsageStat from './pages/ModelUsageStat'
 import ModelUsageDetail from './pages/ModelUsageDetail'
 import ModelList from './pages/ModelList'
 import ResourcePack from './pages/ResourcePack'
+import RechargeTask from './pages/RechargeTask'
 import OtherRequirements from './pages/OtherRequirements'
 
 const { Sider, Content, Header } = Layout
@@ -22,6 +23,7 @@ type RouteKey =
   | 'userList'
   | 'userTag'
   | 'accountList'
+  | 'rechargeTask'
   | 'channels'
   | 'channelModels'
   | 'channelBill'
@@ -44,6 +46,8 @@ export default function App() {
         return <UserTag />
       case 'accountList':
         return <AccountList />
+      case 'rechargeTask':
+        return <RechargeTask />
       case 'channels':
         return <ChannelManage />
       case 'channelModels':
@@ -144,7 +148,10 @@ export default function App() {
                 key: 'accountGroup',
                 icon: <WalletOutlined />,
                 label: '账户管理',
-                children: [{ key: 'accountList', label: '账户列表' }],
+                children: [
+                  { key: 'accountList', label: '账户列表' },
+                  { key: 'rechargeTask', label: '定时充值任务' },
+                ],
               },
               {
                 key: 'modelGroup',

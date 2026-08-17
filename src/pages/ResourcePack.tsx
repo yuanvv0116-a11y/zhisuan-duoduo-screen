@@ -12,8 +12,6 @@ import {
   Button,
   Popconfirm,
   Form,
-  Row,
-  Col,
   Tooltip,
   message,
 } from 'antd'
@@ -39,12 +37,6 @@ import type {
 } from '../types'
 
 const { Text } = Typography
-
-/* ---------------- 折扣方式 ---------------- */
-const PACK_PRICING_MODE_LABELS: Record<PackPricingMode, string> = {
-  token_ladder: '按照Token用量打折',
-  amount_ladder: '按照消费金额打折',
-}
 
 /** 根据原模型 pricingMode 返回可用的折扣方式：仅 token 模型支持按 Token 用量，所有模型支持按金额 */
 const availablePackModes = (pricingMode: PricingMode): PackPricingMode[] => {
@@ -147,14 +139,12 @@ const thresholdUnit = (mode: PackPricingMode): string =>
 /* ---------------- 弹窗表单状态 ---------------- */
 interface FormState {
   name: string
-  code: string
   status: 'on' | 'off'
   models: PackModelPricing[]
 }
 
 const emptyForm: FormState = {
   name: '',
-  code: '',
   status: 'on',
   models: [],
 }
@@ -172,32 +162,26 @@ export default function ResourcePackPage() {
 
   /* 搜索 */
   const [qName, setQName] = useState('')
-  const [qCode, setQCode] = useState('')
   const [qStatus, setQStatus] = useState<'all' | 'on' | 'off'>('all')
   const [appliedName, setAppliedName] = useState('')
-  const [appliedCode, setAppliedCode] = useState('')
   const [appliedStatus, setAppliedStatus] = useState<'all' | 'on' | 'off'>('all')
 
   const filtered = useMemo(() => {
     return packs.filter((p) => {
       if (appliedName && !p.name.toLowerCase().includes(appliedName.toLowerCase())) return false
-      if (appliedCode && !p.code.toLowerCase().includes(appliedCode.toLowerCase())) return false
       if (appliedStatus !== 'all' && p.status !== appliedStatus) return false
       return true
     })
-  }, [packs, appliedName, appliedCode, appliedStatus])
+  }, [packs, appliedName, appliedStatus])
 
   const handleSearch = () => {
     setAppliedName(qName)
-    setAppliedCode(qCode)
     setAppliedStatus(qStatus)
   }
   const handleReset = () => {
     setQName('')
-    setQCode('')
     setQStatus('all')
     setAppliedName('')
-    setAppliedCode('')
     setAppliedStatus('all')
   }
 
@@ -218,7 +202,6 @@ export default function ResourcePackPage() {
     setEditingId(pack.id)
     setForm({
       name: pack.name,
-      code: pack.code,
       status: pack.status,
       models: pack.models.map((m) => ({
         ...m,
@@ -231,10 +214,6 @@ export default function ResourcePackPage() {
   const handleSave = () => {
     if (!form.name.trim()) {
       message.error('请输入资源包名称')
-      return
-    }
-    if (!form.code.trim()) {
-      message.error('请输入资源包编码')
       return
     }
     if (form.models.length === 0) {
@@ -267,7 +246,6 @@ export default function ResourcePackPage() {
 
     const payload = {
       name: form.name.trim(),
-      code: form.code.trim(),
       status: form.status,
       models: form.models,
     }
@@ -322,14 +300,6 @@ export default function ResourcePackPage() {
     updatePackModel(modelId, { tiers })
   }
 
-  /* 切换折扣方式时重置阶梯 */
-  const changePackPricingMode = (modelId: string, mode: PackPricingMode) => {
-    updatePackModel(modelId, {
-      packPricingMode: mode,
-      tiers: defaultTiers(mode),
-    })
-  }
-
   /* 列表列 */
   const columns: ColumnsType<ResourcePack> = [
     {
@@ -339,13 +309,6 @@ export default function ResourcePackPage() {
       fixed: 'left',
       width: 200,
       render: (v: string) => <Text strong>{v}</Text>,
-    },
-    {
-      title: '编码',
-      dataIndex: 'code',
-      key: 'code',
-      width: 160,
-      render: (v: string) => <Text>{v}</Text>,
     },
     {
       title: '包含模型',
@@ -359,7 +322,15 @@ export default function ResourcePackPage() {
             title={
               <div style={{ lineHeight: 1.8 }}>
                 {r.models.map((m) => (
-                  <div key={m.modelId}>{m.modelName}</div>
+                  <div key={m.modelId}>
+                    {m.modelName}
+                    {m.tiers.map((t, i) => (
+                      <span key={i} style={{ paddingLeft: 8, color: 'rgba(255,255,255,0.65)' }}>
+                        折扣 {t.discount}%
+                        {i < m.tiers.length - 1 ? '，' : ''}
+                      </span>
+                    ))}
+                  </div>
                 ))}
               </div>
             }
@@ -488,16 +459,6 @@ export default function ResourcePackPage() {
               onPressEnter={handleSearch}
             />
           </SearchField>
-          <SearchField label="编码">
-            <Input
-              allowClear
-              placeholder="请输入编码"
-              style={{ width: 220 }}
-              value={qCode}
-              onChange={(e) => setQCode(e.target.value)}
-              onPressEnter={handleSearch}
-            />
-          </SearchField>
           <SearchField label="状态">
             <Select
               style={{ width: 160 }}
@@ -528,20 +489,12 @@ export default function ResourcePackPage() {
               items: '资源包 = 将一系列模型打包成一个产品，包内模型单独计价',
             },
             {
-              label: '独立定价（阶梯）',
-              items: ['按 Token 计费的模型：支持「按 Token 消耗阶梯折扣」'],
-            },
-            {
-              label: '独立配额',
-              items: ['包内每个模型独立设置 RPM / TPM 配额，不沿用 T1~T5 等级'],
-            },
-            {
               label: '上下架状态',
               items: ['资源包仅维护「上架 / 下架」状态'],
             },
             {
               label: '搜索',
-              items: ['支持根据资源包名称模糊搜索、按照编码和状态搜索'],
+              items: ['支持根据资源包名称模糊搜索、按照状态搜索'],
             },
             {
               label: '下架规则',
@@ -589,7 +542,6 @@ export default function ResourcePackPage() {
                   label: '基础信息',
                   items: [
                     '资源包名称 50 字内不可重复',
-                    '资源包编码 50 字内不可重复',
                   ],
                 },
                 {
@@ -601,22 +553,10 @@ export default function ResourcePackPage() {
                   ],
                 },
                 {
-                  label: '折扣方式配置',
+                  label: '折扣设置',
                   items: [
-                    '选择模型后需要为模型配置折扣方式',
-                    '如模型是按照 token 计费，展示 2 种：1. 按照消费金额打折 2. 按照 token 用量打折',
-                    '如果模型不按照 token 计费，展示 1 种：1. 按照消费金额打折',
-                    '选择后输入区间范围（后面数字要大于前面数字）',
-                    '为账户开通资源包后，消费金额或 token 用量大于=开始数字，则开始按照折扣计费（需要记录当前折扣）',
-                    '消费金额或 token 用量大于=结束数字，则按照平台价格计费，不记录折扣',
-                  ],
-                },
-                {
-                  label: 'RPM / TPM 配额',
-                  items: [
-                    '开通资源包后 RPM、TPM 走包内设置，资源包无效后，恢复平台设置',
-                    'RPM 限制为 1～1000 的整数',
-                    'TPM 限制为 1～999999 的整数',
+                    '折扣支持输入 0-100 的整数',
+                    '设置完展示售价和折后价',
                   ],
                 },
                 {
@@ -638,28 +578,40 @@ export default function ResourcePackPage() {
       >
         {/* 基础信息 */}
         <Form layout="vertical" requiredMark>
-          <Row gutter={24}>
-            <Col span={12}>
-              <Form.Item label="资源包名称" required>
-                <Input
-                  placeholder="请输入名称"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  maxLength={40}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="资源包编码" required>
-                <Input
-                  placeholder="请输入编码"
-                  value={form.code}
-                  onChange={(e) => setForm({ ...form, code: e.target.value })}
-                  maxLength={40}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+          <Form.Item label="资源包名称" required>
+            <Space.Compact style={{ width: '100%' }}>
+              <Input
+                placeholder="请输入名称"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                maxLength={40}
+                style={{ flex: 1 }}
+              />
+              {!editingId && (
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '0 12px',
+                    border: '1px solid #d9d9d9',
+                    borderLeft: 'none',
+                    borderRadius: '0 6px 6px 0',
+                    background: '#fff',
+                    cursor: 'pointer',
+                    height: 32,
+                  }}
+                >
+                  <Switch
+                    checked={form.status === 'on'}
+                    onChange={(v) => setForm({ ...form, status: v ? 'on' : 'off' })}
+                    checkedChildren="上架"
+                    unCheckedChildren="下架"
+                    size="small"
+                  />
+                </div>
+              )}
+            </Space.Compact>
+          </Form.Item>
         </Form>
 
         {/* 包内模型定价 */}
@@ -765,32 +717,10 @@ export default function ResourcePackPage() {
                       </div>
                     </div>
 
-                    {/* 折扣方式 */}
-                    <div style={{ marginBottom: 10 }}>
-                      <div style={{ marginBottom: 4 }}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          折扣方式
-                        </Text>
-                      </div>
-                      <Select
-                        value={m.packPricingMode}
-                        onChange={(v) => changePackPricingMode(m.modelId, v)}
-                        style={{ width: '100%' }}
-                        size="small"
-                        options={availablePackModes(m.pricingMode).map((mode) => ({
-                          value: mode,
-                          label: PACK_PRICING_MODE_LABELS[mode],
-                        }))}
-                      />
-                    </div>
-
-                    {/* 阶梯卡片：区间 + 折扣 + 成本价 + 售价 + 折后价 */}
+                    {/* 阶梯卡片：折扣 + 售价 + 折后价 */}
                     <Space direction="vertical" size={10} style={{ width: '100%', marginBottom: 10 }}>
                       {m.tiers.map((t, idx) => {
                         const curPrices = applyDiscount(m.basePrices, t.discount)
-                        const step = m.packPricingMode === 'token_ladder' ? 100000 : 100
-                        const precision = m.packPricingMode === 'token_ladder' ? 0 : 2
-                        const unitLabel = m.packPricingMode === 'token_ladder' ? 'Token' : '元'
 
                         const renderPriceRow = (
                           label: string,
@@ -881,68 +811,31 @@ export default function ResourcePackPage() {
                               background: idx === m.tiers.length - 1 ? '#fafcff' : '#fff',
                             }}
                           >
-                            {/* 首行：区间开始 - 结束 + 折扣 */}
+                            {/* 首行：折扣 */}
                             <div
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 14,
+                                gap: 8,
                                 marginBottom: 10,
-                                flexWrap: 'wrap',
                               }}
                             >
-                              <Space size={6} align="center">
-                                <InputNumber
-                                  value={t.start}
-                                  onChange={(v) =>
-                                    updateTier(m.modelId, idx, { start: v ?? 0 })
-                                  }
-                                  min={0}
-                                  step={step}
-                                  precision={precision}
-                                  size="small"
-                                  style={{ width: 140 }}
-                                  addonAfter={unitLabel}
-                                />
-                                <Text type="secondary">-</Text>
-                                <InputNumber
-                                  value={t.threshold}
-                                  onChange={(v) =>
-                                    updateTier(m.modelId, idx, { threshold: v ?? 0 })
-                                  }
-                                  min={0}
-                                  step={step}
-                                  precision={precision}
-                                  size="small"
-                                  style={{ width: 140 }}
-                                  addonAfter={unitLabel}
-                                />
-                              </Space>
-                              <div
-                                style={{
-                                  marginLeft: 'auto',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 8,
-                                }}
-                              >
-                                <Text type="secondary" style={{ fontSize: 12 }}>
-                                  折扣
-                                </Text>
-                                <InputNumber
-                                  value={t.discount}
-                                  onChange={(v) =>
-                                    updateTier(m.modelId, idx, { discount: v ?? 100 })
-                                  }
-                                  min={1}
-                                  max={100}
-                                  step={1}
-                                  precision={0}
-                                  size="small"
-                                  style={{ width: 110 }}
-                                  suffix="%"
-                                />
-                              </div>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                折扣
+                              </Text>
+                              <InputNumber
+                                value={t.discount}
+                                onChange={(v) =>
+                                  updateTier(m.modelId, idx, { discount: v ?? 100 })
+                                }
+                                min={1}
+                                max={100}
+                                step={1}
+                                precision={0}
+                                size="small"
+                                style={{ width: 110 }}
+                                suffix="%"
+                              />
                             </div>
                             {/* 售价 / 折后价：两列横向并排，每列内部纵向 */}
                             <div
@@ -960,43 +853,6 @@ export default function ResourcePackPage() {
                         )
                       })}
                     </Space>
-
-                    {/* RPM / TPM 设置 */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 24,
-                        padding: '8px 0 0',
-                        borderTop: '1px dashed #eef0f4',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          RPM（请求/分钟）
-                        </Text>
-                        <InputNumber
-                          value={m.rpm}
-                          onChange={(v) => updatePackModel(m.modelId, { rpm: v ?? 0 })}
-                          min={0}
-                          size="small"
-                          style={{ width: 120 }}
-                        />
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          TPM（Token/分钟）
-                        </Text>
-                        <InputNumber
-                          value={m.tpm}
-                          onChange={(v) => updatePackModel(m.modelId, { tpm: v ?? 0 })}
-                          min={0}
-                          size="small"
-                          style={{ width: 120 }}
-                        />
-                      </div>
-                    </div>
                   </div>
                 )
               })}

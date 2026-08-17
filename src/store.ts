@@ -470,13 +470,12 @@ export function useModels() {
 
 /* ---------------- 资源包 ---------------- */
 
-const PACK_STORAGE_KEY = 'zsdd_resource_packs_v10'
+const PACK_STORAGE_KEY = 'zsdd_resource_packs_v11'
 
 const packSeed: ResourcePack[] = [
   {
     id: uid(),
     name: '全能大模型套餐 A',
-    code: 'PACK-AI-A001',
     status: 'on',
     models: [
       {
@@ -522,7 +521,6 @@ const packSeed: ResourcePack[] = [
   {
     id: uid(),
     name: '视觉创作包',
-    code: 'PACK-VIS-B002',
     status: 'off',
     models: [
       {
