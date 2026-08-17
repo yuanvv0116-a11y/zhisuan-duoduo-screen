@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Card, Input, Select, Button, Breadcrumb, Table, Tag, Typography, Space, Modal, InputNumber, DatePicker, Tooltip, message, Popconfirm } from 'antd'
+import { Card, Input, Select, Button, Breadcrumb, Table, Tag, Typography, Space, Modal, InputNumber, DatePicker, Tooltip, message, Popconfirm, Switch } from 'antd'
 const { confirm } = Modal
 const { RangePicker } = DatePicker
 import type { ColumnsType } from 'antd/es/table'
@@ -183,8 +183,8 @@ const CYCLE_OPTIONS = [
 ]
 
 const STATUS_OPTIONS = [
-  { value: true, label: '开启消费额度' },
-  { value: false, label: '关闭消费额度' },
+  { value: true, label: '开启消费限额' },
+  { value: false, label: '关闭消费限额' },
 ]
 
 const DEFAULT_MODEL_ROWS: QuotaModelRow[] = [
@@ -250,6 +250,10 @@ export default function AccountList() {
   const [batchAmount, setBatchAmount] = useState<number | null>(null)
   const [batchEnabled, setBatchEnabled] = useState<boolean>(true)
   const [quotaRows, setQuotaRows] = useState<QuotaModelRow[]>([])
+  const [singleLimitEnabled, setSingleLimitEnabled] = useState(false)
+  const [totalCycle, setTotalCycle] = useState<QuotaModelRow['cycle']>('monthly')
+  const [totalAmount, setTotalAmount] = useState<number | null>(null)
+  const [totalEnabled, setTotalEnabled] = useState<boolean>(true)
   const [limitModalOpen, setLimitModalOpen] = useState(false)
   const [limitSearch, setLimitSearch] = useState('')
   const [batchLevel, setBatchLevel] = useState<string>('T1')
@@ -421,7 +425,7 @@ export default function AccountList() {
     }
     confirm({
       title: '确认替换',
-      content: '您即将将所有额度状态替换为「关闭消费额度」，是否确认操作？',
+      content: '您即将将所有限额状态替换为「关闭消费限额」，是否确认操作？',
       okText: '确认',
       cancelText: '取消',
       onOk: () => {
@@ -802,6 +806,19 @@ export default function AccountList() {
                   items: ['限额的模型列表按照模型上架时间倒序展示'],
                 },
                 {
+                  label: '模型总额限制',
+                  items: [
+                    '支持设置模型总额度，为消费周期上限费用。需要开启才生效',
+                  ],
+                },
+                {
+                  label: '单个模型限额',
+                  items: [
+                    '开启单个模型限额后，可为单个模型设置限额，不用约束与总额的关系',
+                    '用户使用时，优先验证总额，总额可用，再验证单个模型限额；总额不可用，则全部模型不可用',
+                  ],
+                },
+                {
                   label: '限额周期解释',
                   items: [
                     '每日：每天00:00清空前一天限额，重新计算限额',
@@ -857,52 +874,115 @@ export default function AccountList() {
         destroyOnClose
       >
         <div style={{ marginBottom: 16 }}>
-          <Text type="secondary">
-            在下方输入框中，可批量替换消费额度，批量设置会覆盖已设置的信息，替换后支持修改。
-          </Text>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Space size={12}>
+              <Text strong>模型总额限制：</Text>
+            </Space>
+            <Space size={12} wrap>
+              <Space size={8}>
+                <Text type="secondary">消费额度周期：</Text>
+                <Select
+                  style={{ width: 140 }}
+                  value={totalCycle}
+                  onChange={setTotalCycle}
+                  options={CYCLE_OPTIONS}
+                />
+              </Space>
+              <Space size={8}>
+                <Text type="secondary">消费总额度：</Text>
+                <InputNumber
+                  min={1}
+                  max={99999}
+                  placeholder="1~99999"
+                  value={totalAmount}
+                  onChange={setTotalAmount}
+                  style={{ width: 160 }}
+                  addonAfter="元"
+                />
+              </Space>
+              <Space size={8}>
+                <Text type="secondary">限额状态：</Text>
+                <Select
+                  style={{ width: 160 }}
+                  value={totalEnabled}
+                  onChange={setTotalEnabled}
+                  options={STATUS_OPTIONS}
+                />
+              </Space>
+            </Space>
+            <div
+              style={{
+                borderTop: '1px dashed #eef0f4',
+                margin: '8px 0',
+                paddingTop: 12,
+              }}
+            >
+              <Space size={12} align="center">
+                <Text strong>是否开启单个模型限额：</Text>
+                <Switch
+                  checked={singleLimitEnabled}
+                  onChange={setSingleLimitEnabled}
+                />
+              </Space>
+            </div>
+          </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-          <Space size={12}>
-            <Text>消费额度周期：</Text>
-            <Select
-              style={{ width: 140 }}
-              value={batchCycle}
-              onChange={setBatchCycle}
-              options={CYCLE_OPTIONS}
-            />
-            <Button type="primary" onClick={handleReplaceCycle}>
-              批量替换
-            </Button>
-          </Space>
-          <Space size={12}>
-            <Text>消费额度：</Text>
-            <InputNumber
-              min={1}
-              max={99999}
-              placeholder="1~99999"
-              value={batchAmount}
-              onChange={setBatchAmount}
-              style={{ width: 160 }}
-              addonAfter="元"
-            />
-            <Button type="primary" onClick={handleReplaceAmount}>
-              批量替换
-            </Button>
-          </Space>
-          <Space size={12}>
-            <Text>额度状态：</Text>
-            <Select
-              style={{ width: 160 }}
-              value={batchEnabled}
-              onChange={setBatchEnabled}
-              options={STATUS_OPTIONS}
-            />
-            <Button type="primary" onClick={handleReplaceEnabled}>
-              批量替换
-            </Button>
-          </Space>
-        </div>
-        <Table<QuotaModelRow>
+        {singleLimitEnabled && (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <Text type="secondary">
+                在下方输入框中，可批量替换消费额度，批量设置会覆盖已设置的信息，替换后支持修改。
+              </Text>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                marginBottom: 16,
+              }}
+            >
+              <Space size={12}>
+                <Text>消费额度周期：</Text>
+                <Select
+                  style={{ width: 140 }}
+                  value={batchCycle}
+                  onChange={setBatchCycle}
+                  options={CYCLE_OPTIONS}
+                />
+                <Button type="primary" onClick={handleReplaceCycle}>
+                  批量替换
+                </Button>
+              </Space>
+              <Space size={12}>
+                <Text>消费额度：</Text>
+                <InputNumber
+                  min={1}
+                  max={99999}
+                  placeholder="1~99999"
+                  value={batchAmount}
+                  onChange={setBatchAmount}
+                  style={{ width: 160 }}
+                  addonAfter="元"
+                />
+                <Button type="primary" onClick={handleReplaceAmount}>
+                  批量替换
+                </Button>
+              </Space>
+              <Space size={12}>
+                <Text>限额状态：</Text>
+                <Select
+                  style={{ width: 160 }}
+                  value={batchEnabled}
+                  onChange={setBatchEnabled}
+                  options={STATUS_OPTIONS}
+                />
+                <Button type="primary" onClick={handleReplaceEnabled}>
+                  批量替换
+                </Button>
+              </Space>
+            </div>
+            <Table<QuotaModelRow>
           rowKey="key"
           pagination={false}
           size="small"
@@ -953,7 +1033,7 @@ export default function AccountList() {
               ),
             },
             {
-              title: '额度状态',
+              title: '限额状态',
               dataIndex: 'enabled',
               width: 220,
               render: (v: boolean, record, index) => (
@@ -973,6 +1053,8 @@ export default function AccountList() {
             },
           ]}
         />
+          </>
+        )}
       </Modal>
 
       {/* 调整配额 弹窗 */}
