@@ -556,7 +556,6 @@ export default function ResourcePackPage() {
                   label: '折扣设置',
                   items: [
                     '折扣支持输入 0-100 的整数',
-                    '设置完展示售价和折后价',
                   ],
                 },
                 {
@@ -647,13 +646,6 @@ export default function ResourcePackPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {form.models.map((m) => {
-                const isToken = m.pricingMode === 'token'
-                const sellPrices = m.basePrices
-                const priceKeys: (keyof TokenPriceBreakdown)[] = isToken
-                  ? ['input', 'output', 'cacheRead', 'cacheCreate']
-                  : ['output']
-                const unitShort = m.baseUnit.replace('元/', '')
-
                 return (
                   <div
                     key={m.modelId}
@@ -661,198 +653,37 @@ export default function ResourcePackPage() {
                       background: '#fff',
                       border: '1px solid #eef0f4',
                       borderRadius: 8,
-                      padding: 12,
+                      padding: '12px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
                     }}
                   >
-                    {/* 模型头：模型名称 + 删除按钮 */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: 10,
-                      }}
-                    >
-                      <Text strong>{m.modelName}</Text>
-                      <Button
-                        type="text"
-                        size="small"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => removePackModel(m.modelId)}
-                      />
-                    </div>
-
-                    {/* 模型名称下方：模型渠道 + 计价方式 */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 24,
-                        marginBottom: 10,
-                        padding: '8px 0',
-                        borderBottom: '1px dashed #eef0f4',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          计价方式
-                        </Text>
-                        <Tag color="geekblue">{pricingModeLabel(m.pricingMode)}</Tag>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          模型渠道
-                        </Text>
-                        {(() => {
-                          const modelFull = models.find((mm) => mm.id === m.modelId)
-                          const apis = modelFull?.apiConfigs ?? []
-                          if (!apis.length) return <Text type="secondary">—</Text>
-                          const cid = apis[0].channelId
-                          return (
-                            <Tag color="blue">{channelNameMap[cid] ?? '—'}</Tag>
-                          )
-                        })()}
-                      </div>
-                    </div>
-
-                    {/* 阶梯卡片：折扣 + 售价 + 折后价 */}
-                    <Space direction="vertical" size={10} style={{ width: '100%', marginBottom: 10 }}>
-                      {m.tiers.map((t, idx) => {
-                        const curPrices = applyDiscount(m.basePrices, t.discount)
-
-                        const renderPriceRow = (
-                          label: string,
-                          prices: TokenPriceBreakdown,
-                          color: string,
-                          vertical = false,
-                        ) => {
-                          const items = priceKeys.map((k) => {
-                            const val = prices[k]
-                            const show = isToken ? val > 0 : k === 'output'
-                            return (
-                              <Text
-                                key={k}
-                                style={{
-                                  color,
-                                  fontWeight: 500,
-                                  fontSize: 13,
-                                  lineHeight: '20px',
-                                }}
-                              >
-                                {PRICE_LABELS[k]} ¥
-                                {show ? val.toFixed(4) : '—'}
-                                {show && (
-                                  <Text
-                                    type="secondary"
-                                    style={{ fontSize: 11, marginLeft: 2 }}
-                                  >
-                                    /{unitShort}
-                                  </Text>
-                                )}
-                              </Text>
-                            )
-                          })
-
-                          if (vertical) {
-                            return (
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: 4,
-                                }}
-                              >
-                                <Text type="secondary" style={{ fontSize: 12 }}>
-                                  {label}
-                                </Text>
-                                <div
-                                  style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: 2,
-                                    paddingLeft: 12,
-                                  }}
-                                >
-                                  {items}
-                                </div>
-                              </div>
-                            )
-                          }
-
-                          return (
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'baseline',
-                                gap: 14,
-                                flexWrap: 'wrap',
-                              }}
-                            >
-                              <Text
-                                type="secondary"
-                                style={{ fontSize: 12, minWidth: 42 }}
-                              >
-                                {label}
-                              </Text>
-                              {items}
-                            </div>
-                          )
-                        }
-
-                        return (
-                          <div
-                            key={idx}
-                            style={{
-                              border: '1px solid #eef0f4',
-                              borderRadius: 8,
-                              padding: '12px 14px',
-                              background: idx === m.tiers.length - 1 ? '#fafcff' : '#fff',
-                            }}
-                          >
-                            {/* 首行：折扣 */}
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                marginBottom: 10,
-                              }}
-                            >
-                              <Text type="secondary" style={{ fontSize: 12 }}>
-                                折扣
-                              </Text>
-                              <InputNumber
-                                value={t.discount}
-                                onChange={(v) =>
-                                  updateTier(m.modelId, idx, { discount: v ?? 100 })
-                                }
-                                min={1}
-                                max={100}
-                                step={1}
-                                precision={0}
-                                size="small"
-                                style={{ width: 110 }}
-                                suffix="%"
-                              />
-                            </div>
-                            {/* 售价 / 折后价：两列横向并排，每列内部纵向 */}
-                            <div
-                              style={{
-                                display: 'flex',
-                                gap: 40,
-                                paddingLeft: 4,
-                                flexWrap: 'wrap',
-                              }}
-                            >
-                              {renderPriceRow('售价', sellPrices, '#333', true)}
-                              {renderPriceRow('折后价', curPrices, '#fa541c', true)}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </Space>
+                    <Text strong>{m.modelName}</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      折扣
+                    </Text>
+                    <InputNumber
+                      value={m.tiers[0]?.discount ?? 100}
+                      onChange={(v) =>
+                        updateTier(m.modelId, 0, { discount: v ?? 100 })
+                      }
+                      min={1}
+                      max={100}
+                      step={1}
+                      precision={0}
+                      size="small"
+                      style={{ width: 110 }}
+                      suffix="%"
+                    />
+                    <div style={{ flex: 1 }} />
+                    <Button
+                      type="text"
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => removePackModel(m.modelId)}
+                    />
                   </div>
                 )
               })}
