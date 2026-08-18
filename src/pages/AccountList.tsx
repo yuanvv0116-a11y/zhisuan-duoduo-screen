@@ -58,10 +58,6 @@ interface OpenedPack {
   packName: string
   /** 计价方式：预付费 / 后付费 */
   billingMethod: 'prepaid' | 'postpaid'
-  /** 是否启用阶梯价 */
-  tieredPricing: boolean
-  /** 是否使用闲时/忙时价格 */
-  peakOffPeak: boolean
   openedAt: string
 }
 
@@ -69,8 +65,6 @@ interface OpenedPack {
 interface PackFormState {
   packId: string | null
   billingMethod: 'prepaid' | 'postpaid'
-  tieredPricing: boolean
-  peakOffPeak: boolean
 }
 
 const ROWS: AccountRow[] = [
@@ -297,8 +291,6 @@ export default function AccountList() {
   const [packForm, setPackForm] = useState<PackFormState>({
     packId: null,
     billingMethod: 'prepaid',
-    tieredPricing: false,
-    peakOffPeak: false,
   })
 
   /* 资源包详情弹窗 */
@@ -320,11 +312,9 @@ export default function AccountList() {
       setPackForm({
         packId: existing.packId,
         billingMethod: existing.billingMethod,
-        tieredPricing: existing.tieredPricing,
-        peakOffPeak: existing.peakOffPeak,
       })
     } else {
-      setPackForm({ packId: null, billingMethod: 'prepaid', tieredPricing: false, peakOffPeak: false })
+      setPackForm({ packId: null, billingMethod: 'prepaid' })
     }
     setPackModalOpen(true)
   }
@@ -343,8 +333,6 @@ export default function AccountList() {
       packId: pack.id,
       packName: pack.name,
       billingMethod: packForm.billingMethod,
-      tieredPricing: packForm.tieredPricing,
-      peakOffPeak: packForm.peakOffPeak,
       openedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
     }
     setOpenedPackMap((prev) => ({ ...prev, [packTargetKey!]: record }))
@@ -1213,8 +1201,6 @@ export default function AccountList() {
                   items: [
                     '1.下拉展示已上架的资源包',
                     '2.计价方式为预付费，每次需要验证账户调用者账户余额是否充足；计价方式为后付费，每次无需验证余额',
-                    '3.开启阶梯价，则阶梯价与资源包叠加计算；关闭则不计算阶梯价',
-                    '4.开启闲时/忙时价格，则叠加计算，关闭则不计算',
                   ],
                 },
               ]}
@@ -1316,30 +1302,6 @@ export default function AccountList() {
               ]}
             />
           </div>
-
-          {/* 是否启用阶梯价 */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              是否启用阶梯价
-            </Text>
-            <Switch
-              checked={packForm.tieredPricing}
-              onChange={(v) => setPackForm((f) => ({ ...f, tieredPricing: v }))}
-              size="small"
-            />
-          </div>
-
-          {/* 是否使用闲时/忙时价格 */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              是否使用闲时/忙时价格
-            </Text>
-            <Switch
-              checked={packForm.peakOffPeak}
-              onChange={(v) => setPackForm((f) => ({ ...f, peakOffPeak: v }))}
-              size="small"
-            />
-          </div>
         </div>
       </Modal>
 
@@ -1374,14 +1336,6 @@ export default function AccountList() {
                 <div>
                   <Text type="secondary" style={{ fontSize: 12 }}>计价方式：</Text>
                   <Text>{packDetailRecord.billingMethod === 'prepaid' ? '预付费' : '后付费'}</Text>
-                </div>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>阶梯价：</Text>
-                  <Text>{packDetailRecord.tieredPricing ? '已启用' : '未启用'}</Text>
-                </div>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>闲时/忙时：</Text>
-                  <Text>{packDetailRecord.peakOffPeak ? '已启用' : '未启用'}</Text>
                 </div>
                 <div>
                   <Text type="secondary" style={{ fontSize: 12 }}>开通时间：</Text>
