@@ -190,3 +190,55 @@ export interface ResourcePack {
   operator: string
   createdAt: string
 }
+
+/* ---------------- Token 套餐 ---------------- */
+
+/** 套餐级别 */
+export type PlanLevel = 'lite' | 'standard' | 'pro' | 'max'
+
+/** 有效期单位 */
+export type PlanValidityUnit = 'day' | 'week' | 'month' | 'quarter' | 'year'
+
+/** 用量限制周期单位（在有效期内，每个周期的 Token 限额） */
+export type PlanUsagePeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+
+/** Token 套餐 */
+export interface TokenPlan {
+  id: string
+  /** 套餐名称 */
+  name: string
+  /** 副标题 */
+  subtitle?: string
+  /** 套餐级别 */
+  level: PlanLevel
+  /** 摘要 */
+  summary?: string
+  /** 售价（元） */
+  price: number
+  /** 折扣（0-100，100 = 不打折，90 = 9折，0 = 1折） */
+  discount: number
+  /** 用量限制数值（Token 数量） */
+  usageLimit: number
+  /** 用量限制周期单位：在有效期内每个周期的 Token 限额 */
+  usagePeriod: PlanUsagePeriod
+  /** 有效期数值 */
+  validityValue: number
+  /** 有效期单位 */
+  validityUnit: PlanValidityUnit
+  /** 是否支持自动续费 */
+  autoRenew: boolean
+  /** 上下架状态 */
+  status: 'on' | 'off'
+  /** 包含的模型 ID 列表 */
+  modelIds: string[]
+  /** 操作人 */
+  operator: string
+  /** 创建时间 */
+  createdAt: string
+}
+
+/** 折后价 = 售价 × 折扣 ÷ 100；折扣为 0 时返回原价（不打折） */
+export const calcPlanDiscountedPrice = (price: number, discount: number): number => {
+  if (discount <= 0) return price
+  return Math.round(price * discount) / 100
+}

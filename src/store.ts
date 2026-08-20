@@ -1,5 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react'
-import type { Channel, ChannelModelItem, ModelItem, ResourcePack } from './types'
+import type { Channel, ChannelModelItem, ModelItem, ResourcePack, TokenPlan } from './types'
 
 const STORAGE_KEY = 'zsdd_channels_v5'
 
@@ -595,4 +595,133 @@ export function useResourcePacks() {
   }, [])
 
   return { packs, addPack, updatePack, removePack }
+}
+
+/* ---------------- Token 套餐 ---------------- */
+
+const PLAN_STORAGE_KEY = 'zsdd_token_plans_v5'
+
+const planSeed: TokenPlan[] = [
+  {
+    id: uid(),
+    name: '新手套餐（Lite）',
+    subtitle: '专为初次接触大模型的用户设计，以轻量配额提供核心API调用能力，是快速验证场景可行性的最佳起点',
+    level: 'lite',
+    summary: '适合首次体验龙虾能力，可执行约 70 轮问答',
+    price: 60,
+    discount: 65,
+    usageLimit: 3500000,
+    usagePeriod: 'monthly',
+    validityValue: 1,
+    validityUnit: 'month',
+    autoRenew: true,
+    status: 'on',
+    modelIds: [],
+    operator: '管理员',
+    createdAt: '2026-08-10',
+  },
+  {
+    id: uid(),
+    name: '进阶套餐（Standard）',
+    subtitle: '综合成本与性能最优解。适配中高频调用需求，兼顾响应质量与经济性，是独立开发者的理想选择',
+    level: 'standard',
+    summary: '日常使用，高性价比，可执行约 200 轮问答',
+    price: 199,
+    discount: 70,
+    usageLimit: 100000000,
+    usagePeriod: 'monthly',
+    validityValue: 1,
+    validityUnit: 'month',
+    autoRenew: true,
+    status: 'on',
+    modelIds: [],
+    operator: '管理员',
+    createdAt: '2026-08-12',
+  },
+  {
+    id: uid(),
+    name: '专业套餐（Pro）',
+    subtitle: '高并发、低延迟、专属资源，为深度依赖大模型的规模化应用提供坚实底座。是承载关键业务的核心引擎',
+    level: 'pro',
+    summary: '适合每天高频使用 AI 的开发者和效率达人',
+    price: 599,
+    discount: 83,
+    usageLimit: 320000000,
+    usagePeriod: 'monthly',
+    validityValue: 1,
+    validityUnit: 'month',
+    autoRenew: true,
+    status: 'on',
+    modelIds: [],
+    operator: '管理员',
+    createdAt: '2026-08-15',
+  },
+  {
+    id: uid(),
+    name: 'Max',
+    subtitle: '极致额度加持，重度 AI 开发首选',
+    level: 'max',
+    summary: '适合把 AI 当核心生产力工具的重度用户',
+    price: 599,
+    discount: 100,
+    usageLimit: 650000000,
+    usagePeriod: 'monthly',
+    validityValue: 1,
+    validityUnit: 'month',
+    autoRenew: false,
+    status: 'on',
+    modelIds: [],
+    operator: '管理员',
+    createdAt: '2026-08-18',
+  },
+]
+
+function loadPlans(): TokenPlan[] {
+  try {
+    const raw = localStorage.getItem(PLAN_STORAGE_KEY)
+    if (raw) return JSON.parse(raw) as TokenPlan[]
+  } catch {
+    /* ignore */
+  }
+  localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(planSeed))
+  return planSeed
+}
+
+let planState: TokenPlan[] = loadPlans()
+const planListeners = new Set<() => void>()
+
+function emitPlans() {
+  localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(planState))
+  planListeners.forEach((l) => l())
+}
+
+function subscribePlans(cb: () => void) {
+  planListeners.add(cb)
+  return () => planListeners.delete(cb)
+}
+
+function getPlansSnapshot() {
+  return planState
+}
+
+export function useTokenPlans() {
+  const plans = useSyncExternalStore(subscribePlans, getPlansSnapshot)
+
+  const addPlan = useCallback((p: Omit<TokenPlan, 'id' | 'createdAt' | 'operator'>) => {
+    const now = new Date().toISOString().slice(0, 10)
+    planState = [{ ...p, id: uid(), createdAt: now, operator: CURRENT_OPERATOR }, ...planState]
+    emitPlans()
+  }, [])
+
+  const updatePlan = useCallback((id: string, patch: Partial<TokenPlan>) => {
+    planState = planState.map((p) => (p.id === id ? { ...p, ...patch } : p))
+    emitPlans()
+  }, [])
+
+  const removePlan = useCallback((id: string) => {
+    planState = planState.filter((p) => p.id !== id)
+    emitPlans()
+  }, [])
+
+  return { plans, addPlan, updatePlan, removePlan }
 }

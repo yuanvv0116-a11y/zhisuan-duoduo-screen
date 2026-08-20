@@ -194,6 +194,7 @@ interface LimitModelRow {
   key: string
   modelName: string
   limitLevel: 'T1' | 'T2' | 'T3' | 'T4' | 'T5' | null
+  deleted?: boolean
 }
 
 const LIMIT_PRESETS: Record<string, { rpm: number; tpm: number }> = {
@@ -246,10 +247,10 @@ export default function AccountList() {
   const [batchEnabled, setBatchEnabled] = useState<boolean>(true)
   const [quotaRows, setQuotaRows] = useState<QuotaModelRow[]>([])
   const [limitModalOpen, setLimitModalOpen] = useState(false)
-  const [limitSearch, setLimitSearch] = useState('')
-  const [batchLevel, setBatchLevel] = useState<string>('T1')
   const [limitRows, setLimitRows] = useState<LimitModelRow[]>([])
-  const [selectedLimitKeys, setSelectedLimitKeys] = useState<React.Key[]>([])
+  const [modelSelectValue, setModelSelectValue] = useState<string[]>([])
+  const [batchReplaceOpen, setBatchReplaceOpen] = useState(false)
+  const [batchReplaceLevel, setBatchReplaceLevel] = useState<string>('T1')
 
   /* 批量设置余额 */
   const [balanceModalOpen, setBalanceModalOpen] = useState(false)
@@ -462,41 +463,60 @@ export default function AccountList() {
       message.warning('请选择要设置的账户')
       return
     }
-    setLimitRows(ALL_MODEL_LIST.map((r) => ({ ...r })))
-    setLimitSearch('')
-    setBatchLevel('T1')
-    setSelectedLimitKeys([])
+    setLimitRows([])
+    setModelSelectValue([])
     setLimitModalOpen(true)
   }
 
-  const filteredLimitRows = useMemo(() => {
-    if (!limitSearch) return limitRows
-    const k = limitSearch.toLowerCase()
-    return limitRows.filter((r) => r.modelName.toLowerCase().includes(k))
-  }, [limitRows, limitSearch])
-
-  const handleReplaceLevel = () => {
-    if (selectedLimitKeys.length === 0) {
-      message.warning('请选择要设置的模型')
-      return
-    }
-    confirm({
-      title: '确认替换',
-      content: `您即将将所选模型的限额等级替换为「${batchLevel}」，是否确认操作？`,
-      okText: '确认',
-      cancelText: '取消',
-      onOk: () => {
-        setLimitRows((prev) =>
-          prev.map((r) =>
-            selectedLimitKeys.includes(r.key) ? { ...r, limitLevel: batchLevel as LimitModelRow['limitLevel'] } : r,
-          ),
-        )
-        message.success('替换成功')
-      },
+  const handleModelSelectChange = (keys: string[]) => {
+    setModelSelectValue(keys)
+    setLimitRows((prev) => {
+      const prevKeys = prev.map((r) => r.key)
+      const added = keys.filter((k) => !prevKeys.includes(k))
+      const removed = prevKeys.filter((k) => !keys.includes(k))
+      let next = [...prev]
+      next = next.filter((r) => !removed.includes(r.key))
+      for (const k of added) {
+        const model = ALL_MODEL_LIST.find((m) => m.key === k)
+        if (model) {
+          next.push({ key: model.key, modelName: model.modelName, limitLevel: null })
+        }
+      }
+      return next
     })
   }
 
+  const removeLimitRow = (key: string) => {
+    setLimitRows((prev) => prev.filter((r) => r.key !== key))
+    setModelSelectValue((prev) => prev.filter((k) => k !== key))
+  }
+
+  const handleLimitLevelChange = (key: string, level: LimitModelRow['limitLevel']) => {
+    setLimitRows((prev) => prev.map((r) => (r.key === key ? { ...r, limitLevel: level } : r)))
+  }
+
+  const openBatchReplace = () => {
+    if (limitRows.length === 0) {
+      message.warning('请先选择模型')
+      return
+    }
+    setBatchReplaceLevel('T1')
+    setBatchReplaceOpen(true)
+  }
+
+  const confirmBatchReplace = () => {
+    setLimitRows((prev) => prev.map((r) => ({ ...r, limitLevel: batchReplaceLevel as LimitModelRow['limitLevel'] })))
+    setBatchReplaceOpen(false)
+    message.success('批量替换成功')
+  }
+
   const handleSaveLimit = () => {
+    const missing = limitRows.filter((r) => !r.limitLevel)
+    if (missing.length > 0) {
+      const names = missing.map((r) => r.modelName).join('、')
+      message.error(`${names} 未填入限额等级，请填写后保存`)
+      return
+    }
     message.success('保存成功，已向所选账户发送通知')
     setLimitModalOpen(false)
   }
@@ -1092,9 +1112,9 @@ export default function AccountList() {
                 {
                   label: '功能需求',
                   items: [
-                    '1.支持根据模型名称模糊搜索模型',
-                    '2.支持批量替换限额；仅页面展示为替换的限额，保存后才生效',
-                    '3.点击批量替换时候，检查是否选中模型，未选择提示"请选择模型"，选择后，批量替换功能仅对选择的模型生效。注意：如第一次选择了3个模型，限额批量替换为t1；页面未关闭，也未保存，又选择了4个，设置为t5。则保存的时候要对前后的7个模型的限额都做修改。',
+                    '1.多选择下选择所有未删除模型，列表展示选中模型，选中后展示在列表中，默认不展示限额等级、RPM、TPM。下拉选择配额等级后，自动填入RPM、TPM',
+                    '2.支持批量替换限额等级；',
+                    '3.保存时验证所有模型是否都已填入限额等级；未填入提示"xx模型未填入限额等级，请填写后保存"，均填入后，为已选中的用户，将以上模型的配额调整为本次修改的配额。',
                   ],
                 },
               ]}
@@ -1110,82 +1130,132 @@ export default function AccountList() {
         width={900}
         destroyOnClose
       >
-        <div style={{ marginBottom: 16 }}>
-          <Text type="secondary">
-            可为选择的模型批量替换限额，替换后请点击<span style={{ color: '#ff4d4f' }}>【保存】</span>按钮才可生效
-          </Text>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <div style={{ marginBottom: 6 }}>
+              <Text type="secondary">请选择待调整的模型（支持多选）</Text>
+            </div>
+            <Select
+              mode="multiple"
+              placeholder="点击选择模型..."
+              value={modelSelectValue}
+              onChange={handleModelSelectChange}
+              style={{ width: '100%' }}
+              optionLabelProp="label"
+              options={ALL_MODEL_LIST.filter((m) => !m.deleted).map((m) => ({
+                value: m.key,
+                label: m.modelName,
+              }))}
+            />
+          </div>
+
+          {limitRows.length > 0 && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Space>
+                  <Text strong>已选模型（{limitRows.length}）</Text>
+                </Space>
+                <Space>
+                  <Button type="primary" onClick={openBatchReplace}>
+                    批量替换
+                  </Button>
+                </Space>
+              </div>
+              <Table<LimitModelRow>
+                rowKey="key"
+                pagination={false}
+                size="small"
+                scroll={{ y: 320 }}
+                dataSource={limitRows}
+                columns={[
+                  {
+                    title: '模型名称',
+                    dataIndex: 'modelName',
+                    width: 220,
+                  },
+                  {
+                    title: '限额等级',
+                    dataIndex: 'limitLevel',
+                    width: 140,
+                    render: (v: LimitModelRow['limitLevel'], record) => (
+                      <Select
+                        placeholder="请选择"
+                        style={{ width: '100%' }}
+                        value={v || undefined}
+                        onChange={(nv) => handleLimitLevelChange(record.key, nv as LimitModelRow['limitLevel'])}
+                        options={LIMIT_LEVEL_OPTIONS}
+                      />
+                    ),
+                  },
+                  {
+                    title: 'RPM（请求/分钟）',
+                    dataIndex: 'limitLevel',
+                    width: 140,
+                    render: (v: LimitModelRow['limitLevel']) => {
+                      if (!v) return <Text type="secondary">—</Text>
+                      const p = LIMIT_PRESETS[v]
+                      return <Text>{p.rpm}</Text>
+                    },
+                  },
+                  {
+                    title: 'TPM（Token/分钟）',
+                    dataIndex: 'limitLevel',
+                    width: 140,
+                    render: (v: LimitModelRow['limitLevel']) => {
+                      if (!v) return <Text type="secondary">—</Text>
+                      const p = LIMIT_PRESETS[v]
+                      return <Text>{p.tpm.toLocaleString()}</Text>
+                    },
+                  },
+                  {
+                    title: '操作',
+                    key: 'action',
+                    width: 60,
+                    render: (_, record) => (
+                      <a onClick={() => removeLimitRow(record.key)}>删除</a>
+                    ),
+                  },
+                ]}
+              />
+            </>
+          )}
+
+          {limitRows.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <Text type="secondary">请先在上方选择模型</Text>
+            </div>
+          )}
         </div>
-        <Space size={12} wrap style={{ marginBottom: 16 }}>
-          <Input
-            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-            placeholder="搜索模型名称"
-            value={limitSearch}
-            onChange={(e) => setLimitSearch(e.target.value)}
-            style={{ width: 240 }}
-          />
-          <Text>限额等级：</Text>
+      </Modal>
+
+      {/* 批量替换限额等级 弹窗 */}
+      <Modal
+        title="批量替换限额等级"
+        open={batchReplaceOpen}
+        onCancel={() => setBatchReplaceOpen(false)}
+        onOk={confirmBatchReplace}
+        okText="确认替换"
+        cancelText="取消"
+        centered
+        width={400}
+        destroyOnClose
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '8px 0' }}>
+          <div>
+            <Text type="secondary">将所有已选模型的限额等级替换为：</Text>
+          </div>
           <Select
-            style={{ width: 120 }}
-            value={batchLevel}
-            onChange={setBatchLevel}
+            style={{ width: '100%' }}
+            value={batchReplaceLevel}
+            onChange={setBatchReplaceLevel}
             options={LIMIT_LEVEL_OPTIONS}
           />
-          <Button type="primary" onClick={handleReplaceLevel}>
-            批量替换
-          </Button>
-        </Space>
-        <Table<LimitModelRow>
-          rowKey="key"
-          pagination={false}
-          size="small"
-          scroll={{ y: 320 }}
-          dataSource={filteredLimitRows}
-          rowSelection={{
-            selectedRowKeys: selectedLimitKeys,
-            onChange: setSelectedLimitKeys,
-            columnWidth: 48,
-          }}
-          columns={[
-            {
-              title: '模型名称',
-              dataIndex: 'modelName',
-              width: 260,
-            },
-            {
-              title: '限额等级',
-              dataIndex: 'limitLevel',
-              width: 120,
-              render: (v: LimitModelRow['limitLevel']) =>
-                v ? (
-                  <Tag color={QUOTA_LEVEL_COLORS[v] || '#8c8c8c'} style={{ borderRadius: 20 }}>
-                    {v}
-                  </Tag>
-                ) : (
-                  <Text type="secondary">—</Text>
-                ),
-            },
-            {
-              title: 'RPM（请求/分钟）',
-              dataIndex: 'limitLevel',
-              width: 160,
-              render: (v: LimitModelRow['limitLevel']) => {
-                if (!v) return <Text type="secondary">—</Text>
-                const p = LIMIT_PRESETS[v]
-                return <Text>{p.rpm}</Text>
-              },
-            },
-            {
-              title: 'TPM（Token/分钟）',
-              dataIndex: 'limitLevel',
-              width: 160,
-              render: (v: LimitModelRow['limitLevel']) => {
-                if (!v) return <Text type="secondary">—</Text>
-                const p = LIMIT_PRESETS[v]
-                return <Text>{p.tpm.toLocaleString()}</Text>
-              },
-            },
-          ]}
-        />
+          <div>
+            <Text type="secondary">
+              将对 <Text strong>{limitRows.length}</Text> 个模型进行批量替换
+            </Text>
+          </div>
+        </div>
       </Modal>
 
       {/* 开通/修改资源包 弹窗 */}
