@@ -3,7 +3,7 @@ import { Card, Table, Typography, Space } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { RELEASES, LATEST_RELEASE } from '../releases'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 /* ---------------- 菜单映射（复制自 App.tsx FULL_MENU 的结构快照） ---------------- */
 interface MenuGroup {
@@ -232,21 +232,16 @@ export default function VersionChangelog() {
   return (
     <Space direction="vertical" size={16} style={{ display: 'flex' }}>
       <Card variant="borderless" styles={{ body: { padding: 16 } }}>
-        <Space size={24} style={{ display: 'flex' }} align="center" wrap>
-          <Title level={4} style={{ margin: 0 }}>
-            功能列表
-          </Title>
-          <Text strong style={{ fontSize: 16 }}>
-            v{version.startsWith('v') ? version.slice(1) : version} 版本需求
-            {release?.publishedAt && (
-              <>
-                <Text type="secondary" style={{ marginLeft: 16, fontWeight: 400 }}>
-                  发布时间：{release.publishedAt}
-                </Text>
-              </>
-            )}
-          </Text>
-        </Space>
+        <Text strong style={{ fontSize: 16 }}>
+          v{version.startsWith('v') ? version.slice(1) : version} 版本需求
+          {release?.publishedAt && (
+            <>
+              <Text type="secondary" style={{ marginLeft: 24, fontWeight: 400 }}>
+                发布时间：{release.publishedAt}
+              </Text>
+            </>
+          )}
+        </Text>
       </Card>
 
       <Card variant="borderless" styles={{ body: { padding: 16 } }}>
