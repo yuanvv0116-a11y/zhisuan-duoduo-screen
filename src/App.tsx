@@ -509,47 +509,6 @@ export default function App() {
             </Dropdown>
           </Header>
 
-          {(() => {
-            const scope = getActiveScope()
-            if (!scope) return null
-            const scopeName = getScopeFromUrl()
-            return (
-              <Alert
-                type="info"
-                showIcon
-                style={{ borderRadius: 0, border: 0, borderBottom: '1px solid #91caff' }}
-                message={`${scope.label}模式 — 仅展示 ${scope.date} 之后新增的功能（当前 ${scope.routeKeys.length} 个页面）`}
-                action={
-                  <Space>
-                    {Object.keys(SCOPES)
-                      .filter((k) => k !== scopeName)
-                      .map((k) => (
-                        <a
-                          key={k}
-                          onClick={() => {
-                            const url = new URL(window.location.href)
-                            url.searchParams.set('scope', k)
-                            window.location.href = url.toString()
-                          }}
-                        >
-                          切换到 {SCOPES[k].label}
-                        </a>
-                      ))}
-                    <a
-                      onClick={() => {
-                        const url = new URL(window.location.href)
-                        url.searchParams.delete('scope')
-                        window.location.href = url.toString()
-                      }}
-                    >
-                      退出预览
-                    </a>
-                  </Space>
-                }
-              />
-            )
-          })()}
-
           {invalidReview && (
             <Alert
               type="warning"
