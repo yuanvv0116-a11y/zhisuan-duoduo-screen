@@ -236,15 +236,12 @@ export default function VersionChangelog() {
           <Title level={4} style={{ margin: 0 }}>
             功能列表
           </Title>
-          <Space size={12} align="center">
-            <Text strong style={{ fontSize: 16 }}>
-              {release?.title ?? version}
-            </Text>
-            {release?.publishedAt && (
-              <Text type="secondary">发布时间：{release.publishedAt}</Text>
-            )}
-          </Space>
-          <Text type="secondary">共 {totalFeatures} 条功能</Text>
+          <Text strong style={{ fontSize: 16 }}>
+            v{version.startsWith('v') ? version.slice(1) : version} 版本需求
+          </Text>
+          {release?.publishedAt && (
+            <Text type="secondary">发布时间：{release.publishedAt}</Text>
+          )}
         </Space>
       </Card>
 
