@@ -33,8 +33,10 @@ export const SCOPES: Record<string, ScopeConfig> = {
     label: '新功能预览',
     date: '2026-08-26',
     routeKeys: [
-      // 后续新增页面时往这里加 key，例如：
-      // 'newPage1',
+      'rechargeTask', // 定时充值任务：受众类型/已执行任务弹窗/选择账户搜索
+      'tokenPlan',    // Token Plan：列表迭代 + 我的订阅/资源包/套餐统计等子页面
+      'planStats',    // 资源包与套餐统计（新增页面）
+      'planBill',     // 套餐与资源包账单（新增页面）
     ],
   },
 
