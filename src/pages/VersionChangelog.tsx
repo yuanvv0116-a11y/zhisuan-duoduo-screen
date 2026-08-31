@@ -238,10 +238,14 @@ export default function VersionChangelog() {
           </Title>
           <Text strong style={{ fontSize: 16 }}>
             v{version.startsWith('v') ? version.slice(1) : version} 版本需求
+            {release?.publishedAt && (
+              <>
+                <Text type="secondary" style={{ marginLeft: 16, fontWeight: 400 }}>
+                  发布时间：{release.publishedAt}
+                </Text>
+              </>
+            )}
           </Text>
-          {release?.publishedAt && (
-            <Text type="secondary">发布时间：{release.publishedAt}</Text>
-          )}
         </Space>
       </Card>
 
