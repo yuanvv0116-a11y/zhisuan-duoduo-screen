@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from 'react'
-import { Card, Select, Table, Typography, Space, Tooltip } from 'antd'
+import { useMemo } from 'react'
+import { Card, Table, Typography, Space } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { RELEASES, LATEST_RELEASE } from '../releases'
 
@@ -114,7 +114,6 @@ function parseNote(note: string | undefined): ParsedItem[] {
       last.sub.push((sm[1] as string).trim())
       continue
     }
-    // 兜底：如果有剩余文本（如无 [routeKey] 也无序号），并入主行 main
     if (last) {
       last.main = last.main + ' ' + line.trim()
     } else {
@@ -130,20 +129,13 @@ function parseNote(note: string | undefined): ParsedItem[] {
   return result
 }
 
-/* ---------------- URL 读取版本号 ---------------- */
-function readReviewFromUrl(): string | null {
-  if (typeof window === 'undefined') return null
-  const sp = new URLSearchParams(window.location.search)
-  return sp.get('review')
-}
-
 /* ---------------- 行级数据 ---------------- */
 interface RowData {
   seq: number
   routeKey: string
   menuGroup: string
   menuLabel: string
-  menuPath: string // 菜单组 › 菜单项
+  menuPath: string
   main: string
   sub: string[]
   /** 用于 antd rowSpan：同菜单第一次出现为 N，其余为 0 */
@@ -151,29 +143,13 @@ interface RowData {
 }
 
 export default function VersionChangelog() {
-  const [version, setVersion] = useState<string>(() => {
-    const v = readReviewFromUrl()
-    if (v && RELEASES[v]) return v
-    return LATEST_RELEASE
-  })
-
-  // URL ?review=xxx 变化时同步
-  useEffect(() => {
-    const onPop = () => {
-      const v = readReviewFromUrl()
-      if (v && RELEASES[v]) setVersion(v)
-    }
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
-  }, [])
-
+  const version = LATEST_RELEASE
   const release = RELEASES[version]
 
   const { rows, totalFeatures } = useMemo(() => {
     if (!release) return { rows: [] as RowData[], totalFeatures: 0 }
     const items = parseNote(release.note)
 
-    // 补默认 routeKey（没写 [routeKey] 的用 release.routeKeys 第一个）
     const defaultRouteKey =
       release.routeKeys.includes('*') ? '' : (release.routeKeys[0] as string) ?? ''
 
@@ -209,7 +185,7 @@ export default function VersionChangelog() {
       }
     })
     return { rows, totalFeatures: items.length }
-  }, [version, release])
+  }, [release])
 
   const columns: ColumnsType<RowData> = [
     {
@@ -253,66 +229,23 @@ export default function VersionChangelog() {
     },
   ]
 
-  const versionOptions = useMemo(
-    () =>
-      Object.keys(RELEASES)
-        .reverse()
-        .map((v) => ({
-          value: v,
-          label: `${v}  ${RELEASES[v].title}`,
-        })),
-    [],
-  )
-
   return (
     <Space direction="vertical" size={16} style={{ display: 'flex' }}>
       <Card variant="borderless" styles={{ body: { padding: 16 } }}>
-        <Space size={16} style={{ display: 'flex' }} align="center" wrap>
+        <Space size={24} style={{ display: 'flex' }} align="center" wrap>
           <Title level={4} style={{ margin: 0 }}>
             功能列表
           </Title>
-          <Select
-            value={version}
-            onChange={(v) => {
-              setVersion(v)
-              // 同步 URL ?review=xxx（不刷新，和 popstate 配合）
-              if (typeof window !== 'undefined') {
-                const url = new URL(window.location.href)
-                url.searchParams.set('review', v)
-                window.history.replaceState({}, '', url.toString())
-              }
-            }}
-            options={versionOptions}
-            style={{ minWidth: 360 }}
-            placeholder="选择版本"
-          />
+          <Space size={12} align="center">
+            <Text strong style={{ fontSize: 16 }}>
+              {release?.title ?? version}
+            </Text>
+            {release?.publishedAt && (
+              <Text type="secondary">发布时间：{release.publishedAt}</Text>
+            )}
+          </Space>
           <Text type="secondary">共 {totalFeatures} 条功能</Text>
         </Space>
-
-        {release && (
-          <div style={{ marginTop: 12 }}>
-            <Space size={8} align="center">
-              <Text strong style={{ fontSize: 16 }}>
-                {version}
-              </Text>
-              <Tooltip title="路由范围">
-                <TagLike>{release.routeKeys.join(' · ')}</TagLike>
-              </Tooltip>
-              {release.views && (
-                <Tooltip title="视图">
-                  <TagLike color="#f0f5ff" fontColor="#2f6bff">
-                    {release.views.map((v) =>
-                      v === 'admin' ? '管理后台' : v === 'console' ? '控制台' : '官方网站',
-                    ).join(' · ')}
-                  </TagLike>
-                </Tooltip>
-              )}
-            </Space>
-            <div style={{ marginTop: 6 }}>
-              <Text>{release.title.replace(/^[\w.\-]+\s*/, '')}</Text>
-            </div>
-          </div>
-        )}
       </Card>
 
       <Card variant="borderless" styles={{ body: { padding: 16 } }}>
@@ -328,32 +261,5 @@ export default function VersionChangelog() {
         />
       </Card>
     </Space>
-  )
-}
-
-/* ---------------- 小组件：Tag 样式 badge，避免 antd Tag import 过多开销 ---------------- */
-function TagLike({
-  children,
-  color = '#fafafa',
-  fontColor = '#555',
-}: {
-  children: React.ReactNode
-  color?: string
-  fontColor?: string
-}) {
-  return (
-    <span
-      style={{
-        display: 'inline-block',
-        padding: '1px 8px',
-        borderRadius: 4,
-        background: color,
-        color: fontColor,
-        fontSize: 12,
-        border: '1px solid #eef0f4',
-      }}
-    >
-      {children}
-    </span>
   )
 }

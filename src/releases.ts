@@ -22,6 +22,8 @@ export interface ReleaseItem {
   note?: string
   /** 本次迭代涉及的视图（可选，默认 admin） */
   views?: ('admin' | 'console' | 'website')[]
+  /** 发布日期 YYYY-MM-DD */
+  publishedAt?: string
 }
 
 export const RELEASES: Record<string, ReleaseItem> = {
@@ -30,6 +32,7 @@ export const RELEASES: Record<string, ReleaseItem> = {
     title: 'v1.0.0 首个完整版本',
     routeKeys: ['*'],
     note: '渠道商 / 账户 / 模型 / 资源包 / 定时充值任务 / 设计规范',
+    publishedAt: '2026-08-17',
   },
 
   /** ===== 下次需求模板：复制一份、改 version/title/routeKeys/note 即可 =====
@@ -42,6 +45,7 @@ export const RELEASES: Record<string, ReleaseItem> = {
     title: 'v1.1.0 下次需求 — 请按需填写',
     routeKeys: ['*'],
     note: '在这里填写本次变更（2 新增 + 3 修改等）的说明',
+    publishedAt: '',
   },
 
   /** ===== v1.2.0：Token Plan FAQ + 调整配额功能迭代（2026-08-20） ===== */
@@ -49,6 +53,7 @@ export const RELEASES: Record<string, ReleaseItem> = {
     title: 'v1.2.0 Token Plan FAQ & 调整配额迭代',
     routeKeys: ['tokenPlan', 'accountList'],
     views: ['admin', 'console'],
+    publishedAt: '2026-08-20',
     note: [
       '1. [tokenPlan]控制台 Token Plan 概览页：FAQ内容更新、使用步骤样式优化',
       '2. [accountList]管理后台账户列表：调整配额弹窗支持模型多选、批量替换、限额等级验证',
@@ -60,6 +65,7 @@ export const RELEASES: Record<string, ReleaseItem> = {
     title: 'v1.3.0 资源包购买 & 用量统计 & 订阅迭代',
     routeKeys: ['tokenPlan'],
     views: ['admin', 'console'],
+    publishedAt: '2026-08-25',
     note: [
       '1. [tokenPlan]资源包购买：订单摘要新增原价/优惠明细，支付跳转微信支付页',
       '2. [tokenPlan]资源包购买：协议文案改为「套餐购买协议」，去掉演示环境提示',
@@ -70,11 +76,12 @@ export const RELEASES: Record<string, ReleaseItem> = {
     ].join('\n'),
   },
 
-  /** ===== 2.0：定时充值任务受众类型 & 已执行任务 & 选择账户搜索迭代（2026-08-26 起） ===== */
+  /** ===== 2.0：定时充值任务受众类型 & 已执行任务 & 选择账户搜索迭代（2026-08-31 发布） ===== */
   '2.0': {
     title: '2.0 定时充值任务迭代',
     routeKeys: ['rechargeTask'],
     views: ['admin'],
+    publishedAt: '2026-08-31',
     note: [
       '1. [rechargeTask]新增/编辑任务：增加任务受众类型字段（按标签/按用户）',
       '   · 按标签：下方多选已创建的标签，至少选一个',
