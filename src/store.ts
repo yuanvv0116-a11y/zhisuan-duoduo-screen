@@ -1,5 +1,14 @@
 import { useCallback, useSyncExternalStore } from 'react'
-import type { Channel, ChannelModelItem, ModelItem, ResourcePack, TokenPlan } from './types'
+import type {
+  Channel,
+  ChannelModelItem,
+  ModelItem,
+  ResourcePack,
+  TokenPlan,
+  AccountLedger,
+  OrderDetail,
+} from './types'
+import { calcPlanDiscountedPrice } from './types'
 
 const STORAGE_KEY = 'zsdd_channels_v5'
 
@@ -599,7 +608,7 @@ export function useResourcePacks() {
 
 /* ---------------- Token 套餐 ---------------- */
 
-const PLAN_STORAGE_KEY = 'zsdd_token_plans_v5'
+const PLAN_STORAGE_KEY = 'zsdd_token_plans_v13'
 
 const planSeed: TokenPlan[] = [
   {
@@ -607,9 +616,20 @@ const planSeed: TokenPlan[] = [
     name: '新手套餐（Lite）',
     subtitle: '专为初次接触大模型的用户设计，以轻量配额提供核心API调用能力，是快速验证场景可行性的最佳起点',
     level: 'lite',
-    summary: '适合首次体验龙虾能力，可执行约 70 轮问答',
+    planType: 'personal',
+    summaryItems: ['适合首次体验 AI 能力', '可执行约 70 轮问答', '支持主流对话模型'],
     price: 60,
+    discountPrice: 39,
     discount: 65,
+    showOriginalPrice: true,
+    originalPrice: 99,
+    durations: [
+      { label: '月付', months: 1, discount: 100, finalPrice: 60 },
+      { label: '年付', months: 12, discount: 80, finalPrice: 576 },
+    ],
+    productTag: '',
+    totalTokens: 3500000,
+    usageLimitEnabled: true,
     usageLimit: 3500000,
     usagePeriod: 'monthly',
     validityValue: 1,
@@ -625,9 +645,21 @@ const planSeed: TokenPlan[] = [
     name: '进阶套餐（Standard）',
     subtitle: '综合成本与性能最优解。适配中高频调用需求，兼顾响应质量与经济性，是独立开发者的理想选择',
     level: 'standard',
-    summary: '日常使用，高性价比，可执行约 200 轮问答',
+    planType: 'personal',
+    summaryItems: ['日常使用，高性价比', '可执行约 200 轮问答', '支持长上下文模型'],
     price: 199,
+    discountPrice: 139.3,
     discount: 70,
+    showOriginalPrice: true,
+    originalPrice: 299,
+    durations: [
+      { label: '月付', months: 1, discount: 100, finalPrice: 199 },
+      { label: '季付', months: 3, discount: 90, finalPrice: 537.3 },
+      { label: '年付', months: 12, discount: 75, finalPrice: 1791 },
+    ],
+    productTag: '推荐',
+    totalTokens: 100000000,
+    usageLimitEnabled: true,
     usageLimit: 100000000,
     usagePeriod: 'monthly',
     validityValue: 1,
@@ -643,9 +675,21 @@ const planSeed: TokenPlan[] = [
     name: '专业套餐（Pro）',
     subtitle: '高并发、低延迟、专属资源，为深度依赖大模型的规模化应用提供坚实底座。是承载关键业务的核心引擎',
     level: 'pro',
-    summary: '适合每天高频使用 AI 的开发者和效率达人',
+    planType: 'personal',
+    summaryItems: ['适合每天高频使用的开发者', '优先排队通道', '支持全部模型'],
     price: 599,
+    discountPrice: 497.17,
     discount: 83,
+    showOriginalPrice: true,
+    originalPrice: 799,
+    durations: [
+      { label: '月付', months: 1, discount: 100, finalPrice: 599 },
+      { label: '季付', months: 3, discount: 88, finalPrice: 1581.36 },
+      { label: '年付', months: 12, discount: 70, finalPrice: 5031.6 },
+    ],
+    productTag: '',
+    totalTokens: 320000000,
+    usageLimitEnabled: true,
     usageLimit: 320000000,
     usagePeriod: 'monthly',
     validityValue: 1,
@@ -661,9 +705,20 @@ const planSeed: TokenPlan[] = [
     name: 'Max',
     subtitle: '极致额度加持，重度 AI 开发首选',
     level: 'max',
-    summary: '适合把 AI 当核心生产力工具的重度用户',
+    planType: 'personal',
+    summaryItems: ['适合把 AI 当核心生产力的重度用户', '无限制并发', '专属客服支持'],
     price: 599,
+    discountPrice: 599,
     discount: 100,
+    showOriginalPrice: true,
+    originalPrice: 799,
+    durations: [
+      { label: '月付', months: 1, discount: 100, finalPrice: 599 },
+      { label: '年付', months: 12, discount: 85, finalPrice: 6109.8 },
+    ],
+    productTag: '',
+    totalTokens: 650000000,
+    usageLimitEnabled: true,
     usageLimit: 650000000,
     usagePeriod: 'monthly',
     validityValue: 1,
@@ -679,7 +734,24 @@ const planSeed: TokenPlan[] = [
 function loadPlans(): TokenPlan[] {
   try {
     const raw = localStorage.getItem(PLAN_STORAGE_KEY)
-    if (raw) return JSON.parse(raw) as TokenPlan[]
+    if (raw) {
+      const parsed = JSON.parse(raw) as TokenPlan[]
+      return parsed.map((p) => ({
+        ...p,
+        discountPrice:
+          typeof (p as any).discountPrice === 'number'
+            ? (p as any).discountPrice
+            : calcPlanDiscountedPrice(p.price, p.discount ?? 100),
+        showOriginalPrice:
+          typeof (p as any).showOriginalPrice === 'boolean' ? (p as any).showOriginalPrice : false,
+        originalPrice:
+          typeof (p as any).originalPrice === 'number' ? (p as any).originalPrice : 0,
+        totalTokens:
+          typeof (p as any).totalTokens === 'number' ? (p as any).totalTokens : p.usageLimit ?? 0,
+        usageLimitEnabled:
+          typeof (p as any).usageLimitEnabled === 'boolean' ? (p as any).usageLimitEnabled : true,
+      }))
+    }
   } catch {
     /* ignore */
   }
@@ -724,4 +796,439 @@ export function useTokenPlans() {
   }, [])
 
   return { plans, addPlan, updatePlan, removePlan }
+}
+
+/* ============================== 费用管理 - 账户明细 ============================== */
+
+const LEDGER_STORAGE_KEY = 'zsdd_account_ledgers_v1'
+
+const OPERATOR_PHONE = '183****9299'
+const OPERATOR_ACCOUNT_ID = 'ACC202605090005'
+
+type LedgerSeedRow = {
+  serialNo: string
+  operatedAt: string
+  operationType: 'model_consume'
+  amountBefore: number
+  amountChange: number
+  amountAfter: number
+  remark: string
+}
+
+const LEDGER_SEED_ROWS: LedgerSeedRow[] = [
+  {
+    serialNo: 'MXXF-2608241258224463017',
+    operatedAt: '2026-08-24 12:58:19',
+    operationType: 'model_consume',
+    amountBefore: 302.397195,
+    amountChange: 0.007145,
+    amountAfter: 302.39005,
+    remark: 'dodo-og-gpt-5-6-luna—模型调用消费',
+  },
+  {
+    serialNo: 'MXXF-2608241258330625690',
+    operatedAt: '2026-08-24 12:58:19',
+    operationType: 'model_consume',
+    amountBefore: 302.39005,
+    amountChange: 0.012,
+    amountAfter: 302.37805,
+    remark: 'kimi-k3—模型调用消费',
+  },
+  {
+    serialNo: 'MXXF-2608241257583201337',
+    operatedAt: '2026-08-24 12:57:49',
+    operationType: 'model_consume',
+    amountBefore: 302.433371,
+    amountChange: 0.011004,
+    amountAfter: 302.422367,
+    remark: 'glm-5.2—模型调用消费',
+  },
+  {
+    serialNo: 'MXXF-2608241258024794908',
+    operatedAt: '2026-08-24 12:57:49',
+    operationType: 'model_consume',
+    amountBefore: 302.422367,
+    amountChange: 0.025172,
+    amountAfter: 302.397195,
+    remark: 'kimi-k3—模型调用消费',
+  },
+  {
+    serialNo: 'MXXF-2608241257393249757',
+    operatedAt: '2026-08-24 12:57:32',
+    operationType: 'model_consume',
+    amountBefore: 302.457195,
+    amountChange: 0.010024,
+    amountAfter: 302.447171,
+    remark: 'glm-5.2—模型调用消费',
+  },
+  {
+    serialNo: 'MXXF-2608241257459331574',
+    operatedAt: '2026-08-24 12:57:32',
+    operationType: 'model_consume',
+    amountBefore: 302.447171,
+    amountChange: 0.0138,
+    amountAfter: 302.433371,
+    remark: 'kimi-k3—模型调用消费',
+  },
+  {
+    serialNo: 'MXXF-2608241256419655557',
+    operatedAt: '2026-08-24 12:56:40',
+    operationType: 'model_consume',
+    amountBefore: 302.464074,
+    amountChange: 0.004371,
+    amountAfter: 302.459703,
+    remark: 'kimi-k2.6—模型调用消费',
+  },
+  {
+    serialNo: 'MXXF-2608241256459548262',
+    operatedAt: '2026-08-24 12:56:40',
+    operationType: 'model_consume',
+    amountBefore: 302.459703,
+    amountChange: 0.002508,
+    amountAfter: 302.457195,
+    remark: 'glm-5.2—模型调用消费',
+  },
+  {
+    serialNo: 'MXXF-2608241254445306670',
+    operatedAt: '2026-08-24 12:54:21',
+    operationType: 'model_consume',
+    amountBefore: 302.495962,
+    amountChange: 0.031888,
+    amountAfter: 302.464074,
+    remark: 'deepseek-v4-flash—模型调用消费',
+  },
+  {
+    serialNo: 'MXXF-2608241254112947332',
+    operatedAt: '2026-08-24 12:54:09',
+    operationType: 'model_consume',
+    amountBefore: 302.500746,
+    amountChange: 0.000073,
+    amountAfter: 302.500673,
+    remark: 'deepseek-v4-flash—模型调用消费',
+  },
+]
+
+// 填充到 3395 条，模拟真实分页数据
+function buildLedgerSeed(): AccountLedger[] {
+  const extraCount = 3395 - LEDGER_SEED_ROWS.length
+  const extras: AccountLedger[] = []
+  const models = [
+    'kimi-k3—模型调用消费',
+    'glm-5.2—模型调用消费',
+    'kimi-k2.6—模型调用消费',
+    'deepseek-v4-flash—模型调用消费',
+    'dodo-og-gpt-5-6-luna—模型调用消费',
+  ]
+  let baseAmount = 500
+  for (let i = 0; i < extraCount; i++) {
+    const change = +(Math.random() * 0.05).toFixed(6)
+    const before = +baseAmount.toFixed(6)
+    const after = +(baseAmount - change).toFixed(6)
+    const baseTs = Date.UTC(2026, 6, 1, 0, 0, 0, 0)
+    const offsetMs = i * 60 * 1000 * 5
+    const d = new Date(baseTs - offsetMs + 8 * 3600 * 1000)
+    const y = d.getUTCFullYear()
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(d.getUTCDate()).padStart(2, '0')
+    const hh = String(d.getUTCHours()).padStart(2, '0')
+    const mm = String(d.getUTCMinutes()).padStart(2, '0')
+    const ss = String(d.getUTCSeconds()).padStart(2, '0')
+    const serialTail = `${y - 2000}${m}${day}${hh}${mm}${ss}${(100000 + i).toString().slice(-6)}`
+    extras.push({
+      id: `ledger_extra_${i}`,
+      serialNo: `MXXF-${serialTail}`,
+      operatedAt: `${y}-${m}-${day} ${hh}:${mm}:${ss}`,
+      operatorPhone: OPERATOR_PHONE,
+      operatorAccountId: OPERATOR_ACCOUNT_ID,
+      operationType: 'model_consume',
+      amountBefore: before,
+      amountChange: change,
+      amountAfter: after,
+      remark: models[i % models.length],
+    })
+    baseAmount = after
+  }
+  const seed: AccountLedger[] = LEDGER_SEED_ROWS.map((r, idx) => ({
+    id: `ledger_seed_${idx}`,
+    serialNo: r.serialNo,
+    operatedAt: r.operatedAt,
+    operatorPhone: OPERATOR_PHONE,
+    operatorAccountId: OPERATOR_ACCOUNT_ID,
+    operationType: r.operationType,
+    amountBefore: r.amountBefore,
+    amountChange: r.amountChange,
+    amountAfter: r.amountAfter,
+    remark: r.remark,
+  }))
+  return [...extras, ...seed]
+}
+
+const LEDGER_SEED: AccountLedger[] = buildLedgerSeed()
+
+function loadLedgers(): AccountLedger[] {
+  try {
+    const raw = localStorage.getItem(LEDGER_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as AccountLedger[]
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+  } catch {}
+  localStorage.setItem(LEDGER_STORAGE_KEY, JSON.stringify(LEDGER_SEED))
+  return LEDGER_SEED
+}
+
+let ledgerState: AccountLedger[] = loadLedgers()
+const ledgerListeners = new Set<() => void>()
+function emitLedgers() {
+  localStorage.setItem(LEDGER_STORAGE_KEY, JSON.stringify(ledgerState))
+  ledgerListeners.forEach((l) => l())
+}
+function subscribeLedgers(cb: () => void) {
+  ledgerListeners.add(cb)
+  return () => ledgerListeners.delete(cb)
+}
+function getLedgersSnapshot() {
+  return ledgerState
+}
+
+export function useAccountLedgers() {
+  const ledgers = useSyncExternalStore(subscribeLedgers, getLedgersSnapshot)
+  return ledgers
+}
+
+/* ============================== 费用管理 - 订单明细 ============================== */
+
+const ORDER_DETAIL_STORAGE_KEY = 'zsdd_order_details_v4'
+
+const CUSTOMER_ID = '76971777531177000123'
+
+const ORDER_DETAIL_SEED: OrderDetail[] = [
+  {
+    id: 'od_001',
+    tab: 'resourcePack',
+    customerId: CUSTOMER_ID,
+    productType: 'tokensPack',
+    productName: '【实名认证】500 万 Tokens 体验包',
+    orderNo: '202605289a2ede5caa974fe293f',
+    orderType: 'gift',
+    createdAt: '2026-05-28 11:17:35',
+    grantedAt: '2026-05-28 11:17:35',
+    payAt: '2026-05-28 11:17:35',
+    status: 'paid',
+    amount: 0,
+    originalPrice: 299,
+    discountAmount: 299,
+    couponAmount: 0,
+    planName: 'Token Plan 个人版',
+    seatName: '加油包 x1',
+    resourceStatus: 'expired',
+    expireAt: '2026-08-28 11:17:35',
+    totalTokens: '5,000,000',
+    remainingTokens: '0',
+    paymentChannel: '系统赠送',
+  },
+  {
+    id: 'od_002',
+    tab: 'resourcePack',
+    customerId: CUSTOMER_ID,
+    productType: 'tokensPack',
+    productName: '【新用户专享】1000 万 Tokens 新手礼包',
+    orderNo: '20260430cd76f00a5dc840ee866',
+    orderType: 'purchase',
+    createdAt: '2026-04-30 14:38:45',
+    grantedAt: '2026-04-30 14:38:45',
+    payAt: '2026-04-30 14:38:45',
+    status: 'paid',
+    amount: 99,
+    originalPrice: 199,
+    discountAmount: 100,
+    couponAmount: 0,
+    planName: 'Token Plan 个人版',
+    seatName: '新手礼包 x1',
+    resourceStatus: 'active',
+    expireAt: '2026-10-30 14:38:45',
+    totalTokens: '10,000,000',
+    remainingTokens: '6,250,000',
+    paymentChannel: '余额扣减',
+  },
+  {
+    id: 'od_003',
+    tab: 'resourcePack',
+    customerId: CUSTOMER_ID,
+    productType: 'tokensPack',
+    productName: '【新用户专享】600 万 Tokens 抵扣包',
+    orderNo: '202604306dc84e1042164ff5ba0',
+    orderType: 'gift',
+    createdAt: '2026-04-30 14:38:45',
+    grantedAt: '2026-04-30 14:38:45',
+    payAt: '2026-04-30 14:38:45',
+    status: 'paid',
+    amount: 0,
+    originalPrice: 179,
+    discountAmount: 179,
+    couponAmount: 0,
+    planName: 'Token Plan 个人版',
+    seatName: '抵扣包 x1',
+    resourceStatus: 'active',
+    expireAt: '2026-10-30 14:38:45',
+    totalTokens: '6,000,000',
+    remainingTokens: '4,120,000',
+    paymentChannel: '系统赠送',
+  },
+  {
+    id: 'od_004',
+    tab: 'resourcePack',
+    customerId: CUSTOMER_ID,
+    productType: 'tokensPack',
+    productName: '【新用户专享】200 万 Tokens 欢迎包',
+    orderNo: '202604300a0b055f59f3425caf6',
+    orderType: 'gift',
+    createdAt: '2026-04-30 14:38:45',
+    grantedAt: '2026-04-30 14:38:45',
+    payAt: '2026-04-30 14:38:45',
+    status: 'paid',
+    amount: 0,
+    originalPrice: 99,
+    discountAmount: 99,
+    couponAmount: 0,
+    planName: 'Token Plan 个人版',
+    seatName: '欢迎包 x1',
+    resourceStatus: 'expired',
+    expireAt: '2026-07-30 14:38:45',
+    totalTokens: '2,000,000',
+    remainingTokens: '0',
+    paymentChannel: '系统赠送',
+  },
+  {
+    id: 'od_005',
+    tab: 'resourcePack',
+    customerId: CUSTOMER_ID,
+    productType: 'tokensPack',
+    productName: '【新用户专享】200 万 Tokens 首登赠礼',
+    orderNo: '20260430a319500a5dc540a6a92',
+    orderType: 'gift',
+    createdAt: '2026-04-30 14:38:45',
+    grantedAt: '2026-04-30 14:38:45',
+    payAt: '2026-04-30 14:38:45',
+    status: 'paid',
+    amount: 0,
+    originalPrice: 99,
+    discountAmount: 99,
+    couponAmount: 0,
+    planName: 'Token Plan 个人版',
+    seatName: '首登赠礼 x1',
+    resourceStatus: 'expired',
+    expireAt: '2026-07-30 14:38:45',
+    totalTokens: '2,000,000',
+    remainingTokens: '0',
+    paymentChannel: '系统赠送',
+  },
+  {
+    id: 'od_006',
+    tab: 'resourcePack',
+    customerId: CUSTOMER_ID,
+    productType: 'tokensPack',
+    productName: '【新用户专享】100 万 Tokens 注册礼包',
+    orderNo: '202604309e0a17a7a4ca49a6a7b',
+    orderType: 'gift',
+    createdAt: '2026-04-30 14:38:45',
+    grantedAt: '2026-04-30 14:38:45',
+    payAt: '2026-04-30 14:38:45',
+    status: 'paid',
+    amount: 0,
+    originalPrice: 69,
+    discountAmount: 69,
+    couponAmount: 0,
+    planName: 'Token Plan 个人版',
+    seatName: '注册礼包 x1',
+    resourceStatus: 'expired',
+    expireAt: '2026-07-30 14:38:45',
+    totalTokens: '1,000,000',
+    remainingTokens: '0',
+    paymentChannel: '系统赠送',
+  },
+  {
+    id: 'od_007',
+    tab: 'subscription',
+    customerId: CUSTOMER_ID,
+    productType: 'plan',
+    productName: 'Token Plan 个人版 - 用量包',
+    orderNo: '202608257a2edf1a3bb5c4d8e21',
+    orderType: 'purchase',
+    createdAt: '2026-08-25 15:06:11',
+    grantedAt: '2026-08-25 15:06:27',
+    payAt: '2026-08-25 15:06:27',
+    status: 'paid',
+    amount: 100,
+    originalPrice: 100,
+    discountAmount: 0,
+    couponAmount: 0,
+    planName: 'Token Plan 个人版',
+    seatName: '用量包 x1',
+    resourceStatus: 'active',
+    expireAt: '2027-08-25 15:06:27',
+    totalTokens: '3,500,000',
+    remainingTokens: '2,800,000',
+    paymentChannel: '微信',
+  },
+  {
+    id: 'od_008',
+    tab: 'subscription',
+    customerId: CUSTOMER_ID,
+    productType: 'plan',
+    productName: 'Token Plan 企业版 - 年度订阅',
+    orderNo: '202608204f8de2b6aa912f5c731',
+    orderType: 'renew',
+    createdAt: '2026-08-20 10:22:33',
+    grantedAt: '2026-08-20 10:22:33',
+    payAt: '2026-08-20 10:22:33',
+    status: 'paid',
+    amount: 1999,
+    originalPrice: 2399,
+    discountAmount: 300,
+    couponAmount: 100,
+    planName: 'Token Plan 企业版',
+    seatName: '年度订阅 x1',
+    resourceStatus: 'active',
+    expireAt: '2027-08-20 10:22:33',
+    totalTokens: '50,000,000',
+    remainingTokens: '48,600,000',
+    paymentChannel: '余额扣减',
+  },
+]
+
+function loadOrderDetails(): OrderDetail[] {
+  try {
+    const raw = localStorage.getItem(ORDER_DETAIL_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as OrderDetail[]
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const first = parsed[0]
+        if (first && 'resourceStatus' in first && 'paymentChannel' in first) {
+          return parsed
+        }
+      }
+    }
+  } catch {}
+  localStorage.setItem(ORDER_DETAIL_STORAGE_KEY, JSON.stringify(ORDER_DETAIL_SEED))
+  return ORDER_DETAIL_SEED
+}
+
+let orderDetailState: OrderDetail[] = loadOrderDetails()
+const orderDetailListeners = new Set<() => void>()
+function emitOrderDetails() {
+  localStorage.setItem(ORDER_DETAIL_STORAGE_KEY, JSON.stringify(orderDetailState))
+  orderDetailListeners.forEach((l) => l())
+}
+function subscribeOrderDetails(cb: () => void) {
+  orderDetailListeners.add(cb)
+  return () => orderDetailListeners.delete(cb)
+}
+function getOrderDetailsSnapshot() {
+  return orderDetailState
+}
+
+export function useOrderDetails() {
+  const list = useSyncExternalStore(subscribeOrderDetails, getOrderDetailsSnapshot)
+  return list
 }

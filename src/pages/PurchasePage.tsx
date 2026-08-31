@@ -1,8 +1,37 @@
 import { useMemo, useState } from 'react'
-import { Card, Typography, Space, Button, Collapse, Tabs, Divider, message } from 'antd'
+import { Card, Typography, Space, Button, Collapse, Tabs, Divider, Modal, Tag, message } from 'antd'
 import { RightOutlined } from '@ant-design/icons'
 import { useTokenPlans } from '../store'
-import { calcPlanDiscountedPrice } from '../types'
+import { calcPlanDiscountedPrice, type TokenPlan } from '../types'
+
+const PLAN_MODELS: Record<string, { name: string; type: string }[]> = {
+  lite: [
+    { name: 'Qwen3.6-27B', type: '文本' },
+    { name: 'DODO-AC-Ultra-5', type: '文本' },
+    { name: 'Doubao-Seedream-5.0', type: '图像' },
+    { name: 'DeepSeek-V4-Flash', type: '文本' },
+  ],
+  standard: [
+    { name: 'Qwen3.6-27B', type: '文本' },
+    { name: 'Qwen3.6-72B', type: '文本' },
+    { name: 'DODO-AC-Ultra-5', type: '文本' },
+    { name: 'Doubao-Seedream-5.0-Pro', type: '图像' },
+    { name: 'Doubao-Seedance-2.0', type: '视频' },
+    { name: 'DeepSeek-V4', type: '文本' },
+  ],
+  pro: [
+    { name: 'Qwen3.6-27B', type: '文本' },
+    { name: 'Qwen3.6-72B', type: '文本' },
+    { name: 'GLM-5.2-FP8', type: '文本' },
+    { name: 'GLM-5.2', type: '文本' },
+    { name: 'DODO-AC-Ultra-5', type: '文本' },
+    { name: 'DODO-AC-Pro-5', type: '文本' },
+    { name: 'Doubao-Seedream-5.0-Pro', type: '图像' },
+    { name: 'Doubao-Seedance-2.0', type: '视频' },
+    { name: 'DeepSeek-V4', type: '文本' },
+    { name: 'DeepSeek-V4-Pro', type: '文本' },
+  ],
+}
 
 const { Title, Text, Paragraph } = Typography
 
@@ -31,22 +60,23 @@ const FAQS: Record<string, { q: string; a: string }[]> = {
   purchase: [
     { q: 'Token Plan 提供哪些版本？', a: 'Token Plan 提供个人版和企业版。个人版包含 Lite、Standard、Pro 三档套餐；企业版则提供标准和高级两个档位，可支持多人使用和控费。' },
     { q: 'Token Plan 个人版和企业版有什么区别？', a: '个人版需要个人实名认证，仅支持1人使用。企业版需要完成企业认证，支持团队使用、统一支付、集中管理成员和用量，更适合多人协作的企业团队。在开发性能方面，企业版也能满足企业更高的要求。' },
-    { q: '可以同时购买多个吗？', a: '每个实名认证主体下，不同版本（个人版、企业版）的 Token Plan 订阅各限购一个。' },
+    { q: '可以同时订阅多个吗？', a: '每个实名认证主体下，不同版本（个人版、企业版）的 Token Plan 订阅各限购一个。' },
     { q: '套餐是否支持退订？', a: '个人版和企业版 Token Plan 均不支持退订，订阅前请确认好套餐选择。' },
   ],
   billing: [
-    { q: '抵扣规则是什么？', a: 'Token Plan 使用统一用量单位 token。实际消耗取决于每个任务中输入 Token、缓存 Token 和输出 Token 的组合。优先从订阅额度抵扣，额度用尽后从钱包抵扣，全部用尽后服务暂停。' },
-    { q: '订阅额度是否能够多人共用？', a: 'Token Plan 企业版支持按团队成员独立分配额度，Token Plan 团队版 - 共享用量包可以跨席位共同抵扣。' },
+    { q: '抵扣规则是什么？', a: 'Token Plan 使用统一用量单位 token。实际消耗取决于每个任务中输入 Token、缓存 Token 和输出 Token 的组合。优先从套餐额度抵扣，额度用尽后从钱包抵扣，全部用尽后服务暂停。' },
+    { q: '套餐额度是否能够多人共用？', a: 'Token Plan 企业版支持按团队成员独立分配额度，Token Plan 团队版 - 共享用量包可以跨席位共同抵扣。' },
+    { q: '续费后额度如何计算？', a: '续费仅延长订阅有效期，不会补充当前计费周期的额度。新周期的额度将在当前周期结束后发放。' },
+    { q: '套餐额度用完了怎么办？', a: '可购买资源包补充额度，或等待下一计费周期额度重置。' },
   ],
   integration: [
-    { q: '如何获取 API Key？', a: '订阅成功后，进入「控制台 → 我的订阅」页面，即可获取该套餐专属的 API Key 和 Base URL，立即开始接入。' },
-    { q: '支持哪些编程工具？', a: '支持主流 Coding/Agent 工具：Cline、Claude Code、Cursor、OpenCode、Codex、Kilo CLI 等，开箱即用。' },
-    { q: '接入需要多长时间？', a: '获取 API Key 后，按照接入文档配置即可，通常 5 分钟内完成接入并开始调用。' },
+    { q: '套餐有效期为多久？', a: '套餐有效期以自然月为单位，自订阅成功当日开始计算。如3月15日 13点订阅，支持使用到 4月15日 23:59。' },
+    { q: '可以修改套餐吗？', a: '订阅套餐后，在用量或时间未结束之前，不支持修改。用量或时间结束后，可重新选择套餐。' },
+    { q: '套餐支持自动续费吗？', a: '自动续费时系统从可用余额扣款。支持按月自动续费。余额不足时，会导致扣费失败，无法继续使用。' },
   ],
   product: [
-    { q: '支持哪些模型？', a: '支持主流文本、图像、视频模型，包括 qwen3.6、glm-5.2、deepseek-v4、wan2.7 等，模型库持续更新中。' },
-    { q: '是否支持联网搜索？', a: '支持。所有套餐均内置联网搜索和知识检索能力，Agent 可直接调用获取实时信息。' },
-    { q: '支持多少并发？', a: 'Lite 套餐支持 1-2 路并发，Standard 支持 3-4 路，Pro 支持 6-8 路，可满足不同规模的开发需求。' },
+    { q: 'Token Plan 可以生成多个 API Key 吗？', a: '当前每个个人用户支持创建 5 个 API Key，企业支持创建 10 个。如果密钥泄漏，可在「控制台 » Token 工厂 » API Key 管理」页面重置以生成新密钥，重置后原密钥立即失效。' },
+    { q: '如何查看套餐用量？', a: '在「我的订阅」页面可以刷新和查看用量消耗情况。' },
   ],
 }
 
@@ -63,17 +93,34 @@ const SELLING_POINTS = [
   { icon: '🏢', title: '企业管理功能', desc: '提供团队管理，成本管控以及用量统计等功能，解决规模化使用难题' },
 ]
 
-export default function PurchasePage() {
+export default function PurchasePage({
+  onBuy,
+  onEnterprise,
+  onOpenUsageGuide,
+}: {
+  onBuy?: (plan: TokenPlan) => void
+  onEnterprise?: () => void
+  onOpenUsageGuide?: () => void
+}) {
   const { plans } = useTokenPlans()
   const displayedPlans = useMemo(() => plans.filter((p) => p.status === 'on' && p.level !== 'max'), [plans])
   const [purchased, setPurchased] = useState<Record<string, boolean>>({})
   const [activeFaqTab, setActiveFaqTab] = useState('purchase')
   const [activeFaqKey, setActiveFaqKey] = useState<string | string[]>('Token Plan 提供哪些版本？')
   const [hoveredPlanId, setHoveredPlanId] = useState<string | null>(null)
+  const [modelModalOpen, setModelModalOpen] = useState(false)
+  const [modalPlanTitle, setModalPlanTitle] = useState('')
+  const [modalModels, setModalModels] = useState<{ name: string; type: string }[]>([])
 
   const handleSubscribe = (planId: string) => {
-    setPurchased((prev) => ({ ...prev, [planId]: true }))
-    message.success('订阅成功，即将跳转支付')
+    const plan = displayedPlans.find((p) => p.id === planId)
+    if (!plan) return
+    if (onBuy) {
+      onBuy(plan)
+    } else {
+      setPurchased((prev) => ({ ...prev, [planId]: true }))
+      message.success('订阅成功')
+    }
   }
 
   const currentFaq = FAQS[activeFaqTab]
@@ -89,7 +136,7 @@ export default function PurchasePage() {
         {/* 页头 */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40 }}>
           <Title level={3} style={{ margin: 0 }}>Token Plan 概览</Title>
-          <a style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14, color: '#111827', fontWeight: 500, textDecoration: 'none' }}>
+          <a onClick={onOpenUsageGuide} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14, color: '#111827', fontWeight: 500, textDecoration: 'none' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="#111827" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M14 2V8H20" stroke="#111827" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
@@ -111,7 +158,7 @@ export default function PurchasePage() {
                 <Text strong style={{ fontSize: 16, color: '#111827', letterSpacing: '0.5px' }}>产品介绍</Text>
               </div>
               <Paragraph style={{ fontSize: 13, lineHeight: 1.9, color: '#4b5563', margin: 0 }}>
-                Token Plan 是面向开发者的 AI 大模型订阅服务，提供多种文本、图像、视频模型的统一调用能力，兼容主流编程与智能体框架。固定月费订阅，系统自动扣费，助力个人或企业开发者高效构建 AI 应用。
+                Token Plan 是面向开发者的 AI 大模型套餐服务，提供多种文本、图像、视频模型的统一调用能力，兼容主流编程与智能体框架。固定月费套餐，系统自动扣费，助力个人或企业开发者高效构建 AI 应用。
               </Paragraph>
             </div>
 
@@ -143,7 +190,7 @@ export default function PurchasePage() {
                     <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11682 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="white" strokeWidth="2" strokeLinecap="round"/>
                   </svg>
                 </div>
-                <Text strong style={{ fontSize: 15, color: '#111827', letterSpacing: '0.3px' }}>需要企业版订阅？</Text>
+                <Text strong style={{ fontSize: 15, color: '#111827', letterSpacing: '0.3px' }}>需要企业版套餐？</Text>
               </div>
               <Text type="secondary" style={{ fontSize: 13, lineHeight: 1.7, display: 'block', marginBottom: 14, color: '#4b5563' }}>
                 企业版套餐是面向企业客户的大模型订阅套餐，价格更经济，能满足团队管理、预算可控的核心诉求，助力企业 AI 规模化应用与协作提效。
@@ -158,7 +205,9 @@ export default function PurchasePage() {
                   fontWeight: 500,
                   fontSize: 13,
                   color: '#fff',
+                  cursor: 'pointer',
                 }}
+                onClick={() => onEnterprise?.()}
               >
                 企业订阅 <RightOutlined style={{ fontSize: 10 }} />
               </Button>
@@ -197,8 +246,12 @@ export default function PurchasePage() {
             {/* 套餐卡片 */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, alignItems: 'stretch' }}>
               {displayedPlans.map((plan) => {
-                const discounted = calcPlanDiscountedPrice(plan.price, plan.discount)
-                const isFullPrice = plan.discount >= 100
+                const discounted =
+                  typeof (plan as any).discountPrice === 'number' &&
+                  (plan as any).discountPrice > 0
+                    ? (plan as any).discountPrice
+                    : calcPlanDiscountedPrice(plan.price, plan.discount ?? 100)
+                const isFullPrice = +(discounted.toFixed(4)) >= +(plan.price.toFixed(4))
                 const isStandard = plan.level === 'standard'
                 const isPro = plan.level === 'pro'
                 const isHovered = hoveredPlanId === plan.id
@@ -266,8 +319,18 @@ export default function PurchasePage() {
                       <Space align="baseline" size={4}>
                         <span style={{ fontSize: 28, fontWeight: 700, color: '#ff6b35' }}>¥{discounted.toFixed(0)}</span>
                         <span style={{ color: '#6b7280', fontSize: 13 }}>/月</span>
-                        {!isFullPrice && (
-                          <Text delete style={{ marginLeft: 6, fontSize: 13, color: '#9ca3af' }}>¥{plan.price.toFixed(0)}/月</Text>
+                        {plan.showOriginalPrice &&
+                        typeof plan.originalPrice === 'number' &&
+                        plan.originalPrice > 0 ? (
+                          <Text delete style={{ marginLeft: 6, fontSize: 13, color: '#9ca3af' }}>
+                            ¥{plan.originalPrice.toFixed(0)}/月
+                          </Text>
+                        ) : (
+                          !isFullPrice && (
+                            <Text delete style={{ marginLeft: 6, fontSize: 13, color: '#9ca3af' }}>
+                              ¥{plan.price.toFixed(0)}/月
+                            </Text>
+                          )
                         )}
                       </Space>
                     </div>
@@ -275,12 +338,66 @@ export default function PurchasePage() {
                     <Divider style={{ margin: '12px 20px', borderColor: '#f0f0f0' }} />
 
                     <div style={{ padding: '0 20px', flex: 1 }}>
-                      {PLAN_FEATURES[plan.level]?.map((f, i) => (
+                      {PLAN_FEATURES[plan.level ?? '']?.map((f, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 8, fontSize: 12, color: '#4b5563', lineHeight: 1.6 }}>
                           <span style={{ marginRight: 6, fontSize: 12, color: '#22c55e', fontWeight: 700, flexShrink: 0 }}>✓</span>
                           {f.text}
                         </div>
                       ))}
+
+                      {/* 可用模型 */}
+                      {(() => {
+                        const models = PLAN_MODELS[plan.level ?? ''] || []
+                        const MAX_SHOW = 3
+                        const showModels = models.slice(0, MAX_SHOW)
+                        const hasMore = models.length > MAX_SHOW
+                        return (
+                          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px dashed #e5e7eb' }}>
+                            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
+                              可用模型（{models.length}个）
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {showModels.map((m) => (
+                                <Tag
+                                  key={m.name}
+                                  style={{
+                                    margin: 0,
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                    padding: '2px 8px',
+                                    background: '#f5f7fa',
+                                    borderColor: '#e5e7eb',
+                                    color: '#4b5563',
+                                  }}
+                                >
+                                  {m.name}
+                                </Tag>
+                              ))}
+                              {hasMore && (
+                                <Tag
+                                  onClick={() => {
+                                    setModalPlanTitle(plan.name)
+                                    setModalModels(models)
+                                    setModelModalOpen(true)
+                                  }}
+                                  style={{
+                                    margin: 0,
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                    padding: '2px 8px',
+                                    background: 'transparent',
+                                    borderColor: '#e5e7eb',
+                                    color: '#2f6bff',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  +{models.length - MAX_SHOW} 更多
+                                </Tag>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
 
                     <div style={{ padding: '24px 20px 24px' }}>
@@ -619,10 +736,10 @@ export default function PurchasePage() {
                 activeKey={activeFaqTab}
                 onChange={handleFaqTabChange}
                 items={[
-                  { key: 'purchase', label: '购买' },
+                  { key: 'purchase', label: '订阅' },
                   { key: 'billing', label: '计费与额度' },
-                  { key: 'integration', label: '接入与配置' },
-                  { key: 'product', label: '产品功能' },
+                  { key: 'integration', label: '套餐规则' },
+                  { key: 'product', label: '其他' },
                 ]}
                 style={{ marginBottom: 4 }}
                 size="small"
@@ -661,6 +778,47 @@ export default function PurchasePage() {
           </div>
         </div>
       </div>
+
+      {/* 可用模型弹窗 */}
+      <Modal
+        title={modalPlanTitle}
+        open={modelModalOpen}
+        onCancel={() => setModelModalOpen(false)}
+        footer={null}
+        width={520}
+        centered
+      >
+        <div style={{ marginBottom: 12, fontSize: 12, color: '#8b93a5', lineHeight: 1.7, background: '#f8f9fb', padding: '8px 12px', borderRadius: 6 }}>
+          为持续优化用户体验，平台将不定期上架新模型并下架低效模型。订阅套餐即视为同意本规则。
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto' }}>
+          {modalModels.map((m, idx) => (
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                background: '#f8f9fb',
+                borderRadius: 8,
+              }}
+            >
+              <Text strong style={{ fontSize: 13 }}>{m.name}</Text>
+              <Tag
+                style={{
+                  margin: 0,
+                  borderRadius: 4,
+                  fontSize: 11,
+                }}
+                color={m.type === '文本' ? 'blue' : m.type === '图像' ? 'purple' : 'orange'}
+              >
+                {m.type}
+              </Tag>
+            </div>
+          ))}
+        </div>
+      </Modal>
     </div>
   )
 }

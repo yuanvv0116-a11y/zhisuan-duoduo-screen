@@ -20,6 +20,8 @@ export interface ReleaseItem {
   title: string
   routeKeys: (RouteKey | '*')[]
   note?: string
+  /** 本次迭代涉及的视图（可选，默认 admin） */
+  views?: ('admin' | 'console' | 'website')[]
 }
 
 export const RELEASES: Record<string, ReleaseItem> = {
@@ -40,6 +42,29 @@ export const RELEASES: Record<string, ReleaseItem> = {
     title: 'v1.1.0 下次需求 — 请按需填写',
     routeKeys: ['*'],
     note: '在这里填写本次变更（2 新增 + 3 修改等）的说明',
+  },
+
+  /** ===== v1.2.0：Token Plan FAQ + 调整配额功能迭代（2026-08-20） ===== */
+  'v1.2.0': {
+    title: 'v1.2.0 Token Plan FAQ & 调整配额迭代',
+    routeKeys: ['tokenPlan', 'accountList'],
+    views: ['admin', 'console'],
+    note: '1. 控制台 Token Plan 概览页：FAQ内容更新、使用步骤样式优化\n2. 管理后台账户列表：调整配额弹窗支持模型多选、批量替换、限额等级验证',
+  },
+
+  /** ===== v1.3.0：资源包购买 + 用量统计 + Token Plan 订阅迭代（2026-08-25） ===== */
+  'v1.3.0': {
+    title: 'v1.3.0 资源包购买 & 用量统计 & 订阅迭代',
+    routeKeys: ['tokenPlan'],
+    views: ['admin', 'console'],
+    note: [
+      '1. 资源包购买：订单摘要新增原价/优惠明细，支付跳转微信支付页',
+      '2. 资源包购买：协议文案改为「套餐购买协议」，去掉演示环境提示',
+      '3. 用量统计：模型筛选新增「全部」选项，默认选中全部模型',
+      '4. 我的订阅：API KEY 升级为列表管理（增删/重置/显隐/复制）',
+      '5. 我的订阅：模型列表操作列调整（查看详情/复制Model ID）',
+      '6. 管理后台：套餐弹窗「推荐标签」开关改为「产品标签」输入框（最多6字）',
+    ].join('\n'),
   },
 }
 

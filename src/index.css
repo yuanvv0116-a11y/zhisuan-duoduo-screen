@@ -62,3 +62,11 @@ body {
   }
 }
 
+/* 折后价输入：红色加粗，覆盖 antd 默认 input 颜色 */
+.final-price-input .ant-input-number-input,
+.final-price-input .ant-input-number-input:focus,
+.final-price-input .ant-input-number-input:hover {
+  color: #ff4d4f !important;
+  font-weight: 600;
+}
+

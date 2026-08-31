@@ -16,10 +16,24 @@ import ResourcePack from './pages/ResourcePack'
 import TokenPlanList from './pages/TokenPlanList'
 import RechargeTask from './pages/RechargeTask'
 import OtherRequirements from './pages/OtherRequirements'
+import PlanBill from './pages/PlanBill'
+import PlanStats from './pages/PlanStats'
 import PurchasePage from './pages/PurchasePage'
+import PurchaseCheckout from './pages/PurchaseCheckout'
+import PaymentPage from './pages/PaymentPage'
+import EnterprisePurchasePage from './pages/EnterprisePurchasePage'
+import EnterpriseCheckoutPage from './pages/EnterpriseCheckoutPage'
+import AgreementPage, { type AgreementType } from './pages/AgreementPage'
+import UsageGuidePage from './pages/UsageGuidePage'
+import UsageStatsPage from './pages/UsageStatsPage'
+import MySubscriptionPage from './pages/MySubscriptionPage'
+import BillingPage from './pages/BillingPage'
+import ResourcePackPage from './pages/ResourcePackPage'
 import OfficialWebPage from './pages/OfficialWebPage'
 import ReviewBar from './components/ReviewBar'
 import { RELEASES, LATEST_RELEASE } from './releases'
+import { getActiveScope, getScopeFromUrl, getScopeRouteKeys, isInScope, SCOPES } from './scope'
+import type { TokenPlan } from './types'
 
 const { Sider, Content, Header } = Layout
 const { Text } = Typography
@@ -39,6 +53,8 @@ export type RouteKey =
   | 'models'
   | 'resourcePack'
   | 'tokenPlan'
+  | 'planBill'
+  | 'planStats'
   | 'otherRequirements'
 
 type MenuItem = {
@@ -91,6 +107,14 @@ const FULL_MENU: MenuItem[] = [
       { key: 'channelStat', label: '渠道统计分析' },
       { key: 'modelUsageStat', label: '模型使用统计分析' },
       { key: 'modelUsageDetail', label: '模型使用明细' },
+      { key: 'planStats', label: '资源包与套餐统计' },
+    ],
+  },
+  {
+    key: 'billGroup',
+    label: '账单管理',
+    children: [
+      { key: 'planBill', label: '套餐与资源包账单' },
     ],
   },
   {
@@ -106,6 +130,7 @@ const MENU_ICON: Record<string, React.ReactNode> = {
   modelGroup: <AppstoreOutlined />,
   channelGroup: <ApiOutlined />,
   statGroup: <BarChartOutlined />,
+  billGroup: <WalletOutlined />,
   otherRequirements: <MoreOutlined />,
 }
 
@@ -163,12 +188,91 @@ function exitReviewMode() {
 export default function App() {
   const [active, setActive] = useState<RouteKey>('channels')
   const [viewMode, setViewMode] = useState<'admin' | 'console' | 'website'>('admin')
+  const [webNav, setWebNav] = useState<'tokenPlan'>('tokenPlan')
   const [consoleSubPage, setConsoleSubPage] = useState<string>('tokenPlan')
+  const [tokenPlanSub, setTokenPlanSub] = useState<
+    'overview' | 'mySubscription' | 'resourcePack' | 'mySubscriptionNoPlan' | 'mySubscriptionNoPack'
+  >('overview')
+  const [billingSub, setBillingSub] = useState<
+    'accountOverview' | 'accountDetail' | 'recharge' | 'orderDetail' | 'consumption' | 'invoice'
+  >('orderDetail')
+  const [checkoutPlan, setCheckoutPlan] = useState<TokenPlan | null>(null)
+  const [isRenewMode, setIsRenewMode] = useState(false)
+
+  const renewPlan: TokenPlan = {
+    id: 'renew_lite',
+    name: '新手套餐（Lite）',
+    subtitle: '专为初次接触大模型的用户设计，以轻量配额提供核心API调用能力，是快速验证场景可行性的最佳起点',
+    level: 'lite',
+    planType: 'personal',
+    summaryItems: ['适合首次体验 AI 能力', '可执行约 70 轮问答', '支持主流对话模型'],
+    price: 60,
+    discountPrice: 39,
+    discount: 65,
+    showOriginalPrice: true,
+    originalPrice: 99,
+    durations: [
+      { label: '月付', months: 1, discount: 100, finalPrice: 60 },
+      { label: '年付', months: 12, discount: 80, finalPrice: 576 },
+    ],
+    productTag: '',
+    totalTokens: 3500000,
+    usageLimitEnabled: true,
+    usageLimit: 3500000,
+    usagePeriod: 'monthly',
+    validityValue: 1,
+    validityUnit: 'month',
+    autoRenew: true,
+    status: 'on',
+    modelIds: [],
+    operator: '管理员',
+    createdAt: '2026-08-10',
+  }
+
+  const handleRenew = () => {
+    setCheckoutPlan(renewPlan)
+    setIsRenewMode(true)
+  }
+  const [paymentData, setPaymentData] = useState<{
+    plan: TokenPlan
+    duration: any
+    total: number
+    orderNo: string
+    validityUnit?: string
+  } | null>(null)
+  const [showEnterprisePage, setShowEnterprisePage] = useState(false)
+  const [agreementView, setAgreementView] = useState<AgreementType | null>(null)
+  const [showUsageGuide, setShowUsageGuide] = useState(false)
+  const [showUsageStats, setShowUsageStats] = useState(false)
+  const [enterpriseCheckoutPlan, setEnterpriseCheckoutPlan] = useState<{
+    id: string
+    name: string
+    subtitle: string
+    price: string
+    originalPrice: string
+    unit: string
+    features: string[]
+    models: { name: string; type: string }[]
+    totalModelCount: number
+    bgGradient: string
+  } | null>(null)
 
   /** 评审模式（从 URL 读取，初始化一次即可） */
   const [reviewVersion, setReviewVersion] = useState<string | null>(
     () => getReviewVersionFromUrl()
   )
+
+  /** 评审模式：自动切换到允许的视图 */
+  useEffect(() => {
+    if (!reviewVersion) return
+    const release = RELEASES[reviewVersion]
+    if (!release) return
+
+    const allowedViews = release.views ?? ['admin']
+    if (allowedViews.includes(viewMode)) return
+
+    setViewMode(allowedViews[0])
+  }, [reviewVersion])
 
   /** 保证 active 落在允许范围内（评审模式打开了不在允许范围内的路由时，切到第一个允许项） */
   useEffect(() => {
@@ -183,9 +287,33 @@ export default function App() {
     if (firstAllowed) setActive(firstAllowed as RouteKey)
   }, [reviewVersion, active])
 
-  /** 根据评审模式计算允许的路由 / 过滤后的菜单 */
+  /** 新功能作用域：active 不在新路由集合时切到第一个 */
+  useEffect(() => {
+    if (!isInScope()) return
+    const keys = getScopeRouteKeys()
+    if (keys.length === 0) return
+    if (keys.includes(active)) return
+    setActive(keys[0] as RouteKey)
+  }, [active])
+
+  /** 根据评审模式 / 新功能作用域计算允许的路由 / 过滤后的菜单 */
   const { menuItems, shownCount, totalCount, reviewRelease, invalidReview } = useMemo(() => {
     const total = countLeaves(FULL_MENU)
+
+    // 新功能作用域：只显示当前 scope 注册的路由
+    const scope = getActiveScope()
+    if (scope) {
+      const allowedKeys = new Set<string>(scope.routeKeys)
+      const filtered = filterMenu(FULL_MENU, allowedKeys)
+      const shown = countLeaves(filtered)
+      return {
+        menuItems: withIcons(filtered),
+        shownCount: shown,
+        totalCount: total,
+        reviewRelease: null as any,
+        invalidReview: false,
+      }
+    }
 
     if (!reviewVersion) {
       return {
@@ -224,6 +352,10 @@ export default function App() {
     }
   }, [reviewVersion])
 
+  /** 评审模式下允许的视图 */
+  const reviewAllowedViews = reviewRelease?.views ?? ['admin']
+  const isReviewViewAllowed = !reviewRelease || reviewAllowedViews.includes(viewMode)
+
   const renderPage = () => {
     switch (active) {
       case 'userList':
@@ -254,6 +386,10 @@ export default function App() {
         return <ResourcePack />
       case 'tokenPlan':
         return <TokenPlanList />
+      case 'planBill':
+        return <PlanBill />
+      case 'planStats':
+        return <PlanStats />
       case 'otherRequirements':
         return <OtherRequirements />
       default:
@@ -272,6 +408,7 @@ export default function App() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          gap: 16,
         }}
       >
         <Segmented
@@ -283,6 +420,9 @@ export default function App() {
                 <Space size={6}>
                   <DesktopOutlined />
                   管理后台
+                  {reviewRelease && !reviewAllowedViews.includes('admin') && (
+                    <span style={{ fontSize: 10, color: '#bbb' }}>（不涉及）</span>
+                  )}
                 </Space>
               ),
               value: 'admin',
@@ -292,6 +432,9 @@ export default function App() {
                 <Space size={6}>
                   <RocketOutlined />
                   控制台
+                  {reviewRelease && !reviewAllowedViews.includes('console') && (
+                    <span style={{ fontSize: 10, color: '#bbb' }}>（不涉及）</span>
+                  )}
                 </Space>
               ),
               value: 'console',
@@ -301,6 +444,9 @@ export default function App() {
                 <Space size={6}>
                   <GlobalOutlined />
                   官方网站
+                  {reviewRelease && !reviewAllowedViews.includes('website') && (
+                    <span style={{ fontSize: 10, color: '#bbb' }}>（不涉及）</span>
+                  )}
                 </Space>
               ),
               value: 'website',
@@ -363,6 +509,47 @@ export default function App() {
             </Dropdown>
           </Header>
 
+          {(() => {
+            const scope = getActiveScope()
+            if (!scope) return null
+            const scopeName = getScopeFromUrl()
+            return (
+              <Alert
+                type="info"
+                showIcon
+                style={{ borderRadius: 0, border: 0, borderBottom: '1px solid #91caff' }}
+                message={`${scope.label}模式 — 仅展示 ${scope.date} 之后新增的功能（当前 ${scope.routeKeys.length} 个页面）`}
+                action={
+                  <Space>
+                    {Object.keys(SCOPES)
+                      .filter((k) => k !== scopeName)
+                      .map((k) => (
+                        <a
+                          key={k}
+                          onClick={() => {
+                            const url = new URL(window.location.href)
+                            url.searchParams.set('scope', k)
+                            window.location.href = url.toString()
+                          }}
+                        >
+                          切换到 {SCOPES[k].label}
+                        </a>
+                      ))}
+                    <a
+                      onClick={() => {
+                        const url = new URL(window.location.href)
+                        url.searchParams.delete('scope')
+                        window.location.href = url.toString()
+                      }}
+                    >
+                      退出预览
+                    </a>
+                  </Space>
+                }
+              />
+            )
+          })()}
+
           {invalidReview && (
             <Alert
               type="warning"
@@ -402,7 +589,7 @@ export default function App() {
                 theme="light"
                 mode="inline"
                 selectedKeys={[active]}
-                defaultOpenKeys={['userTeamGroup', 'accountGroup', 'channelGroup', 'modelGroup', 'statGroup']}
+                defaultOpenKeys={['userTeamGroup', 'accountGroup', 'channelGroup', 'modelGroup', 'statGroup', 'billGroup']}
                 style={{ borderRight: 0, paddingTop: 8 }}
                 onClick={({ key }) => setActive(key as RouteKey)}
                 items={menuItems}
@@ -418,6 +605,13 @@ export default function App() {
       {/* 控制台视图：独立顶部导航 + PurchasePage */}
       {viewMode === 'console' && (
         <Content style={{ overflow: 'auto', background: '#fff' }}>
+          {reviewRelease && isReviewViewAllowed && (
+            <ReviewBar
+              version={reviewVersion!}
+              release={reviewRelease}
+              onExit={exitReviewMode}
+            />
+          )}
           <div
             style={{
               display: 'flex',
@@ -455,7 +649,7 @@ export default function App() {
                   fontWeight: consoleSubPage === 'tokenFactory' ? 600 : 400,
                   cursor: 'pointer',
                 }}
-                onClick={() => setConsoleSubPage('tokenFactory')}
+                onClick={() => { setConsoleSubPage('tokenFactory'); setCheckoutPlan(null); setPaymentData(null) }}
               >
                 Token工厂
               </span>
@@ -465,7 +659,7 @@ export default function App() {
                   fontWeight: consoleSubPage === 'appPlaza' ? 600 : 400,
                   cursor: 'pointer',
                 }}
-                onClick={() => setConsoleSubPage('appPlaza')}
+                onClick={() => { setConsoleSubPage('appPlaza'); setCheckoutPlan(null); setPaymentData(null) }}
               >
                 应用广场
               </span>
@@ -475,7 +669,7 @@ export default function App() {
                   fontWeight: consoleSubPage === 'opc' ? 600 : 400,
                   cursor: 'pointer',
                 }}
-                onClick={() => setConsoleSubPage('opc')}
+                onClick={() => { setConsoleSubPage('opc'); setCheckoutPlan(null); setPaymentData(null) }}
               >
                 opc社区
               </span>
@@ -488,29 +682,44 @@ export default function App() {
                   alignItems: 'center',
                   gap: 4,
                 }}
-                onClick={() => setConsoleSubPage('tokenPlan')}
+                onClick={() => { setConsoleSubPage('tokenPlan'); setTokenPlanSub('overview'); setCheckoutPlan(null); setPaymentData(null); setShowEnterprisePage(false); setEnterpriseCheckoutPlan(null); setShowUsageGuide(false); setShowUsageStats(false); setAgreementView(null) }}
               >
+                Token Plan
                 <span
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 20,
-                    height: 20,
-                    borderRadius: 5,
-                    background: 'linear-gradient(135deg, #ff7875 0%, #ff4d4f 100%)',
-                    color: '#fff',
-                    fontSize: 11,
+                    marginLeft: 4,
+                    padding: '0 5px',
+                    height: 16,
+                    fontSize: 10,
                     fontWeight: 700,
+                    color: '#fff',
+                    background: 'linear-gradient(135deg, #ff6b6b 0%, #ff4d4f 100%)',
+                    borderRadius: 8,
+                    letterSpacing: 0.5,
                   }}
                 >
-                  惠
+                  NEW
                 </span>
-                Token Plan
               </span>
             </Space>
             <Space size={20}>
-              <span style={{ color: '#5a6474', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+              <span
+                style={{
+                  color: consoleSubPage === 'billing' ? '#2f6bff' : '#5a6474',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  fontWeight: consoleSubPage === 'billing' ? 600 : 400,
+                }}
+                onClick={() => {
+                  setConsoleSubPage('billing')
+                  setBillingSub('orderDetail')
+                  setCheckoutPlan(null)
+                  setPaymentData(null)
+                }}
+              >
                 费用
                 <DownOutlined style={{ fontSize: 10, marginLeft: 2 }} />
               </span>
@@ -570,8 +779,134 @@ export default function App() {
               <span style={{ color: '#5a6474', cursor: 'pointer' }}>w</span>
             </Space>
           </div>
-          {consoleSubPage === 'tokenPlan' ? (
-            <PurchasePage />
+          {consoleSubPage === 'tokenPlan' && agreementView ? (
+            <AgreementPage type={agreementView} onBack={() => setAgreementView(null)} />
+          ) : consoleSubPage === 'tokenPlan' && paymentData ? (
+            <PaymentPage
+              productName={paymentData.plan.name}
+              duration={paymentData.duration}
+              validityUnit={paymentData.validityUnit as any}
+              total={paymentData.total}
+              orderNo={paymentData.orderNo}
+              onBack={() => setPaymentData(null)}
+              onPaymentSuccess={() => {
+                setPaymentData(null)
+                setCheckoutPlan(null)
+                setConsoleSubPage('tokenPlan')
+                setTokenPlanSub('mySubscriptionNoPack')
+              }}
+            />
+          ) : consoleSubPage === 'tokenPlan' && showEnterprisePage && !enterpriseCheckoutPlan ? (
+            <EnterprisePurchasePage
+              onBack={() => setShowEnterprisePage(false)}
+              onBuy={(plan) => setEnterpriseCheckoutPlan(plan)}
+            />
+          ) : consoleSubPage === 'tokenPlan' && showEnterprisePage && enterpriseCheckoutPlan ? (
+            <EnterpriseCheckoutPage
+              plan={enterpriseCheckoutPlan}
+              onBack={() => setEnterpriseCheckoutPlan(null)}
+              onPay={(data) => {
+                setEnterpriseCheckoutPlan(null)
+                setShowEnterprisePage(false)
+                setPaymentData({
+                  plan: { name: enterpriseCheckoutPlan.name, validityUnit: 'month' } as TokenPlan,
+                  duration: data.duration,
+                  validityUnit: 'month',
+                  total: data.total,
+                  orderNo: data.orderNo,
+                })
+              }}
+              onOpenAgreement={setAgreementView}
+            />
+          ) : consoleSubPage === 'tokenPlan' && !checkoutPlan ? (
+            <div style={{ display: 'flex', height: '100%', background: '#f0f2f5' }}>
+              {/* 左侧二级菜单 */}
+              <div
+                style={{
+                  width: 200,
+                  background: '#fff',
+                  borderRight: '1px solid #eef0f4',
+                  padding: '16px 0',
+                  flexShrink: 0,
+                }}
+              >
+                {(
+                    [
+                      { key: 'overview', label: 'Token Plan 概览' },
+                      { key: 'mySubscriptionNoPlan', label: '我的订阅（未购买套餐）' },
+                      { key: 'mySubscriptionNoPack', label: '我的订阅（未购买资源包）' },
+                      { key: 'mySubscription', label: '我的订阅' },
+                      { key: 'resourcePack', label: '资源包管理' },
+                    ] as const
+                  ).map((it) => (
+                  <div
+                    key={it.key}
+                    onClick={() => {
+                      setTokenPlanSub(it.key)
+                      setShowUsageGuide(false)
+                      setShowUsageStats(false)
+                      setAgreementView(null)
+                      setCheckoutPlan(null)
+                      setEnterpriseCheckoutPlan(null)
+                      setShowEnterprisePage(false)
+                      setPaymentData(null as any)
+                    }}
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: 14,
+                      cursor: 'pointer',
+                      color: tokenPlanSub === it.key ? '#2f6bff' : '#333',
+                      background: tokenPlanSub === it.key ? '#f0f7ff' : 'transparent',
+                      borderRight: tokenPlanSub === it.key ? '3px solid #2f6bff' : '3px solid transparent',
+                      fontWeight: tokenPlanSub === it.key ? 600 : 400,
+                    }}
+                  >
+                    {it.label}
+                  </div>
+                ))}
+              </div>
+              {/* 右侧内容 */}
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                {showUsageGuide ? (
+                  <UsageGuidePage onBack={() => setShowUsageGuide(false)} />
+                ) : showUsageStats ? (
+                  <UsageStatsPage onBack={() => setShowUsageStats(false)} />
+                ) : tokenPlanSub === 'overview' ? (
+                  <PurchasePage
+                    onBuy={(plan) => { setCheckoutPlan(plan); setIsRenewMode(false) }}
+                    onEnterprise={() => setShowEnterprisePage(true)}
+                    onOpenUsageGuide={() => setShowUsageGuide(true)}
+                  />
+                ) : tokenPlanSub === 'resourcePack' ? (
+                  <ResourcePackPage />
+                ) : tokenPlanSub === 'mySubscriptionNoPlan' ? (
+                  <MySubscriptionPage variant="noPlan" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} />
+                ) : tokenPlanSub === 'mySubscriptionNoPack' ? (
+                  <MySubscriptionPage variant="noPack" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} />
+                ) : (
+                  <MySubscriptionPage variant="normal" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} />
+                )}
+              </div>
+            </div>
+          ) : consoleSubPage === 'tokenPlan' && checkoutPlan ? (
+            <PurchaseCheckout
+              plan={checkoutPlan}
+              isRenew={isRenewMode}
+              renewEndDate="2026-09-24"
+              onBack={() => { setCheckoutPlan(null); setIsRenewMode(false) }}
+              onPay={(data: any) =>
+                setPaymentData({
+                  plan: checkoutPlan,
+                  duration: ('durationOption' in data ? (data as any).durationOption : data.duration) as any,
+                  validityUnit: (checkoutPlan as any).validityUnit,
+                  total: data.total,
+                  orderNo: data.orderNo,
+                })
+              }
+              onOpenAgreement={setAgreementView}
+            />
+          ) : consoleSubPage === 'billing' ? (
+            <BillingPage subPage={billingSub} onSubChange={setBillingSub} />
           ) : (
             <div style={{ padding: 80, textAlign: 'center', color: '#999' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🚧</div>
@@ -584,6 +919,13 @@ export default function App() {
       {/* 官方网站视图：独立顶部导航 + OfficialWebPage */}
       {viewMode === 'website' && (
         <Content style={{ overflow: 'auto', background: '#fff' }}>
+          {reviewRelease && isReviewViewAllowed && (
+            <ReviewBar
+              version={reviewVersion!}
+              release={reviewRelease}
+              onExit={exitReviewMode}
+            />
+          )}
           <div
             style={{
               display: 'flex',
@@ -619,6 +961,19 @@ export default function App() {
               <span style={{ color: '#5a6474', cursor: 'pointer' }}>产品服务</span>
               <span style={{ color: '#5a6474', cursor: 'pointer' }}>模型广场</span>
               <span style={{ color: '#5a6474', cursor: 'pointer' }}>Token工厂</span>
+              <span
+                style={{
+                  color: webNav === 'tokenPlan' ? '#1a1a1a' : '#5a6474',
+                  fontWeight: webNav === 'tokenPlan' ? 600 : 400,
+                  cursor: 'pointer',
+                }}
+                onClick={() => {
+                  setViewMode('website')
+                  setWebNav('tokenPlan')
+                }}
+              >
+                Token Plan
+              </span>
               <span style={{ color: '#5a6474', cursor: 'pointer' }}>算力市场</span>
               <span style={{ color: '#5a6474', cursor: 'pointer' }}>算力商情</span>
               <span style={{ color: '#5a6474', cursor: 'pointer' }}>行业资讯</span>
@@ -660,7 +1015,22 @@ export default function App() {
               </span>
             </Space>
           </div>
-          <OfficialWebPage />
+          {webNav === 'tokenPlan' && (
+            <OfficialWebPage
+              onNavigateTokenPlan={() => {
+                setViewMode('console')
+                setConsoleSubPage('tokenPlan')
+                setTokenPlanSub('overview')
+                setCheckoutPlan(null)
+                setPaymentData(null)
+                setShowEnterprisePage(false)
+                setEnterpriseCheckoutPlan(null)
+                setShowUsageGuide(false)
+                setShowUsageStats(false)
+                setAgreementView(null)
+              }}
+            />
+          )}
         </Content>
       )}
     </Layout>

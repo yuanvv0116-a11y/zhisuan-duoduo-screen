@@ -14,6 +14,7 @@ import {
   Form,
   Breadcrumb,
   Card,
+  Tooltip,
   message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -32,6 +33,13 @@ const { Text } = Typography
 type CycleType = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
 type SetMode = 'reset' | 'adjust'
 
+interface ExecRecord {
+  runAt: string
+  runStatus: 'success' | 'partial' | 'failed'
+  targetCount: number
+  executedCount: number
+}
+
 interface RechargeTask {
   id: string
   createdAt: string
@@ -42,6 +50,10 @@ interface RechargeTask {
   accountCount: number
   status: 'active' | 'inactive'
   remark?: string
+  targetType: 'tag' | 'user'
+  targetTags?: string[]
+  targetUserKeys?: string[]
+  execHistory?: ExecRecord[]
 }
 
 const CYCLE_LABEL: Record<CycleType, string> = {
@@ -72,6 +84,13 @@ const initialTasks: RechargeTask[] = [
     accountCount: 10,
     status: 'active',
     remark: '月度充值任务',
+    targetType: 'tag',
+    targetTags: ['内部员工', 'VIP'],
+    execHistory: [
+      { runAt: '2026-08-01 00:00:12', runStatus: 'success', targetCount: 10, executedCount: 10 },
+      { runAt: '2026-07-01 00:00:08', runStatus: 'partial', targetCount: 10, executedCount: 8 },
+      { runAt: '2026-06-01 00:00:05', runStatus: 'success', targetCount: 10, executedCount: 10 },
+    ],
   },
   {
     id: 'RT20260817002',
@@ -82,6 +101,12 @@ const initialTasks: RechargeTask[] = [
     nextRunAt: '2026-08-25 00:00:00',
     accountCount: 8,
     status: 'active',
+    targetType: 'user',
+    targetUserKeys: ['a1', 'a2', 'a3', 'a4', 'a6', 'a7', 'a8', 'a10'],
+    execHistory: [
+      { runAt: '2026-08-18 00:00:10', runStatus: 'success', targetCount: 8, executedCount: 8 },
+      { runAt: '2026-08-11 00:00:07', runStatus: 'failed', targetCount: 8, executedCount: 0 },
+    ],
   },
   {
     id: 'RT20260817003',
@@ -93,6 +118,43 @@ const initialTasks: RechargeTask[] = [
     accountCount: 3,
     status: 'inactive',
     remark: '已暂停',
+    targetType: 'tag',
+    targetTags: ['合作伙伴'],
+    execHistory: [
+      { runAt: '2026-07-01 00:00:15', runStatus: 'success', targetCount: 3, executedCount: 3 },
+    ],
+  },
+  {
+    id: 'RT20260817004',
+    createdAt: '2026-08-20 16:00:33',
+    cycle: 'daily',
+    amount: 200,
+    setMode: 'adjust',
+    nextRunAt: '2026-08-31 00:00:00',
+    accountCount: 15,
+    status: 'active',
+    remark: '每日额度补充',
+    targetType: 'tag',
+    targetTags: ['员工介绍', '内部员工'],
+    execHistory: [
+      { runAt: '2026-08-30 00:00:03', runStatus: 'success', targetCount: 15, executedCount: 15 },
+      { runAt: '2026-08-29 00:00:02', runStatus: 'success', targetCount: 15, executedCount: 15 },
+      { runAt: '2026-08-28 00:00:04', runStatus: 'partial', targetCount: 15, executedCount: 13 },
+      { runAt: '2026-08-27 00:00:01', runStatus: 'success', targetCount: 15, executedCount: 15 },
+    ],
+  },
+  {
+    id: 'RT20260817005',
+    createdAt: '2026-08-22 11:20:07',
+    cycle: 'yearly',
+    amount: 20000,
+    setMode: 'reset',
+    nextRunAt: '2027-08-22 00:00:00',
+    accountCount: 6,
+    status: 'active',
+    targetType: 'tag',
+    targetTags: ['VIP', '合作伙伴', '员工介绍'],
+    execHistory: [],
   },
 ]
 
@@ -124,7 +186,16 @@ const ACCOUNT_LIST: AccountItem[] = [
   { key: 'a10', accountName: 'partner_a', accountType: 'enterprise', tags: [] },
 ]
 
-/* ---------------- mock 用户数据（用于「添加用户」搜索） ---------------- */
+/* ---------------- mock 标签列表 ---------------- */
+const TAG_LIST = [
+  { name: '内部员工', color: '#2f6bff' },
+  { name: '员工介绍', color: '#52c41a' },
+  { name: 'VIP', color: '#fa8c16' },
+  { name: '合作伙伴', color: '#722ed1' },
+  { name: '测试', color: '#13c2c2' },
+]
+
+/* ---------------- mock 用户数据（用于「添加账户」搜索） ---------------- */
 interface UserItem extends AccountItem {
   nickname: string
   phone: string
@@ -142,6 +213,29 @@ const USER_LIST: UserItem[] = [
   { key: 'u8', nickname: '刘洋', phone: '13200007777', accountId: 'ACC20260803LYaaaa0001', accountName: 'liuyang', accountType: 'personal', tags: [{ name: '测试', color: '#13c2c2' }] },
   { key: 'u9', nickname: '周婷', phone: '13100008888', accountId: 'ACC20260804ZTbbbb0002', accountName: 'zhouting', accountType: 'personal', tags: [] },
   { key: 'u10', nickname: '孙浩', phone: '13000009999', accountId: 'ACC20260805SHcccc0003', accountName: 'sunhao', accountType: 'personal', tags: [{ name: '员工介绍', color: '#52c41a' }] },
+]
+
+/* ---------------- mock 账户数据（用于「按用户」选择账户） ---------------- */
+interface AccountItemV2 extends AccountItem {
+  nickname: string
+  phone: string
+  accountId: string
+  authName: string       // 认证信息
+  remark: string
+  status: 'active' | 'inactive'
+}
+
+const ACCOUNT_LIST_V2: AccountItemV2[] = [
+  { key: 'a1', nickname: '张明', phone: '13811305182', accountId: 'ACC20260810PVPbI3MgE', accountName: '13811305182', accountType: 'personal', tags: [{ name: '员工介绍', color: '#52c41a' }], authName: '张明', remark: '老用户', status: 'active' },
+  { key: 'a2', nickname: '李怡凡', phone: '13900001111', accountId: 'ACC20260814lyfMj9dPB', accountName: 'lyfyyds', accountType: 'personal', tags: [{ name: '内部员工', color: '#2f6bff' }], authName: '李怡凡', remark: '', status: 'active' },
+  { key: 'a3', nickname: '王强', phone: '13700002222', accountId: 'ACC20260811WQabc1234', accountName: 'wangqiang', accountType: 'personal', tags: [], authName: '', remark: '需跟进', status: 'active' },
+  { key: 'a4', nickname: '赵敏', phone: '13600003333', accountId: 'ACC20260812ZMdef5678', accountName: 'zhaomin', accountType: 'personal', tags: [{ name: 'VIP', color: '#fa8c16' }], authName: '赵敏', remark: '', status: 'inactive' },
+  { key: 'a5', nickname: '陈刚', phone: '13500004444', accountId: 'ACC20260813CGghi9012', accountName: 'chengang', accountType: 'personal', tags: [], authName: '', remark: '', status: 'active' },
+  { key: 'a6', nickname: 'Acme 管理员', phone: '13400005555', accountId: 'ACC20260801ACME0001', accountName: 'acme_corp', accountType: 'enterprise', tags: [{ name: 'VIP', color: '#fa8c16' }], authName: 'Acme 科技有限公司', remark: '企业客户', status: 'active' },
+  { key: 'a7', nickname: 'Tech Lead', phone: '13300006666', accountId: 'ACC20260802TECH0001', accountName: 'tech_team', accountType: 'enterprise', tags: [{ name: '合作伙伴', color: '#722ed1' }], authName: 'Tech Team Inc', remark: '', status: 'active' },
+  { key: 'a8', nickname: '刘洋', phone: '13200007777', accountId: 'ACC20260803LYaaaa0001', accountName: 'liuyang', accountType: 'personal', tags: [{ name: '测试', color: '#13c2c2' }], authName: '刘洋', remark: '测试账号', status: 'active' },
+  { key: 'a9', nickname: '周婷', phone: '13100008888', accountId: 'ACC20260804ZTbbbb0002', accountName: 'zhouting', accountType: 'personal', tags: [], authName: '', remark: '', status: 'inactive' },
+  { key: 'a10', nickname: '孙浩', phone: '13000009999', accountId: 'ACC20260805SHcccc0003', accountName: 'sunhao', accountType: 'personal', tags: [{ name: '员工介绍', color: '#52c41a' }, { name: 'VIP', color: '#fa8c16' }], authName: '孙浩', remark: '', status: 'active' },
 ]
 
 /** 任务与账户的关联（mock 初始关联） */
@@ -170,11 +264,16 @@ function nextRunTime(cycle: CycleType, from = dayjs()): string {
   }
 }
 
+type TargetType = 'tag' | 'user'
+
 interface FormState {
   cycle: CycleType
   amount: number | null
   setMode: SetMode
   remark?: string
+  targetType: TargetType
+  selectedTags: string[]
+  selectedUserKeys: string[]
 }
 
 const emptyForm: FormState = {
@@ -182,6 +281,9 @@ const emptyForm: FormState = {
   amount: null,
   setMode: 'adjust',
   remark: '',
+  targetType: 'tag',
+  selectedTags: [],
+  selectedUserKeys: [],
 }
 
 export default function RechargeTask() {
@@ -194,6 +296,35 @@ export default function RechargeTask() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
+  /* 账户选择二级弹窗 */
+  const [userPickOpen, setUserPickOpen] = useState(false)
+  const [userPickTempKeys, setUserPickTempKeys] = useState<string[]>([])
+  const [userPickKw, setUserPickKw] = useState('')        // 昵称 / 账户ID
+  const [userPickTag, setUserPickTag] = useState<string | undefined>(undefined)
+  /* 已执行任务弹窗 */
+  const [execOpen, setExecOpen] = useState(false)
+  const [execTask, setExecTask] = useState<RechargeTask | null>(null)
+
+  /* 账户选择弹窗：筛选（点击搜索才过滤） */
+  const [userPickCommitted, setUserPickCommitted] = useState<{ kw: string; tag?: string }>({ kw: '', tag: undefined })
+  const filteredPickAccounts = useMemo(() => {
+    const kw = userPickCommitted.kw.trim().toLowerCase()
+    return ACCOUNT_LIST_V2.filter((a) => {
+      if (kw) {
+        if (!a.nickname.toLowerCase().includes(kw) && !a.accountId.toLowerCase().includes(kw)) return false
+      }
+      if (userPickCommitted.tag) {
+        if (!a.tags.some((t) => t.name === userPickCommitted.tag)) return false
+      }
+      return true
+    })
+  }, [userPickCommitted])
+  const handleUserPickSearch = () => setUserPickCommitted({ kw: userPickKw, tag: userPickTag })
+  const handleUserPickReset = () => {
+    setUserPickKw('')
+    setUserPickTag(undefined)
+    setUserPickCommitted({ kw: '', tag: undefined })
+  }
 
   const openCreate = () => {
     setEditingId(null)
@@ -208,6 +339,9 @@ export default function RechargeTask() {
       amount: r.amount,
       setMode: r.setMode,
       remark: r.remark ?? '',
+      targetType: r.targetType ?? 'tag',
+      selectedTags: r.targetTags ?? [],
+      selectedUserKeys: r.targetUserKeys ?? [],
     })
     setModalOpen(true)
   }
@@ -221,6 +355,14 @@ export default function RechargeTask() {
       message.error('调增金额不能超过 999999 元')
       return
     }
+    if (form.targetType === 'tag' && form.selectedTags.length === 0) {
+      message.error('请至少选择一个标签')
+      return
+    }
+    if (form.targetType === 'user' && form.selectedUserKeys.length === 0) {
+      message.error('请至少选择一个账户')
+      return
+    }
     if (editingId) {
       setTasks((prev) =>
         prev.map((t) =>
@@ -232,6 +374,13 @@ export default function RechargeTask() {
                 setMode: form.setMode,
                 remark: form.remark,
                 nextRunAt: nextRunTime(form.cycle),
+                targetType: form.targetType,
+                targetTags: form.targetType === 'tag' ? form.selectedTags : undefined,
+                targetUserKeys: form.targetType === 'user' ? form.selectedUserKeys : undefined,
+                accountCount:
+                  form.targetType === 'user'
+                    ? form.selectedUserKeys.length
+                    : t.accountCount,
               }
             : t
         )
@@ -245,15 +394,18 @@ export default function RechargeTask() {
         cycle: form.cycle,
         amount: form.amount!,
         setMode: form.setMode,
-        accountCount: 0,
+        accountCount: form.targetType === 'user' ? form.selectedUserKeys.length : 0,
         remark: form.remark,
         nextRunAt: nextRunTime(form.cycle),
         status: 'active',
+        targetType: form.targetType,
+        targetTags: form.targetType === 'tag' ? form.selectedTags : undefined,
+        targetUserKeys: form.targetType === 'user' ? form.selectedUserKeys : undefined,
       }
       setTasks((prev) => [task, ...prev])
       // 初始化空关联
       setTaskAccounts((prev) => ({ ...prev, [id]: [] }))
-      message.success('任务已创建，请通过「编辑覆盖账户」选择账户')
+      message.success('任务已创建')
     }
     setModalOpen(false)
   }
@@ -411,6 +563,37 @@ export default function RechargeTask() {
         v === 'reset' ? '现有账户清零，重新设置' : '在现有基础上调整',
     },
     {
+      title: '任务受众类型',
+      dataIndex: 'targetType',
+      key: 'targetType',
+      width: 120,
+      align: 'center',
+      render: (v: 'tag' | 'user', r) => {
+        if (v === 'tag') {
+          const tags = r.targetTags ?? []
+          return (
+            <Tooltip
+              title={
+                tags.length > 0 ? (
+                  <Space size={4} wrap>
+                    {tags.map((t: string) => {
+                      const tagData = TAG_LIST.find((x) => x.name === t)
+                      return <Tag key={t} color={tagData?.color}>{t}</Tag>
+                    })}
+                  </Space>
+                ) : '未选择标签'
+              }
+            >
+              <span style={{ cursor: 'pointer', color: '#2f6bff' }}>
+                按标签{tags.length > 0 ? `（${tags.length}）` : ''}
+              </span>
+            </Tooltip>
+          )
+        }
+        return <span>按用户</span>
+      },
+    },
+    {
       title: '下一次运行时间',
       dataIndex: 'nextRunAt',
       key: 'nextRunAt',
@@ -439,12 +622,22 @@ export default function RechargeTask() {
       title: '操作',
       key: 'action',
       fixed: 'right',
-      width: 280,
+      width: 340,
       align: 'center',
       render: (_, r) => (
         <Space size={4} wrap>
           <Button size="small" type="link" icon={<EditOutlined />} onClick={() => openEdit(r)}>
-            编辑设置
+            编辑
+          </Button>
+          <Button
+            size="small"
+            type="link"
+            onClick={() => {
+              setExecTask(r)
+              setExecOpen(true)
+            }}
+          >
+            已执行任务
           </Button>
           <Popconfirm
             title={r.status === 'active' ? '停用任务' : '启用任务'}
@@ -461,9 +654,6 @@ export default function RechargeTask() {
               {r.status === 'active' ? '停用' : '启用'}
             </Button>
           </Popconfirm>
-          <Button size="small" type="link" icon={<TeamOutlined />} onClick={() => openAccountModal(r)}>
-            编辑覆盖账户
-          </Button>
           <Popconfirm
             title="删除任务"
             description="确定要删除该充值任务吗？此操作不可恢复"
@@ -538,10 +728,112 @@ export default function RechargeTask() {
         okText="保存"
         cancelText="取消"
         centered
-        width={520}
+        width={560}
         destroyOnClose
       >
         <Form layout="vertical" style={{ paddingTop: 8 }}>
+          {/* 任务受众类型 */}
+          <Form.Item label="任务受众类型" required>
+            <Select
+              style={{ width: '100%' }}
+              value={form.targetType}
+              onChange={(v: TargetType) => setForm((f) => ({ ...f, targetType: v, selectedTags: [], selectedUserKeys: [] }))}
+              options={[
+                { value: 'tag', label: '按标签' },
+                { value: 'user', label: '按用户' },
+              ]}
+            />
+          </Form.Item>
+
+          {/* 按标签：多选标签 */}
+          {form.targetType === 'tag' && (
+            <Form.Item label="选择标签（支持多选，至少选一个）" required>
+              <Select
+                mode="multiple"
+                allowClear
+                maxTagCount={3}
+                placeholder="请选择标签"
+                style={{ width: '100%' }}
+                value={form.selectedTags}
+                onChange={(v: string[]) => setForm((f) => ({ ...f, selectedTags: v }))}
+                options={TAG_LIST.map((t) => ({ value: t.name, label: t.name }))}
+                tagRender={(props) => {
+              const tagData = TAG_LIST.find((t) => t.name === props.value)
+              return (
+                <Tag
+                  color={tagData?.color}
+                  closable={props.closable}
+                  onClose={props.onClose}
+                  style={{ marginRight: 3 }}
+                >
+                  {props.label}
+                </Tag>
+              )
+                }}
+              />
+            </Form.Item>
+          )}
+
+          {/* 按用户：选择账户 */}
+          {form.targetType === 'user' && (
+            <Form.Item label="选择账户（支持多选，至少选一个）" required>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Button
+                  type="primary"
+                  ghost
+                  onClick={() => {
+                    setUserPickTempKeys([...form.selectedUserKeys])
+                    setUserPickOpen(true)
+                  }}
+                >
+                  选择账户
+                </Button>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  已选 {form.selectedUserKeys.length} 个账户
+                </Text>
+              </div>
+              {form.selectedUserKeys.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <Space size={4} wrap>
+                    {form.selectedUserKeys.slice(0, 3).map((key) => {
+                      const u = ACCOUNT_LIST_V2.find((x) => x.key === key)
+                      if (!u) return null
+                      return (
+                        <Tag
+                          key={key}
+                          closable
+                          onClose={() => setForm((f) => ({
+                            ...f,
+                            selectedUserKeys: f.selectedUserKeys.filter((k) => k !== key),
+                          }))}
+                        >
+                          {u.nickname}{u.authName && u.authName !== u.nickname ? `（${u.authName}）` : ''}
+                        </Tag>
+                      )
+                    })}
+                    {form.selectedUserKeys.length > 3 && (
+                      <Tooltip
+                        title={
+                          <Space size={4} wrap>
+                            {form.selectedUserKeys.slice(3).map((key) => {
+                              const u = ACCOUNT_LIST_V2.find((x) => x.key === key)
+                              if (!u) return null
+                              return <Tag key={key} style={{ marginBottom: 2 }}>{u.nickname}{u.authName && u.authName !== u.nickname ? `（${u.authName}）` : ''}</Tag>
+                            })}
+                          </Space>
+                        }
+                      >
+                        <Tag style={{ cursor: 'pointer', background: '#f0f5ff', borderColor: '#adc6ff', color: '#2f6bff' }}>
+                          +{form.selectedUserKeys.length - 3}
+                        </Tag>
+                      </Tooltip>
+                    )}
+                  </Space>
+                </div>
+              )}
+            </Form.Item>
+          )}
+
           <Form.Item label="预设周期" required>
             <Select
               style={{ width: '100%' }}
@@ -830,6 +1122,212 @@ export default function RechargeTask() {
               }),
             }}
           />
+        </div>
+      </Modal>
+
+      {/* 账户选择 二级弹窗 */}
+      <Modal
+        title="选择账户"
+        open={userPickOpen}
+        onCancel={() => {
+          setUserPickOpen(false)
+          setUserPickKw('')
+          setUserPickTag(undefined)
+          setUserPickCommitted({ kw: '', tag: undefined })
+        }}
+        onOk={() => {
+          if (userPickTempKeys.length === 0) {
+            message.error('请至少选择一个账户')
+            return
+          }
+          setForm((f) => ({ ...f, selectedUserKeys: [...userPickTempKeys] }))
+          setUserPickOpen(false)
+          setUserPickKw('')
+          setUserPickTag(undefined)
+          setUserPickCommitted({ kw: '', tag: undefined })
+        }}
+        okText="确认选择"
+        cancelText="取消"
+        centered
+        width={880}
+        destroyOnClose
+      >
+        <div style={{ paddingTop: 8 }}>
+          {/* 搜索区 */}
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ whiteSpace: 'nowrap', marginRight: 8 }}>昵称/账户ID：</span>
+              <Input
+                style={{ width: 200 }}
+                allowClear
+                placeholder="请输入昵称或账户ID"
+                value={userPickKw}
+                onChange={(e) => setUserPickKw(e.target.value)}
+                onPressEnter={handleUserPickSearch}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ whiteSpace: 'nowrap', marginRight: 8 }}>标签：</span>
+              <Select
+                style={{ width: 160 }}
+                allowClear
+                placeholder="请选择标签"
+                value={userPickTag}
+                onChange={(v) => setUserPickTag(v)}
+                options={TAG_LIST.map((t) => ({ value: t.name, label: t.name }))}
+              />
+            </div>
+            <Space>
+              <Button type="primary" onClick={handleUserPickSearch}>搜索</Button>
+              <Button onClick={handleUserPickReset}>重置</Button>
+            </Space>
+            <Text type="secondary" style={{ fontSize: 12, marginLeft: 'auto' }}>
+              已选 {userPickTempKeys.length} 个账户 / 共 {filteredPickAccounts.length} 个
+            </Text>
+          </div>
+
+          <Table<AccountItemV2>
+            rowKey="key"
+            size="small"
+            columns={[
+              {
+                title: '账户信息',
+                dataIndex: 'nickname',
+                key: 'nickname',
+                width: 260,
+                render: (v, r) => (
+                  <div>
+                    {r.authName && (
+                      <div style={{ fontWeight: 500 }}>
+                        {r.authName}
+                        <Text type="secondary" style={{ fontSize: 11, marginLeft: 6, fontWeight: 400 }}>已实名</Text>
+                      </div>
+                    )}
+                    <div style={{ fontSize: 12, color: '#666' }}>{r.nickname}</div>
+                    <div style={{ fontSize: 11, color: '#996', fontFamily: 'monospace' }}>ID: {r.accountId}</div>
+                  </div>
+                ),
+              },
+              {
+                title: '标签',
+                key: 'tags',
+                width: 200,
+                render: (_, r) =>
+                  r.tags.length === 0 ? (
+                    <Text type="secondary">—</Text>
+                  ) : (
+                    <Space size={4} wrap>
+                      {r.tags.map((t) => (
+                        <Tag key={t.name} color={t.color}>{t.name}</Tag>
+                      ))}
+                    </Space>
+                  ),
+              },
+              {
+                title: '账户类型',
+                dataIndex: 'accountType',
+                key: 'accountType',
+                width: 110,
+                render: (v: AccountType) => {
+                  const map: Record<AccountType, { label: string; color: string }> = {
+                    personal: { label: '个人账号', color: '#fff1f0' },
+                    enterprise: { label: '企业账号', color: '#e6f7ff' },
+                    sub: { label: '企业子账号', color: '#f6ffed' },
+                  }
+                  const cfg = map[v]
+                  return (
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        padding: '2px 10px',
+                        borderRadius: 10,
+                        background: cfg.color,
+                        fontSize: 12,
+                        color: '#555',
+                      }}
+                    >
+                      {cfg.label}
+                    </span>
+                  )
+                },
+              },
+            ]}
+            dataSource={filteredPickAccounts}
+            scroll={{ y: 400 }}
+            pagination={false}
+            rowSelection={{
+              selectedRowKeys: userPickTempKeys,
+              onChange: (keys) => setUserPickTempKeys(keys.map(String)),
+            }}
+          />
+        </div>
+      </Modal>
+
+      {/* 已执行任务 弹窗 */}
+      <Modal
+        title={`已执行任务 · ${execTask?.id ?? ''}`}
+        open={execOpen}
+        onCancel={() => setExecOpen(false)}
+        footer={<Button onClick={() => setExecOpen(false)}>关闭</Button>}
+        centered
+        width={720}
+        destroyOnClose
+      >
+        <div style={{ paddingTop: 8 }}>
+          {execTask && (execTask.execHistory ?? []).length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <Text type="secondary" style={{ fontSize: 14 }}>暂无执行记录</Text>
+            </div>
+          ) : (
+            <Table<ExecRecord>
+              rowKey={(r) => r.runAt}
+              size="small"
+              columns={[
+                {
+                  title: '运行时间',
+                  dataIndex: 'runAt',
+                  key: 'runAt',
+                  width: 200,
+                },
+                {
+                  title: '运行状态',
+                  dataIndex: 'runStatus',
+                  key: 'runStatus',
+                  width: 120,
+                  align: 'center',
+                  render: (v: ExecRecord['runStatus']) => {
+                    const map = {
+                      success: { label: '成功', color: 'green' },
+                      partial: { label: '部分成功', color: 'orange' },
+                      failed: { label: '失败', color: 'red' },
+                    } as const
+                    const cfg = map[v]
+                    return <Tag color={cfg.color}>{cfg.label}</Tag>
+                  },
+                },
+                {
+                  title: '已执行账户数',
+                  dataIndex: 'executedCount',
+                  key: 'executedCount',
+                  width: 140,
+                  align: 'center',
+                  render: (v: number, r: ExecRecord) => {
+                    const color = v > 0 ? '#52c41a' : '#ff4d4f'
+                    return (
+                      <span style={{ color }}>
+                        {v}/{r.targetCount}
+                      </span>
+                    )
+                  },
+                },
+              ]}
+              dataSource={[...(execTask?.execHistory ?? [])].sort(
+                (a, b) => new Date(b.runAt).getTime() - new Date(a.runAt).getTime()
+              )}
+              scroll={{ y: 400 }}
+              pagination={false}
+            />
+          )}
         </div>
       </Modal>
     </div>
