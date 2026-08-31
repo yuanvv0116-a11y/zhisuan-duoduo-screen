@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Layout, Menu, Typography, Space, Avatar, Dropdown, Alert, Segmented } from 'antd'
-import { ApiOutlined, AppstoreOutlined, BarChartOutlined, DownOutlined, UserOutlined, TeamOutlined, WalletOutlined, MoreOutlined, DesktopOutlined, RocketOutlined, GlobalOutlined } from '@ant-design/icons'
+import { Layout, Menu, Typography, Space, Avatar, Dropdown, Segmented } from 'antd'
+import { ApiOutlined, AppstoreOutlined, BarChartOutlined, DownOutlined, UserOutlined, TeamOutlined, WalletOutlined, MoreOutlined, DesktopOutlined, RocketOutlined, GlobalOutlined, UnorderedListOutlined } from '@ant-design/icons'
 import UserList from './pages/UserList'
 import UserTag from './pages/UserTag'
 import AccountList from './pages/AccountList'
@@ -30,8 +30,8 @@ import MySubscriptionPage from './pages/MySubscriptionPage'
 import BillingPage from './pages/BillingPage'
 import ResourcePackPage from './pages/ResourcePackPage'
 import OfficialWebPage from './pages/OfficialWebPage'
-import ReviewBar from './components/ReviewBar'
-import { RELEASES, LATEST_RELEASE } from './releases'
+import VersionChangelog from './pages/VersionChangelog'
+import { RELEASES } from './releases'
 import { getActiveScope, getScopeFromUrl, getScopeRouteKeys, isInScope, SCOPES } from './scope'
 import type { TokenPlan } from './types'
 
@@ -56,6 +56,7 @@ export type RouteKey =
   | 'planBill'
   | 'planStats'
   | 'otherRequirements'
+  | 'changelog'
 
 type MenuItem = {
   key: string
@@ -178,8 +179,8 @@ function getReviewVersionFromUrl(): string | null {
   return v
 }
 
-/** 退出评审模式：去掉 ?review=xxx 并刷新 */
-function exitReviewMode() {
+/** 退出评审模式：去掉 ?review=xxx 并刷新（保留，供未来复用） */
+function _exitReviewMode() {
   const url = new URL(window.location.href)
   url.searchParams.delete('review')
   window.location.href = url.toString()
@@ -392,6 +393,8 @@ export default function App() {
         return <PlanStats />
       case 'otherRequirements':
         return <OtherRequirements />
+      case 'changelog':
+        return <VersionChangelog />
       default:
         return <ChannelManage />
     }
@@ -420,9 +423,6 @@ export default function App() {
                 <Space size={6}>
                   <DesktopOutlined />
                   管理后台
-                  {reviewRelease && !reviewAllowedViews.includes('admin') && (
-                    <span style={{ fontSize: 10, color: '#bbb' }}>（不涉及）</span>
-                  )}
                 </Space>
               ),
               value: 'admin',
@@ -432,9 +432,6 @@ export default function App() {
                 <Space size={6}>
                   <RocketOutlined />
                   控制台
-                  {reviewRelease && !reviewAllowedViews.includes('console') && (
-                    <span style={{ fontSize: 10, color: '#bbb' }}>（不涉及）</span>
-                  )}
                 </Space>
               ),
               value: 'console',
@@ -444,9 +441,6 @@ export default function App() {
                 <Space size={6}>
                   <GlobalOutlined />
                   官方网站
-                  {reviewRelease && !reviewAllowedViews.includes('website') && (
-                    <span style={{ fontSize: 10, color: '#bbb' }}>（不涉及）</span>
-                  )}
                 </Space>
               ),
               value: 'website',
@@ -491,6 +485,13 @@ export default function App() {
             <Space size={24} style={{ color: '#5a6474' }}>
               <span>官方网站</span>
               <span>Token工厂</span>
+              <a
+                onClick={() => setActive('changelog')}
+                style={{ color: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                <UnorderedListOutlined style={{ fontSize: 14 }} />
+                功能列表
+              </a>
             </Space>
             <div style={{ flex: 1 }} />
             <Dropdown
@@ -508,39 +509,6 @@ export default function App() {
               </Space>
             </Dropdown>
           </Header>
-
-          {invalidReview && (
-            <Alert
-              type="warning"
-              showIcon
-              style={{ borderRadius: 0, border: 0, borderBottom: '1px solid #ffe58f' }}
-              message={`评审版本 ${reviewVersion} 不存在，已显示全量菜单。可修改 URL 为以下任一版本：${Object.keys(RELEASES).join(' / ')}`}
-              action={
-                <Space>
-                  <a
-                    onClick={() => {
-                      const url = new URL(window.location.href)
-                      url.searchParams.set('review', LATEST_RELEASE)
-                      window.location.href = url.toString()
-                    }}
-                  >
-                    切到最新版本 {LATEST_RELEASE}
-                  </a>
-                  <a onClick={exitReviewMode}>退出评审</a>
-                </Space>
-              }
-            />
-          )}
-
-          {!invalidReview && reviewRelease && (
-            <ReviewBar
-              version={reviewVersion!}
-              release={reviewRelease}
-              shownCount={shownCount}
-              totalCount={totalCount}
-              onExit={exitReviewMode}
-            />
-          )}
 
           <Layout>
             <Sider theme="light" width={200} style={{ borderRight: '1px solid #eef0f4' }}>
@@ -564,13 +532,6 @@ export default function App() {
       {/* 控制台视图：独立顶部导航 + PurchasePage */}
       {viewMode === 'console' && (
         <Content style={{ overflow: 'auto', background: '#fff' }}>
-          {reviewRelease && isReviewViewAllowed && (
-            <ReviewBar
-              version={reviewVersion!}
-              release={reviewRelease}
-              onExit={exitReviewMode}
-            />
-          )}
           <div
             style={{
               display: 'flex',
@@ -878,13 +839,6 @@ export default function App() {
       {/* 官方网站视图：独立顶部导航 + OfficialWebPage */}
       {viewMode === 'website' && (
         <Content style={{ overflow: 'auto', background: '#fff' }}>
-          {reviewRelease && isReviewViewAllowed && (
-            <ReviewBar
-              version={reviewVersion!}
-              release={reviewRelease}
-              onExit={exitReviewMode}
-            />
-          )}
           <div
             style={{
               display: 'flex',
