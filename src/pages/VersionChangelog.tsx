@@ -236,7 +236,7 @@ export default function VersionChangelog() {
           v{version.startsWith('v') ? version.slice(1) : version} 版本需求
           {release?.publishedAt && (
             <>
-              <Text type="secondary" style={{ marginLeft: 24, fontWeight: 400 }}>
+              <Text type="secondary" style={{ marginLeft: 32, fontWeight: 400 }}>
                 发布时间：{release.publishedAt}
               </Text>
             </>
