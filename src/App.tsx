@@ -275,11 +275,12 @@ export default function App() {
     setViewMode(allowedViews[0])
   }, [reviewVersion])
 
-  /** 保证 active 落在允许范围内（评审模式打开了不在允许范围内的路由时，切到第一个允许项） */
+  /** 保证 active 落在允许范围内（评审模式打开了不在允许范围内的路由时，切到第一个允许项；功能列表页永远放行） */
   useEffect(() => {
     if (!reviewVersion) return
     const release = RELEASES[reviewVersion]
     if (!release || release.routeKeys.includes('*')) return
+    if (active === 'changelog') return
 
     const allowed = new Set<string>(release.routeKeys as string[])
     if (allowed.has(active)) return
@@ -288,9 +289,10 @@ export default function App() {
     if (firstAllowed) setActive(firstAllowed as RouteKey)
   }, [reviewVersion, active])
 
-  /** 新功能作用域：active 不在新路由集合时切到第一个 */
+  /** 新功能作用域：active 不在新路由集合时切到第一个；功能列表页永远放行 */
   useEffect(() => {
     if (!isInScope()) return
+    if (active === 'changelog') return
     const keys = getScopeRouteKeys()
     if (keys.length === 0) return
     if (keys.includes(active)) return
@@ -412,6 +414,7 @@ export default function App() {
           alignItems: 'center',
           justifyContent: 'center',
           gap: 16,
+          position: 'relative',
         }}
       >
         <Segmented
@@ -447,6 +450,26 @@ export default function App() {
             },
           ]}
         />
+        <a
+          onClick={() => {
+            setViewMode('admin')
+            setActive('changelog')
+          }}
+          style={{
+            position: 'absolute',
+            right: 24,
+            color: '#2f6bff',
+            cursor: 'pointer',
+            fontWeight: 500,
+            fontSize: 13,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          <UnorderedListOutlined />
+          功能列表
+        </a>
       </div>
 
       {/* 管理后台视图：智算多多 Header + 评审条 + Sider + 内容 */}
@@ -485,13 +508,6 @@ export default function App() {
             <Space size={24} style={{ color: '#5a6474' }}>
               <span>官方网站</span>
               <span>Token工厂</span>
-              <a
-                onClick={() => setActive('changelog')}
-                style={{ color: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-              >
-                <UnorderedListOutlined style={{ fontSize: 14 }} />
-                功能列表
-              </a>
             </Space>
             <div style={{ flex: 1 }} />
             <Dropdown
