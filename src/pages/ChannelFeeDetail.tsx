@@ -11,6 +11,7 @@ import {
   message,
 } from 'antd'
 import { SearchOutlined, ExportOutlined, UserOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import RequirementDot from '../components/RequirementDot'
 
 const { Text } = Typography
@@ -31,6 +32,9 @@ interface FeeRow {
   channelModelCode: string
   saleModelName: string
   billingType: string
+  /** 本次调用命中的倍率档位（与渠道模型管理中的 API 配置口径一致：倍率名称 + 倍率） */
+  multiplierName: string
+  multiplier: string
   mediaQuality: string
   usageCount: string
   unitPrice: { input: string; output: string; cache: string; cacheCreate: string; cacheRead: string }
@@ -72,6 +76,8 @@ const rows: FeeRow[] = [
     usageCount: '——',
     unitPrice: unit,
     costPrice: cost,
+    multiplierName: '标准倍率',
+    multiplier: '1',
     costTotal: '0.362609',
     otherParams: '无视频输入',
     viduPoints: '—',
@@ -104,6 +110,8 @@ const rows: FeeRow[] = [
     usageCount: '——',
     unitPrice: unit,
     costPrice: cost,
+    multiplierName: '标准倍率',
+    multiplier: '1',
     costTotal: '0.362621',
     otherParams: '无视频输入',
     viduPoints: '—',
@@ -136,6 +144,8 @@ const rows: FeeRow[] = [
     usageCount: '——',
     unitPrice: unit,
     costPrice: cost,
+    multiplierName: '标准倍率',
+    multiplier: '1',
     costTotal: '0.362344',
     otherParams: '无视频输入',
     viduPoints: '—',
@@ -168,6 +178,8 @@ const rows: FeeRow[] = [
     usageCount: '——',
     unitPrice: unit,
     costPrice: cost,
+    multiplierName: '标准倍率',
+    multiplier: '1',
     costTotal: '0.354819',
     otherParams: '无视频输入',
     viduPoints: '—',
@@ -185,7 +197,121 @@ const rows: FeeRow[] = [
 
 const blueFee = (v: string) => <Text style={{ color: '#2f6bff' }}>￥{v}</Text>
 
+/** CSV 单元格：统一加引号并转义内部双引号 */
+function csvCell(value: string | number): string {
+  return `"${String(value).replace(/"/g, '""')}"`
+}
+
 export default function ChannelFeeDetail() {
+  /** 导出字段与列表列一一对应，新增的「倍率名称」「倍率」及成本价、单次成本总计、销售单价均输出 */
+  const handleExport = () => {
+    if (!rows.length) {
+      message.warning('当前筛选结果为空，暂无可导出数据')
+      return
+    }
+    const header = [
+      'ID',
+      '请求开始时间',
+      '响应结束时间',
+      '用户手机号',
+      '用户账户ID',
+      '用户API Key',
+      '扣费手机号',
+      '扣费账户ID',
+      '模型生产商',
+      '渠道',
+      '渠道API',
+      '渠道模型code',
+      '在售模型名称',
+      '计费方式',
+      '倍率名称',
+      '倍率',
+      '图片/视频质量',
+      '张数/秒数/用量',
+      '其他参数',
+      '使用积分(vidu)',
+      'Token输入量',
+      'Token输入费用(元)',
+      'Token输出量',
+      'Token输出费用(元)',
+      'OpenAI缓存读取Token',
+      'OpenAI缓存读取费用(元)',
+      'Anthropic缓存创建Token/费用',
+      'Anthropic缓存读取Token/费用',
+      '成本价-输入(元)',
+      '成本价-输出(元)',
+      '成本价-缓存(元)',
+      '成本价-缓存创建(元)',
+      '成本价-缓存读取(元)',
+      '单次成本总计(元)',
+      '销售单价-输入(元)',
+      '销售单价-输出(元)',
+      '销售单价-缓存(元)',
+      '销售单价-缓存创建(元)',
+      '销售单价-缓存读取(元)',
+      '单次费用总计(元)',
+    ]
+    const lines = [header.map(csvCell).join(',')]
+    rows.forEach((r) =>
+      lines.push(
+        [
+          r.id,
+          r.startTime,
+          r.endTime,
+          r.userPhone,
+          r.userAccount,
+          r.userKey,
+          r.payPhone,
+          r.payAccount,
+          r.vendor,
+          r.channel,
+          r.channelApi,
+          r.channelModelCode,
+          r.saleModelName,
+          r.billingType,
+          r.multiplierName || '—',
+          r.multiplier ? `${r.multiplier}x` : '—',
+          r.mediaQuality,
+          r.usageCount,
+          r.otherParams,
+          r.viduPoints,
+          r.tokenInAmount,
+          r.tokenInFee,
+          r.tokenOutAmount,
+          r.tokenOutFee,
+          r.openaiCacheReadAmount,
+          r.openaiCacheReadFee,
+          r.anthropicCacheCreate,
+          r.anthropicCacheRead,
+          r.costPrice.input,
+          r.costPrice.output,
+          r.costPrice.cache,
+          r.costPrice.cacheCreate,
+          r.costPrice.cacheRead,
+          r.costTotal,
+          r.unitPrice.input,
+          r.unitPrice.output,
+          r.unitPrice.cache,
+          r.unitPrice.cacheCreate,
+          r.unitPrice.cacheRead,
+          r.totalFee,
+        ]
+          .map(csvCell)
+          .join(','),
+      ),
+    )
+    const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `渠道费用明细_${dayjs().format('YYYYMMDD_HHmm')}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    message.success(`已导出 ${rows.length} 条记录`)
+  }
+
   return (
     <div>
       <Breadcrumb
@@ -218,7 +344,7 @@ export default function ChannelFeeDetail() {
 
       <Card variant="borderless" styles={{ body: { padding: 16 } }}>
         <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center' }}>
-          <Button type="primary" icon={<ExportOutlined />} onClick={() => message.success('已导出')}>
+          <Button type="primary" icon={<ExportOutlined />} onClick={handleExport}>
             导出
           </Button>
           <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 8 }}>
@@ -227,11 +353,7 @@ export default function ChannelFeeDetail() {
               sections={[
                 {
                   label: '',
-                  items: [
-                    '1.单价改为销售单价。将销售单价移到，单次费用总计前。',
-                    '2.在销售单价前增加“成本价”列，在成本价后增加“单次成本总计”。成本价：调用的实际的渠道模型的成本价；单次成本总计：单次调用所消耗的 用量x成本价的总和。',
-                    '3.支持导出新增字段。',
-                  ],
+                  items: ['支持导出新增字段：倍率信息拆为「倍率名称」「倍率」两列。'],
                 },
               ]}
             />
@@ -285,6 +407,35 @@ export default function ChannelFeeDetail() {
             { title: '渠道模型code', dataIndex: 'channelModelCode', width: 200 },
             { title: '在售模型名称', dataIndex: 'saleModelName', width: 180 },
             { title: '计费方式', dataIndex: 'billingType', width: 130 },
+            {
+              title: (
+                <Space size={6}>
+                  倍率信息
+                  <RequirementDot
+                    title="新增列 · 倍率信息"
+                    sections={[
+                      {
+                        label: '',
+                        items: [
+                          '1.位置：在「计费方式」后新增「倍率信息」列。',
+                          '2.展示两行：上行倍率名称，下行倍率（数字 + x，如 2x）。',
+                        ],
+                      },
+                    ]}
+                  />
+                </Space>
+              ),
+              key: 'multiplier',
+              width: 130,
+              render: (_, r) => (
+                <div style={{ lineHeight: 1.8 }}>
+                  <div>{r.multiplierName}</div>
+                  <div>
+                    <Text type="secondary">{`${r.multiplier}x`}</Text>
+                  </div>
+                </div>
+              ),
+            },
             {
               title: '图片/视频质量',
               dataIndex: 'mediaQuality',

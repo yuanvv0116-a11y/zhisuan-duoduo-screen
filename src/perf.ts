@@ -19,6 +19,12 @@ export const PERF_STATUS_META: Record<ModelPerfStatus, { label: string; tone: 's
 /** 判定阈值：24h 访问成功率达到该值视为正常，否则为异常 */
 export const PERF_NORMAL_RATE_THRESHOLD = 99
 
+/**
+ * 比率着色阈值：成功率等比率类指标按三档着色 —— ≥ PERF_NORMAL_RATE_THRESHOLD 绿、
+ * ≥ PERF_WARN_RATE_THRESHOLD 橙、其余红。渠道模型管理、模型性能弹窗、模型性能明细共用这一套口径。
+ */
+export const PERF_WARN_RATE_THRESHOLD = 80
+
 /** 异常小时的错误类型候选（原型悬浮层「异常明细」，按种子确定性选取） */
 const ANOMALY_CAUSES = ['上游服务 502 Bad Gateway', '网关请求超时 504', '访问被限流 429 Too Many Requests', '上游连接被重置']
 
@@ -322,9 +328,13 @@ export function buildHourlyPerfRows(channels: Channel[], items: ChannelModelItem
   const rows: HourlyPerfRow[] = []
   for (const item of items) {
     const perf = buildModelPerformance(item, channels)
+    /** 行级平均并发与平均输出 Token 数：与「查看性能」弹窗同一份概要，用于把逐小时聚合吞吐还原为单请求口径 */
+    const summary = channelModelPerf(item)
     const channelName = channels.find((c) => c.id === item.channelId)?.name ?? ''
     perf.longHourlyStats.forEach((s, j) => {
       const d = new Date(now.getTime() - j * 3600_000)
+      /** 与弹窗指标卡完全同源的派生：TPS = 该小时吞吐 ÷ 平均并发，TPOT =（平均延迟 − TTFT）÷ 平均输出 Token 数 */
+      const rate = tokenRateMetrics(summary, s.tps, s.avgLatency, s.firstTokenLatency)
       rows.push({
         key: `${item.id}|${s.fullLabel}`,
         collectedAt: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:00`,
@@ -333,10 +343,15 @@ export function buildHourlyPerfRows(channels: Channel[], items: ChannelModelItem
         channelName,
         modelName: item.modelName,
         events: perf.weekEvents[j] ?? [],
-        /** 首 Token 平均延迟：与弹窗「首 Token 平均延迟」卡片同源（同一个小时桶的 firstTokenLatency） */
+        /** 首 Token 平均延迟：与弹窗「首 Token 延迟 (TTFT)」卡片同源（同一个小时桶的 firstTokenLatency） */
         firstTokenLatency: s.firstTokenLatency,
-        tps: s.tps,
-        /** 平均延迟：完整响应耗时，与弹窗「平均会话时长」卡片同源 */
+        /** Token 吞吐量：该小时的窗口聚合速率（PerfHourStat.tps 即聚合吞吐） */
+        throughput: s.tps,
+        tps: round(rate.tps, 1),
+        tpot: rate.tpot,
+        /** 缓存命中率：与弹窗「缓存命中率」卡片同源（同一个小时桶的 cacheHitRate） */
+        cacheHitRate: s.cacheHitRate,
+        /** 平均延迟：完整响应耗时，与弹窗「平均延迟」卡片同源 */
         avgLatency: s.avgLatency,
         requestSuccessRate: s.successRate,
       })

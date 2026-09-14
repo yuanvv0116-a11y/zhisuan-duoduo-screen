@@ -19,6 +19,7 @@ import TokenPlanList from './pages/TokenPlanList'
 import RechargeTask from './pages/RechargeTask'
 import OtherRequirements from './pages/OtherRequirements'
 import PlanBill from './pages/PlanBill'
+import UserConsumeBill from './pages/UserConsumeBill'
 import PlanStats from './pages/PlanStats'
 import PurchasePage from './pages/PurchasePage'
 import PurchaseCheckout from './pages/PurchaseCheckout'
@@ -59,6 +60,7 @@ export type RouteKey =
   | 'resourcePack'
   | 'tokenPlan'
   | 'planBill'
+  | 'userConsumeBill'
   | 'planStats'
   | 'otherRequirements'
   | 'changelog'
@@ -123,6 +125,7 @@ const FULL_MENU: MenuItem[] = [
     label: '账单管理',
     children: [
       { key: 'planBill', label: '套餐与资源包账单' },
+      { key: 'userConsumeBill', label: '用户消费账单' },
     ],
   },
   {
@@ -447,6 +450,8 @@ export default function App() {
         return <TokenPlanList />
       case 'planBill':
         return <PlanBill />
+      case 'userConsumeBill':
+        return <UserConsumeBill />
       case 'planStats':
         return <PlanStats />
       case 'otherRequirements':

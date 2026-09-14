@@ -21,6 +21,7 @@ import {
 import type { CSSProperties } from 'react'
 import type { ColumnsType } from 'antd/es/table'
 import PageShell from '../components/PageShell'
+import RequirementDot from '../components/RequirementDot'
 import SearchField from '../components/SearchField'
 import { DEFAULT_MODEL_GROUP_ID, useChannels, useModelGroups, useModels } from '../store'
 import { modelTypeLabel } from '../constants'
@@ -29,6 +30,8 @@ import type { ModelApiConfig, ModelGroup, ModelGroupType, ModelItem } from '../t
 const { Text } = Typography
 type GroupForm = Pick<ModelGroup, 'name' | 'description' | 'sort'> & { enabled: boolean }
 type ShowFilter = 'all' | 'enabled' | 'disabled'
+/** 添加模型弹窗的候选行：一行一个倍率；无任何倍率的模型单独占一行（config 为 null，勾选即按模型加入） */
+type PickerRow = { key: string; model: ModelItem; config: ModelApiConfig | null }
 
 interface ModelFilter {
   vendor: string
@@ -128,45 +131,60 @@ export default function ModelGroupList() {
     [channels],
   )
 
-  const filteredModels = useMemo(() => {
+  /** 全量候选行：把每个模型的每条倍率配置展开为独立一行 */
+  const pickerRows = useMemo<PickerRow[]>(
+    () =>
+      models.flatMap((model): PickerRow[] => {
+        const list = model.apiConfigs ?? []
+        return list.length
+          ? list.map((cfg) => ({ key: cfg.id, model, config: cfg }))
+          : [{ key: model.id, model, config: null }]
+      }),
+    [models],
+  )
+
+  /** 筛选后的候选行：渠道 / API 名称按当前行的倍率配置匹配，无倍率的模型行在按渠道筛选时自然被过滤掉 */
+  const filteredRows = useMemo(() => {
     const f = appliedModelFilter
     const kw = f.name.trim().toLowerCase()
     const channelId = f.apiPath[0]
     const credentialId = f.apiPath[1] === API_ALL ? undefined : f.apiPath[1]
-    return models.filter((m) => {
-      const matchVendor = f.vendor === 'all' || m.vendor === f.vendor
-      const matchName = !kw || m.name.toLowerCase().includes(kw)
+    return pickerRows.filter((row) => {
+      const matchVendor = f.vendor === 'all' || row.model.vendor === f.vendor
+      const matchName = !kw || row.model.name.toLowerCase().includes(kw)
       const matchApi =
         !channelId ||
-        configsOf(m).some((cfg) =>
-          credentialId
-            ? cfg.channelId === channelId && cfg.credentialId === credentialId
-            : cfg.channelId === channelId,
-        )
+        (!!row.config &&
+          (credentialId
+            ? row.config.channelId === channelId && row.config.credentialId === credentialId
+            : row.config.channelId === channelId))
       return matchVendor && matchApi && matchName
     })
-  }, [models, appliedModelFilter])
+  }, [pickerRows, appliedModelFilter])
 
+  /** 列表按创建时间倒序展示（store 内的展示顺序仅决定前台排序） */
   const filtered = useMemo(
     () =>
-      modelGroups.filter((group) => {
-        if (group.groupType !== tab) return false
-        if (!group.name.toLowerCase().includes(query.keyword.trim().toLowerCase())) return false
-        /** 官方分组：命中组内任一模型名称即可，再叠加是否对外展示 */
-        if (tab === 'official') {
-          const modelKw = query.modelName.trim().toLowerCase()
-          if (modelKw && !group.modelIds.some((id) => modelMap.get(id)?.name.toLowerCase().includes(modelKw)))
-            return false
-          return query.status === 'all' || group.status === query.status
-        }
-        /** 用户自定义分组按创建用户筛选：昵称或手机号任一命中即可，手机号按完整号码匹配（列表仅展示脱敏值） */
-        const owner = group.owner
-        const userKw = query.userKw.trim().toLowerCase()
-        const accKw = query.accountId.trim().toLowerCase()
-        if (userKw && !(owner?.nickname.toLowerCase().includes(userKw) || owner?.phone.includes(userKw))) return false
-        if (accKw && !owner?.accountId.toLowerCase().includes(accKw)) return false
-        return true
-      }),
+      modelGroups
+        .filter((group) => {
+          if (group.groupType !== tab) return false
+          if (!group.name.toLowerCase().includes(query.keyword.trim().toLowerCase())) return false
+          /** 官方分组：命中组内任一模型名称即可，再叠加是否对外展示 */
+          if (tab === 'official') {
+            const modelKw = query.modelName.trim().toLowerCase()
+            if (modelKw && !group.modelIds.some((id) => modelMap.get(id)?.name.toLowerCase().includes(modelKw)))
+              return false
+            return query.status === 'all' || group.status === query.status
+          }
+          /** 用户自定义分组按创建用户筛选：昵称 / 手机号任一模糊命中即可，用户账户 ID 须完整精确匹配 */
+          const owner = group.owner
+          const userKw = query.userKw.trim().toLowerCase()
+          const accId = query.accountId.trim().toLowerCase()
+          if (userKw && !(owner?.nickname.toLowerCase().includes(userKw) || owner?.phone.includes(userKw))) return false
+          if (accId && owner?.accountId.toLowerCase() !== accId) return false
+          return true
+        })
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [modelGroups, modelMap, query, tab],
   )
 
@@ -197,9 +215,23 @@ export default function ModelGroupList() {
   const toggleGroupExpand = (id: string) =>
     setExpandedGroups((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]))
 
+  /**
+   * 打开弹窗时回填为「倍率行」勾选：已按倍率加入过的沿用之；
+   * 只按模型加入过（未指定倍率）的模型，展开为该模型的全部倍率，与列表「组内模型信息」口径一致。
+   */
   const openPicker = (group: ModelGroup) => {
     setModelGroup(group)
-    setSelectedIds(group.modelIds.filter((id) => modelMap.has(id)))
+    const picked = new Set(group.configIds ?? [])
+    setSelectedIds(
+      group.modelIds.flatMap((id) => {
+        const model = modelMap.get(id)
+        if (!model) return []
+        const list = configsOf(model)
+        if (!list.length) return [id]
+        const selected = list.filter((cfg) => picked.has(cfg.id))
+        return (selected.length ? selected : list).map((cfg) => cfg.id)
+      }),
+    )
     setModelFilter(emptyModelFilter)
     setAppliedModelFilter(emptyModelFilter)
   }
@@ -329,6 +361,15 @@ export default function ModelGroupList() {
       : []),
   ]
 
+  /** 官方分组内组名不可重复（忽略大小写与首尾空格），编辑时排除自身 */
+  const officialNameDuplicated = (name: string) => {
+    const target = name.trim().toLowerCase()
+    return modelGroups.some(
+      (group) =>
+        group.groupType === 'official' && group.id !== editing?.id && group.name.trim().toLowerCase() === target,
+    )
+  }
+
   const save = async () => {
     try {
       const v = await form.validateFields()
@@ -344,7 +385,7 @@ export default function ModelGroupList() {
       )
       setOpen(false)
     } catch {
-      /* 校验失败，不处理 */
+      /* 校验失败，不关闭弹窗 */
     }
   }
 
@@ -357,58 +398,58 @@ export default function ModelGroupList() {
     fontSize: 12,
   }
 
-  const stackedCell = (model: ModelItem, text: (cfg: ModelApiConfig) => string, width: number) => (
-    <Space direction="vertical" size={2}>
-      {configsOf(model).map((cfg) => (
-        <Text key={cfg.id} ellipsis style={{ display: 'block', maxWidth: width }}>
-          {text(cfg)}
-        </Text>
-      ))}
-    </Space>
-  )
-
-  const modelPickerColumns: ColumnsType<ModelItem> = [
-    { title: '模型名称', dataIndex: 'name', width: 170, render: (v: string) => <Text strong>{v}</Text> },
+  const modelPickerColumns: ColumnsType<PickerRow> = [
+    {
+      title: '模型名称',
+      width: 170,
+      fixed: 'left',
+      render: (_, row) => <Text strong>{row.model.name}</Text>,
+    },
     {
       title: '倍率名称 / 倍率',
-      width: 160,
-      render: (_, m) => {
-        const list = configsOf(m)
-        if (!list.length) return <Text type="secondary">—</Text>
-        return (
-          <Space direction="vertical" size={2}>
-            {list.map((cfg) => (
-              <span key={cfg.id} style={pillStyle}>
-                {cfg.multiplierName || '—'} · {cfg.modelMultiplier ?? 1}x
-              </span>
-            ))}
-          </Space>
-        )
-      },
+      width: 170,
+      render: (_, row) =>
+        row.config ? (
+          <span style={pillStyle}>
+            {row.config.multiplierName || '—'} · {row.config.modelMultiplier ?? 1}x
+          </span>
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
     },
     {
       title: '渠道',
       width: 150,
-      render: (_, m) =>
-        configsOf(m).length ? stackedCell(m, (cfg) => channelNameOf(cfg.channelId), 150) : <Text type="secondary">—</Text>,
+      render: (_, row) =>
+        row.config ? (
+          <Text ellipsis style={{ display: 'block', maxWidth: 150 }}>
+            {channelNameOf(row.config.channelId)}
+          </Text>
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
     },
     {
       title: 'API名称',
       width: 160,
-      render: (_, m) =>
-        configsOf(m).length ? stackedCell(m, apiNameOf, 160) : <Text type="secondary">—</Text>,
+      render: (_, row) =>
+        row.config ? (
+          <Text ellipsis style={{ display: 'block', maxWidth: 160 }}>
+            {apiNameOf(row.config)}
+          </Text>
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
     },
     {
       title: '模型类型',
-      dataIndex: 'type',
       width: 100,
-      render: (v: ModelItem['type']) => <Tag>{modelTypeLabel(v)}</Tag>,
+      render: (_, row) => <Tag>{modelTypeLabel(row.model.type)}</Tag>,
     },
     {
       title: '生产商',
-      dataIndex: 'vendor',
       width: 110,
-      render: (v: string) => v || <Text type="secondary">—</Text>,
+      render: (_, row) => row.model.vendor || <Text type="secondary">—</Text>,
     },
   ]
 
@@ -438,6 +479,39 @@ export default function ModelGroupList() {
             : undefined
         }
         addText="新增分组"
+        titleExtra={
+          <RequirementDot
+            title="模型分组（管理后台） · 页面与列表"
+            sections={[
+              {
+                label: '',
+                items: [
+                  '1.页面分为「官方分组」与「用户自定义分组」两个 tab，官方分组为在管理后台设置后展示给用户的分组，用户不可修改；用户自定义分组为用户添加的，后台不可修改；默认展示官方分组，切换页签即切换列表数据与搜索条件。',
+                  '2.列表字段展示如图，按照创建时间倒序展示。',
+                  '3.组内模型信息一行一条「模型名称 / 渠道 / 倍率名称 倍率x」，超过 3 条折叠，可点「展开（共 N 条）」查看全部，再点「收起」还原。',
+                  '4.「是否对外展示」开启时，用户才可查看该分组，关闭时不展示；默认分组不可关闭对外展示、不可编辑、不可删除，仅可添加/编辑模型。',
+                  '5.「用户自定义分组」不展示操作列，仅提供查看与搜索。',
+                  '6.删除分组需二次确认「确定删除该分组吗？」，确认后提示「分组已删除」。',
+                ],
+              },
+            ]}
+          />
+        }
+        searchExtra={
+          <RequirementDot
+            title="模型分组（管理后台） · 搜索与筛选"
+            sections={[
+              {
+                label: '',
+                items: [
+                  '1.「分组名称」：模糊搜索，忽略大小写。',
+                  '2.模型名称模糊搜索、是否对外展示（全部 / 已对外展示 / 未对外展示）。',
+                  '3.用户昵称/手机号模糊搜索、用户账户 ID精确搜索。',
+                ],
+              },
+            ]}
+          />
+        }
         onSearch={submitSearch}
         onReset={() => {
           setKeyword('')
@@ -522,7 +596,24 @@ export default function ModelGroupList() {
       </PageShell>
 
       <Modal
-        title={editing ? '编辑分组' : '新增分组'}
+        title={
+          <Space size={6}>
+            {editing ? '编辑分组' : '新增分组'}
+            <RequirementDot
+              title="新增 / 编辑分组"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                  '1.分组名称（必填，最多 10 字）、描述（选填，最多100 字）、展示顺序（必填，整数，大号优先展示，默认9999）、是否对外展示（开关，默认开启）。',
+                  '2.官方分组内，组名不可重复。',
+                  '3.保存成功提示「分组已创建」',
+                ],
+                },
+              ]}
+            />
+          </Space>
+        }
         open={open}
         centered
         width={520}
@@ -536,7 +627,7 @@ export default function ModelGroupList() {
             form.setFieldsValue(
               editing
                 ? { ...editing, enabled: editing.status === 'enabled' }
-                : { name: '', description: '', sort: 1, enabled: true },
+                : { name: '', description: '', sort: 9999, enabled: true },
             )
         }}
       >
@@ -544,14 +635,27 @@ export default function ModelGroupList() {
           <Form.Item
             label="分组名称"
             name="name"
-            rules={[{ required: true, whitespace: true, message: '请输入分组名称' }]}
+            rules={[
+              { required: true, whitespace: true, message: '请输入分组名称' },
+              {
+                validator: (_, value: string) =>
+                  value && officialNameDuplicated(value)
+                    ? Promise.reject(new Error('该分组名称已存在'))
+                    : Promise.resolve(),
+              },
+            ]}
           >
-            <Input maxLength={50} />
+            <Input maxLength={10} showCount />
           </Form.Item>
           <Form.Item label="描述" name="description">
-            <Input.TextArea maxLength={500} showCount rows={3} />
+            <Input.TextArea maxLength={100} showCount rows={3} />
           </Form.Item>
-          <Form.Item label="展示顺序" name="sort" rules={[{ required: true }]}>
+          <Form.Item
+            label="展示顺序"
+            name="sort"
+            tooltip="大号优先展示：数值越大越靠前，默认 9999"
+            rules={[{ required: true, message: '请输入展示顺序' }]}
+          >
             <InputNumber min={0} precision={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item label="是否对外展示" name="enabled" valuePropName="checked">
@@ -561,7 +665,24 @@ export default function ModelGroupList() {
       </Modal>
 
       <Modal
-        title={`添加模型 · ${modelGroup?.name ?? ''}`}
+        title={
+          <Space size={6}>
+            {`添加模型 · ${modelGroup?.name ?? ''}`}
+            <RequirementDot
+              title="添加模型 · 组内模型维护"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1.筛选：生产商（下拉）、渠道 / API 名称（级联，先选渠道再选其下 API，可只选到渠道）、模型名称（模糊搜索）。',
+                    '2.同一模型只可勾选1条倍率。',
+                    '3.点击「保存」检查模型是否存在，均存在，保存成功，建立模型倍率和分组的关联关系。有模型不存在则提示「xx模型不存在，是否保存其他模型？」【确认】保存其他模型，取消则关闭提示，刷新弹窗信息。',
+                  ],
+                },
+              ]}
+            />
+          </Space>
+        }
         open={!!modelGroup}
         centered
         width={900}
@@ -623,14 +744,14 @@ export default function ModelGroupList() {
         </div>
 
         <div style={{ marginBottom: 8 }}>
-          <Text type="secondary">已选择 {selectedIds.length} 个模型</Text>
+          <Text type="secondary">已选择 {selectedIds.length} 条倍率</Text>
         </div>
 
         <Table
-          rowKey="id"
+          rowKey="key"
           size="small"
           columns={modelPickerColumns}
-          dataSource={filteredModels}
+          dataSource={filteredRows}
           rowSelection={{
             type: 'checkbox',
             selectedRowKeys: selectedIds,
@@ -638,7 +759,7 @@ export default function ModelGroupList() {
             onChange: (keys) => setSelectedIds(keys as string[]),
           }}
           pagination={{ pageSize: 8, showSizeChanger: false, showTotal: (total) => `共 ${total} 条记录` }}
-          scroll={{ y: 360 }}
+          scroll={{ x: 'max-content', y: 360 }}
         />
       </Modal>
     </>

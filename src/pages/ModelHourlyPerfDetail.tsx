@@ -16,8 +16,9 @@ import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
 import type { HourlyPerfEvent, HourlyPerfRow } from '../types'
 import { useChannelModels, useChannels } from '../store'
-import { buildHourlyPerfRows, PERF_NORMAL_RATE_THRESHOLD } from '../perf'
+import { buildHourlyPerfRows, PERF_NORMAL_RATE_THRESHOLD, PERF_WARN_RATE_THRESHOLD } from '../perf'
 import PageShell from '../components/PageShell'
+import RequirementDot from '../components/RequirementDot'
 import SearchField from '../components/SearchField'
 
 const { RangePicker } = DatePicker
@@ -31,14 +32,19 @@ const last7DaysRange = (): [Dayjs, Dayjs] => [dayjs().subtract(6, 'day').startOf
 /** 已提交的查询条件：点击「搜索」后才生效 */
 type PerfQuery = { range: [Dayjs, Dayjs] | null; channelId: string; name: string }
 
+/** 表头算法说明：与「查看性能」弹窗的指标卡逐项对应，只是把口径从「窗口均值」细化为「单个采集小时」 */
 const RATE_TIPS = {
-  requestSuccessRate: '算法：1 小时内实测的请求成功数 ÷ 该小时总请求数',
+  tps: '算法：1 小时内 Token 吞吐量 ÷ 平均并发，即单请求输出速率',
   firstToken: '算法：1 小时内（首个 Token 到达时间 − 请求发送时间）总和 ÷ 1 小时请求数',
-  tps: '算法：1 小时内成功请求输出的 Token 总量 ÷ 1 小时内有效请求总耗时（秒）',
+  avgLatency: '算法：1 小时内（响应完成时间 − 请求发送时间）之和 ÷ 该小时成功请求数，即单请求总耗时',
+  tpot: '算法：1 小时内（平均延迟 − 首 Token 延迟）× 1000 ÷ 平均输出 Token 数',
+  throughput: '算法：1 小时内总输出 Token 数 ÷ 时间窗口（1 小时），即所有并发请求的聚合速率',
+  cacheHit: '算法：1 小时内命中缓存的输入 Token ÷ 输入 Token 总量',
+  requestSuccessRate: '算法：1 小时内实测的请求成功数 ÷ 该小时总请求数',
   anomaly: '该小时内记录的异常事件数量，鼠标悬浮可查看每条事件的具体时间与异常描述',
 }
 
-/** 状态色：与渠道模型管理同一口径，≥99% 绿、≥95% 橙、其余红 */
+/** 状态色：与渠道模型管理同一口径，≥99% 绿、≥80% 橙、其余红 */
 function usePerfColor() {
   const { token } = theme.useToken()
   return (tone: 'success' | 'warning' | 'danger') =>
@@ -49,8 +55,15 @@ function usePerfColor() {
 function RateCell({ value }: { value: number }) {
   const colorOf = usePerfColor()
   if (!value) return <Text type="secondary">—</Text>
-  const tone = value >= PERF_NORMAL_RATE_THRESHOLD ? 'success' : value >= 95 ? 'warning' : 'danger'
+  const tone =
+    value >= PERF_NORMAL_RATE_THRESHOLD ? 'success' : value >= PERF_WARN_RATE_THRESHOLD ? 'warning' : 'danger'
   return <Text style={{ color: colorOf(tone) }}>{`${value.toFixed(2)}%`}</Text>
+}
+
+/** 指标单元格：0 视为无数据统一显示 —；位数与单位与「查看性能」弹窗的指标卡保持一致 */
+function MetricCell({ value, digits, unit }: { value: number; digits: number; unit: string }) {
+  if (!value) return <Text type="secondary">—</Text>
+  return <Text>{`${value.toFixed(digits)} ${unit}`}</Text>
 }
 
 /** 表头：名称 + 算法说明悬浮图标 */
@@ -179,14 +192,19 @@ export default function ModelHourlyPerfDetail({ initialFilter }: Props = {}) {
       message.warning('当前筛选结果为空，暂无可导出数据')
       return
     }
+    /** 列顺序与页面表格、「查看性能」弹窗的指标卡完全一致 */
     const header = [
       '采集时段',
       '渠道名称',
       '渠道模型名称',
       '异常数量',
       '异常明细',
-      '首Token平均延迟（秒）',
       'TPS（tokens/秒）',
+      '首Token延迟TTFT（秒）',
+      '平均延迟（秒）',
+      '每个Token生成时间TPOT（毫秒）',
+      'Token吞吐量（tokens/秒）',
+      '缓存命中率',
       '请求成功率',
     ]
     const lines = [header.map(csvCell).join(',')]
@@ -198,8 +216,12 @@ export default function ModelHourlyPerfDetail({ initialFilter }: Props = {}) {
           r.modelName,
           r.events.length,
           r.events.map((e) => `${e.at} 异常描述：${e.cause}`).join('；'),
-          r.firstTokenLatency ? r.firstTokenLatency.toFixed(2) : '—',
           r.tps ? r.tps.toFixed(1) : '—',
+          r.firstTokenLatency ? r.firstTokenLatency.toFixed(2) : '—',
+          r.avgLatency ? r.avgLatency.toFixed(2) : '—',
+          r.tpot ? r.tpot.toFixed(1) : '—',
+          r.throughput ? r.throughput.toFixed(1) : '—',
+          r.cacheHitRate ? `${r.cacheHitRate.toFixed(1)}%` : '—',
           r.requestSuccessRate ? `${r.requestSuccessRate.toFixed(2)}%` : '—',
         ]
           .map(csvCell)
@@ -227,10 +249,58 @@ export default function ModelHourlyPerfDetail({ initialFilter }: Props = {}) {
       listTitle="模型性能明细（小时）"
       total={filtered.length}
       hideTotal
+      titleExtra={
+        <RequirementDot
+          title="模型性能明细（小时）· 列表字段"
+          sections={[
+            {
+              label: '',
+              items: [
+                '1.按小时粒度展示单个渠道模型的运行性能，按照采集时间倒序展示。',
+                '2.列字段与「渠道模型管理 › 查看性能」的统计口径一致，只是把窗口均值细化为单个采集小时：采集时段、渠道名称、渠道模型名称、异常数量、TPS、首 Token 延迟（TTFT）、平均延迟、每个 Token 生成时间（TPOT）、Token 吞吐量、缓存命中率、请求成功率。',
+                '3.列头带「？」图标，鼠标悬浮展示该指标的算法说明。',
+                '4.成功率、缓存命中率等比率类指标按阈值着色（≥99% 绿、≥80% 橙、其余红），与渠道模型管理同一口径。',
+                '5.异常数量大于 0 时显示告警图标，鼠标悬浮逐条展示事件的具体时间与异常描述。',
+                '6.无数据时统一显示「—」；表格横向滚动，「采集时段」列固定。',
+              ],
+            },
+          ]}
+        />
+      }
       searchExtra={
-        <Button icon={<ExportOutlined />} onClick={handleExport}>
-          导出
-        </Button>
+        <Space size={8}>
+          <RequirementDot
+            title="模型性能明细（小时）· 搜索与筛选"
+            sections={[
+              {
+                label: '',
+                items: [
+                  '1.「采集时间」：精确到小时的起止时间选择器，默认最近 24 小时；面板内置「最近 24 小时 / 最近 3 天 / 最近 7 天」快捷区间。',
+                  '2.「渠道名称」：关键字模糊搜索。',
+                  '3.「渠道模型名称」：关键字模糊搜索。',
+                  '4.点击「重置」恢复默认（最近 24 小时 + 全部渠道 + 全部模型）。',
+                  '5.从「查看性能」弹窗点「查看全部」跳转本页时，自动带入渠道与模型并直接完成搜索。',
+                ],
+              },
+            ]}
+          />
+          <Button icon={<ExportOutlined />} onClick={handleExport}>
+            导出
+          </Button>
+          <RequirementDot
+            title="模型性能明细（小时）· 导出"
+            sections={[
+              {
+                label: '',
+                items: [
+                  '1.按当前筛选结果导出 CSV，不只导当前页。',
+                  '2.导出字段与列表一致，并额外包含「异常明细」列，便于离线定位问题。',
+                  '3.筛选结果为空时给出提示，不生成文件。',
+                ],
+              },
+            ]}
+          />
+        </Space>
       }
       searchFields={
         <>
@@ -326,17 +396,40 @@ export default function ModelHourlyPerfDetail({ initialFilter }: Props = {}) {
             render: (_, r) => <AnomalyCell events={r.events} />,
           },
           {
-            title: <HeaderWithTip label="首 Token 平均延迟" tip={RATE_TIPS.firstToken} />,
-            dataIndex: 'firstTokenLatency',
-            width: 180,
-            render: (v: number) =>
-              v ? <Text>{`${v.toFixed(2)}s`}</Text> : <Text type="secondary">—</Text>,
-          },
-          {
             title: <HeaderWithTip label="TPS" tip={RATE_TIPS.tps} />,
             dataIndex: 'tps',
             width: 130,
-            render: (v: number) => (v ? `${v.toFixed(1)} t/s` : <Text type="secondary">—</Text>),
+            render: (v: number) => <MetricCell value={v} digits={1} unit="t/s" />,
+          },
+          {
+            title: <HeaderWithTip label="首 Token 延迟 (TTFT)" tip={RATE_TIPS.firstToken} />,
+            dataIndex: 'firstTokenLatency',
+            width: 190,
+            render: (v: number) => <MetricCell value={v} digits={2} unit="s" />,
+          },
+          {
+            title: <HeaderWithTip label="平均延迟" tip={RATE_TIPS.avgLatency} />,
+            dataIndex: 'avgLatency',
+            width: 130,
+            render: (v: number) => <MetricCell value={v} digits={2} unit="s" />,
+          },
+          {
+            title: <HeaderWithTip label="每个 Token 生成时间 (TPOT)" tip={RATE_TIPS.tpot} />,
+            dataIndex: 'tpot',
+            width: 210,
+            render: (v: number) => <MetricCell value={v} digits={1} unit="ms" />,
+          },
+          {
+            title: <HeaderWithTip label="Token 吞吐量" tip={RATE_TIPS.throughput} />,
+            dataIndex: 'throughput',
+            width: 150,
+            render: (v: number) => <MetricCell value={v} digits={1} unit="t/s" />,
+          },
+          {
+            title: <HeaderWithTip label="缓存命中率" tip={RATE_TIPS.cacheHit} />,
+            dataIndex: 'cacheHitRate',
+            width: 140,
+            render: (v: number) => <MetricCell value={v} digits={1} unit="%" />,
           },
           {
             title: <HeaderWithTip label="请求成功率" tip={RATE_TIPS.requestSuccessRate} />,

@@ -185,10 +185,16 @@ export interface HourlyPerfRow {
   modelName: string
   /** 该小时内的异常事件列表 */
   events: HourlyPerfEvent[]
-  /** 该小时内（首个 Token 到达时间 − 请求发送时间）的平均值，单位秒 */
+  /** 该小时内（首个 Token 到达时间 − 请求发送时间）的平均值，单位秒（弹窗「首 Token 延迟 (TTFT)」同源） */
   firstTokenLatency: number
-  /** 该小时平均吞吐，tokens/秒 */
+  /** 该小时 Token 吞吐量，tokens/秒：窗口内所有并发请求的聚合速率（弹窗「Token 吞吐量」同源） */
+  throughput: number
+  /** 该小时 TPS，tokens/秒：单请求速率 = Token 吞吐量 ÷ 平均并发，恒低于吞吐量 */
   tps: number
+  /** 该小时每个 Token 生成时间（TPOT），单位毫秒：（平均延迟 − 首 Token 延迟）÷ 平均输出 Token 数 */
+  tpot: number
+  /** 该小时缓存命中率，百分比数值：命中缓存的输入 Token ÷ 输入 Token 总量 */
+  cacheHitRate: number
   /** 该小时平均延迟，单位秒 */
   avgLatency: number
   /** 该小时实测请求成功率，百分比数值 */
@@ -278,9 +284,9 @@ export interface ModelGroup {
   groupType: ModelGroupType
   modelIds: string[]
   /**
-   * 倍率级引用：控制台账号「分档定价 - 加入分组」选中的 API 配置 id。
+   * 倍率级引用：组内被勾选的 API 配置 id，由后台「添加模型」弹窗或控制台「分档定价 - 加入分组」写入。
    * 组内模型若命中了这些配置，则只展示被选中的倍率；未命中的模型仍按全部倍率展示。
-   * 约束：同一模型只能有一条倍率配置进组，该模型的其他档位不能再加入同一个分组。
+   * 约束：仅用户自定义分组要求同一模型只能有一条倍率进组；后台官方分组可勾选同一模型的多条倍率。
    */
   configIds?: string[]
   description?: string

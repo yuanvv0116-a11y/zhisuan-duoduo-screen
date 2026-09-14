@@ -4,6 +4,7 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ClockCircleOutlined,
   DashboardOutlined,
+  DatabaseOutlined,
   FieldTimeOutlined,
   HourglassOutlined,
   QuestionCircleOutlined,
@@ -21,6 +22,7 @@ import {
   PERF_STATUS_META,
   tokenRateMetrics,
 } from '../perf'
+import RequirementDot from './RequirementDot'
 
 const { Text } = Typography
 
@@ -56,6 +58,9 @@ const chartClamp = (v: number, min: number, max: number) => Math.min(max, Math.m
  */
 const TREND_LABEL_EVERY = 3
 const trendLabelOf = (p: PerfHourPoint) => p.fullLabel
+
+/** 24h 明细行：小时桶自带的吞吐 / 延迟 / 命中率 / 成功率，外加按指标卡算法派生的单请求 TPS 与 TPOT */
+type HourRow = PerfHourStat & { requestTps: number; tpot: number }
 
 /** 内联 SVG 折线图（项目不引入图表库） */
 function LineChart({
@@ -292,6 +297,7 @@ export default function ModelPerformanceModal({
       tps: mean((s) => s.tps),
       avgLatency: mean((s) => s.avgLatency),
       avgFirstTokenLatency: mean((s) => s.firstTokenLatency),
+      cacheHitRate: mean((s) => s.cacheHitRate),
       successRate: mean((s) => s.successRate),
       anomalyHours: stats.filter((s) => s.anomaly).length,
     }
@@ -307,16 +313,33 @@ export default function ModelPerformanceModal({
     ...tokenRateMetrics(summary ?? {}, throughput, avgLatency, ttft),
     avgLatency,
     ttft,
+    /** 缓存命中率：命中缓存的输入 Token ÷ 输入 Token 总量 */
+    cacheHitRate: tier ? perf24.cacheHitRate : perf?.cacheHitRate ?? 0,
     successRate: tier ? perf24.successRate : perf?.successRate ?? 0,
     anomalyHours: tier ? perf24.anomalyHours : perf?.weekAnomalyHours ?? 0,
   }
 
-  /** 逐小时明细列：时间从当前时刻向历史回溯 24 小时 */
-  const hourColumns: ColumnsType<PerfHourStat> = [
+  /** 逐小时明细行：TPS 与 TPOT 不在小时桶里，按指标卡同一算法现算，保证列值与卡片口径、明细页数值完全同源 */
+  const hourlyRows: HourRow[] = useMemo(
+    () =>
+      (perf?.hourlyStats ?? []).map((s) => {
+        const rate = tokenRateMetrics(summary ?? {}, s.tps, s.avgLatency, s.firstTokenLatency)
+        return { ...s, requestTps: rate.tps, tpot: rate.tpot }
+      }),
+    [perf, summary],
+  )
+
+  /** 明细单元格：0 视为无数据统一显示「—」，保留位数与单位与上方指标卡逐项一致 */
+  const hourCell = (v: number, digits: number, unit: string) =>
+    v ? <Text>{`${v.toFixed(digits)} ${unit}`}</Text> : <Text type="secondary">—</Text>
+
+  /** 逐小时明细列：与上方 7 张指标卡同名同口径，时间从当前时刻向历史回溯 24 小时 */
+  const hourColumns: ColumnsType<HourRow> = [
     {
       title: '时间',
       dataIndex: 'fullLabel',
       width: 170,
+      fixed: 'left',
       render: (v: string, r) => (
         <Text
           strong={r.current}
@@ -334,27 +357,51 @@ export default function ModelPerformanceModal({
       ),
     },
     {
-      title: 'Token 吞吐量',
-      dataIndex: 'tps',
-      width: 140,
-      render: (v: number) => (v ? `${v.toFixed(1)} t/s` : <Text type="secondary">—</Text>),
+      title: 'TPS',
+      dataIndex: 'requestTps',
+      width: 110,
+      render: (v: number) => hourCell(v, 1, 't/s'),
+    },
+    {
+      title: '首 Token 延迟 (TTFT)',
+      dataIndex: 'firstTokenLatency',
+      width: 170,
+      render: (v: number) => hourCell(v, 2, 's'),
     },
     {
       title: '平均延迟',
       dataIndex: 'avgLatency',
+      width: 110,
+      render: (v: number) => hourCell(v, 2, 's'),
+    },
+    {
+      title: '每个 Token 生成时间 (TPOT)',
+      dataIndex: 'tpot',
+      width: 200,
+      render: (v: number) => hourCell(v, 1, 'ms'),
+    },
+    {
+      title: 'Token 吞吐量',
+      dataIndex: 'tps',
+      width: 140,
+      render: (v: number) => hourCell(v, 1, 't/s'),
+    },
+    {
+      title: '缓存命中率',
+      dataIndex: 'cacheHitRate',
       width: 120,
-      render: (v: number) => (v ? `${v.toFixed(2)}s` : <Text type="secondary">—</Text>),
+      render: (v: number) => hourCell(v, 1, '%'),
     },
     {
       title: '请求成功率',
       dataIndex: 'successRate',
-      width: 120,
+      width: 130,
       render: (v: number, r) => {
         if (!v) return <Text type="secondary">—</Text>
         const bad = r.anomaly || v < PERF_NORMAL_RATE_THRESHOLD
         return (
           <Text style={{ color: bad ? token.colorError : token.colorSuccess, fontWeight: 600 }}>
-            {v.toFixed(1)}%
+            {v.toFixed(2)}%
           </Text>
         )
       },
@@ -385,7 +432,49 @@ export default function ModelPerformanceModal({
       open={open && !!model && !!perf}
       width={960}
       destroyOnClose
-      title="模型性能"
+      title={
+        <Space size={6}>
+          模型性能
+          <RequirementDot
+            title="模型性能 · 弹窗展示说明"
+            sections={[
+              {
+                label: '弹窗展示',
+                items: [
+                  '顶部展示渠道名称 / API名称 / API地址（地址超长省略并悬浮显示完整值）/最新状态（取该模型最新一次访问的结果，正常为绿色、异常为红色）。',
+                ],
+              },
+              {
+                label: '指标算法',
+                items: [
+                  '统计数据统一取近 24 小时信息，算法如下：',
+                  'TPS（t/s，保留 1 位小数）：成功请求输出的 Token 总量 ÷ 有效请求总耗时（秒）。',
+                  '首 Token 延迟 TTFT（s，保留 2 位小数）：（首个 Token 到达时间 − 请求发送时间）之和 ÷ 成功请求数。',
+                  '平均延迟（s，保留 2 位小数）：（响应完成时间 − 请求发送时间）之和 ÷ 成功请求数，即单请求总耗时。',
+                  '每个 Token 生成时间 TPOT（ms，保留 1 位小数）：（总耗时 − TTFT）÷ 输出 Token 数。',
+                  'Token 吞吐量（t/s，保留 1 位小数）：24h 总输出 Token 数 ÷ 24h×3600。',
+                  '缓存命中率（%，保留 1 位小数）：命中缓存的输入 Token ÷ 输入 Token 总量。',
+                  '请求成功率（%，保留 2 位小数）：成功请求数 ÷ 总请求数，卡底补充「N 个异常」；异常时数值显红、正常时显绿。',
+                  '该周期无数据时，所有指标数值统一显示「—」。',
+                ],
+              },
+              {
+                label: '趋势图展示逻辑',
+                items: [
+                  '两张图横轴完全一致：最近 24 小时逐小时时间序列、同一标签格式（带日期，避免跨两天被读成同一天）、每 3 个刻度显示 1 个标签，便于上下对齐比对。',
+                  '只有请求成功趋势图做异常标注：异常小时展示红色大圆点。',
+                ],
+              },
+              {
+                label: '24h性能 明细表',
+                items: [
+                  '倒序展示最近 24h 数据，列与上方指标卡一致（TPS、首 Token 延迟 TTFT、平均延迟、每个 Token 生成时间 TPOT、Token 吞吐量、缓存命中率、请求成功率），数值位数与单位同卡片逐项对应；点击查看全部，跳转到模型性能明细页面，并在搜索框中展示当前渠道和模型。',
+                ],
+              },
+            ]}
+          />
+        </Space>
+      }
       onCancel={onClose}
       footer={<Button onClick={onClose}>关闭</Button>}
       styles={{ body: { maxHeight: '72vh', overflowY: 'auto', paddingRight: 4 } }}
@@ -494,6 +583,13 @@ export default function ModelPerformanceModal({
               tip="算法：总输出 Token 数 ÷ 时间窗口"
             />
             <StatCard
+              icon={<DatabaseOutlined />}
+              label="缓存命中率"
+              value={dash(metric.cacheHitRate, 1)}
+              unit={idle ? undefined : '%'}
+              tip="算法：命中缓存的输入 Token ÷ 输入 Token 总量"
+            />
+            <StatCard
               icon={<SafetyCertificateOutlined />}
               label="请求成功率"
               value={idle ? '—' : `${metric.successRate.toFixed(2)}%`}
@@ -596,7 +692,7 @@ export default function ModelPerformanceModal({
               <SectionTitle
                 icon={<ClockCircleOutlined />}
                 title="24h性能 明细"
-                desc="平均延迟、Token 吞吐量和请求成功率，更长周期请到明细页查看"
+                desc="与上方指标卡同一套统计项的逐小时明细，更长周期请到明细页查看"
                 extra={
                   <Button
                     type="link"
@@ -608,11 +704,11 @@ export default function ModelPerformanceModal({
                   </Button>
                 }
               />
-              <Table<PerfHourStat>
+              <Table<HourRow>
                 rowKey="fullLabel"
                 size="middle"
                 pagination={false}
-                dataSource={perf.hourlyStats}
+                dataSource={hourlyRows}
                 columns={hourColumns}
                 scroll={{ x: 'max-content', y: 380 }}
               />

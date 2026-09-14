@@ -37,7 +37,8 @@ import {
 import { ModelLogo } from './ModelList'
 import SecretCell, { maskSecret } from '../components/SecretCell'
 import ModelPerformanceModal from '../components/ModelPerformanceModal'
-import { buildModelPerformance, channelModelPerf, PERF_NORMAL_RATE_THRESHOLD } from '../perf'
+import RequirementDot from '../components/RequirementDot'
+import { buildModelPerformance, channelModelPerf, PERF_NORMAL_RATE_THRESHOLD, PERF_WARN_RATE_THRESHOLD } from '../perf'
 import type { ChannelModelItem, ModelApiConfig, ModelGroup, ModelItem, ModelPerfStatus } from '../types'
 import {
   CURRENT_CONSOLE_USER,
@@ -1116,11 +1117,13 @@ type RateTier = {
   id: string
   name: string
   rate: number
-  /** 该倍率配置在渠道上的运行指标：状态、24h 访问成功率（%）、24h 平均延迟（s）、24h 平均吞吐（t/s） */
+  /** 该倍率配置在渠道上的运行指标：状态、24h 访问成功率（%）、24h 平均延迟（s）、24h 平均吞吐（t/s）、24h 缓存命中率（%） */
   status: ModelPerfStatus
   successRate: number
   latency: number
   throughput: number
+  /** 24h 缓存命中率，百分比数值：命中缓存的输入 Token ÷ 输入 Token 总量 */
+  cacheHit: number
   /** 查看性能详情所需的渠道模型数据 */
   perfModel: ChannelModelItem
   /** 是否对应后台真实存在的倍率配置（兜底的「默认倍率」没有配置可加入分组） */
@@ -1152,6 +1155,7 @@ const tierOfConfig = (modelName: string, cfg: ModelApiConfig): RateTier => {
     successRate: perf.successRate24h,
     latency: perf.latency,
     throughput: perf.throughput,
+    cacheHit: perf.cacheHit ?? 0,
     perfModel,
     configurable: true,
   }
@@ -1177,6 +1181,7 @@ const fallbackTier = (modelName: string): RateTier => {
     successRate: perf.successRate24h,
     latency: perf.latency,
     throughput: perf.throughput,
+    cacheHit: perf.cacheHit ?? 0,
     perfModel,
     configurable: false,
   }
@@ -1201,7 +1206,7 @@ const rateTiersOf = (plazaName: string, models: ModelItem[]): RateTier[] => {
 
 /**
  * 分档定价行：一个「档位 × 阶梯」一行。
- * 档位、倍率、成功率、延迟、吞吐、操作属于档位级信息，跨阶梯合并为一格（span 首行为组行数、其余为 0）；
+ * 档位、倍率、成功率、延迟、吞吐、缓存命中率、操作属于档位级信息，跨阶梯合并为一格（span 首行为组行数、其余为 0）；
  * Token 范围与价格列按阶梯逐行展示。
  */
 type TierPriceRow = {
@@ -1241,14 +1246,14 @@ type DetailTab = 'overview' | 'access'
 /**
  * 成功率单元格：近 24 小时逐小时成功率柱状微图 + 汇总百分比。
  * 柱子高度按该档位自身的高低区间归一化（5~18px），避免成功率集中在 99% 上下时看不出波动；
- * 颜色口径与性能明细一致：≥ 99% 绿、≥ 95% 橙、其余红，无流量的小时置灰。
+ * 颜色口径与性能明细一致：≥ 99% 绿、≥ 80% 橙、其余红，无流量的小时置灰。
  */
 function SuccessRateCell({ value, bars }: { value: number; bars: number[] }) {
   const { token } = theme.useToken()
   const tone = (v: number) =>
     v >= PERF_NORMAL_RATE_THRESHOLD
       ? token.colorSuccess
-      : v >= 95
+      : v >= PERF_WARN_RATE_THRESHOLD
         ? token.colorWarning
         : token.colorError
   const floor = bars.length ? Math.min(...bars) : 0
@@ -1283,14 +1288,14 @@ function SuccessRateCell({ value, bars }: { value: number; bars: number[] }) {
 }
 
 /**
- * 成功率纯文本：只展示百分比数字，按阈值着色（≥ 99% 绿、≥ 95% 橙、其余红），用于不需要趋势微图的紧凑列表。
+ * 成功率纯文本：只展示百分比数字，按阈值着色（≥ 99% 绿、≥ 80% 橙、其余红），用于不需要趋势微图的紧凑列表。
  */
 function SuccessRateText({ value }: { value: number }) {
   const { token } = theme.useToken()
   const color =
     value >= PERF_NORMAL_RATE_THRESHOLD
       ? token.colorSuccess
-      : value >= 95
+      : value >= PERF_WARN_RATE_THRESHOLD
         ? token.colorWarning
         : token.colorError
   return <Text style={{ color, fontWeight: 600 }}>{value.toFixed(1)}%</Text>
@@ -1388,9 +1393,11 @@ function ModelDetail({
     return rows
   }, [detail, rateTiers])
 
-  /** 倍率命中的分组名：用于「所属分组」列展示与操作列提示，一条倍率可属于多个分组 */
+  /** 倍率命中的分组名：用于「所属分组」列展示与操作列提示，一条倍率可属于多个分组；官方分组另有「default」标签，此处只列用户自建分组 */
   const groupNamesOf = (configId: string) =>
-    modelGroups.filter((group) => (group.configIds ?? []).includes(configId)).map((group) => group.name)
+    modelGroups
+      .filter((group) => group.groupType === 'custom' && (group.configIds ?? []).includes(configId))
+      .map((group) => group.name)
 
   const submitGroup = () => {
     if (!groupTier || !pickedGroup) return
@@ -1446,6 +1453,14 @@ function ModelDetail({
       width: 78,
       onCell: (row) => ({ rowSpan: row.span }),
       render: (_, row) => row.meta.throughput.toFixed(1),
+    },
+    {
+      title: '缓存命中率',
+      key: 'cacheHit',
+      align: 'center',
+      width: 96,
+      onCell: (row) => ({ rowSpan: row.span }),
+      render: (_, row) => `${row.meta.cacheHit.toFixed(1)}%`,
     },
   ]
 
@@ -1616,7 +1631,24 @@ function ModelDetail({
           )}
           <div style={{ marginTop: 10, fontSize: 13, color: '#86909c' }}>单位：{detail.unit}</div>
 
-          <SectionTitle top={28}>分档定价</SectionTitle>
+          <SectionTitle top={28}>
+            分档定价
+            <RequirementDot
+              title="模型详情 · 分档定价"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1.倍率信息展示如图。按照倍率由小到大展示。分档的价格=基础价格×倍率。',
+                    '2.展示不同渠道模型下的性能指标；具体如图；算法同后台。',
+                    '3.展示不同的分组，官方橙色、自定义蓝色。',
+                    '4.支持查看性能，如图；算法同后台。',
+                    '5.点击加入分组，展示用户自定义分组。注意，一个分组只能添加1个模型的1个倍率；已添加后，其他倍率加入时，展示「xx已加入分组」。',
+                  ],
+                },
+              ]}
+            />
+          </SectionTitle>
           <Alert type="info" showIcon style={{ marginBottom: 12 }} message={TIER_USAGE_GUIDE} />
           {detail.priceTiers ? (
             <Table
@@ -1665,7 +1697,23 @@ function ModelDetail({
     },
     {
       key: 'access',
-      label: '接入示例',
+      label: (
+        <Space size={6}>
+          接入示例
+          <RequirementDot
+            title="模型详情 · 接入示例"
+            sections={[
+              {
+                label: '',
+                items: [
+                  '1.页面各项同以往。',
+                  '2.API KEY 中增加分组信息，鼠标点击后展示组内模型信息（文本的直接展示价格，其他模型展示「查看价格」，点击新开页面转到模型详情查看）。',
+                ],
+              },
+            ]}
+          />
+        </Space>
+      ),
       children: (
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 40, paddingTop: 4 }}>
           {/* 左主栏 */}
@@ -1818,7 +1866,26 @@ function ModelDetail({
       />
 
       <Modal
-        title="加入分组"
+        title={
+          <Space size={6}>
+            加入分组
+            <RequirementDot
+              title="模型详情 · 加入分组"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1.入口为分档定价操作列「加入分组」，弹窗顶部回显「模型名称 · 档位 倍率」，明确本次加入的档位。',
+                    '2.分组下拉仅列出当前账号自己创建的用户自定义分组，官方分组与其他账号的分组不可选。',
+                    '3.一个分组只允许加入一个模型的一种倍率：该模型其他档位已占用的分组置灰不可选，选项文案回显占用档位（如「A 组（2x已加入）」），同档位已在组内显示「（已加入）」并置灰；该规则以红字常驻提示，不随冲突状态出现或消失。',
+                    '4.未选择分组时「保存」禁用；保存成功提示「已加入分组「X」」，对应档位「所属分组」列即时新增蓝色自建分组标签。',
+                    '5.账号下无自定义分组时不展示选择框与底部按钮，改为空态提示，点「去添加分组」跳转控制台「模型分组」。',
+                  ],
+                },
+              ]}
+            />
+          </Space>
+        }
         open={!!groupTier}
         centered
         width={520}
@@ -2060,7 +2127,22 @@ function ModelPlaza({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 15, fontWeight: 600, color: '#1d2129' }}>筛选</span>
+              <Space size={6}>
+                <span style={{ fontSize: 15, fontWeight: 600, color: '#1d2129' }}>筛选</span>
+                <RequirementDot
+                  title="模型广场 · 搜索与筛选"
+                  sections={[
+                    {
+                      label: '',
+                      items: [
+                        '1.增加模型分组，优先展示官方分组，用橙色表示，其次展示自定义分组，用蓝色表示，鼠标悬浮展示官方分组、自定义分组字样。',
+                        '2.点击分组，筛选到分组关联的模型。',
+                        '3.分组支持多选。',
+                      ],
+                    },
+                  ]}
+                />
+              </Space>
               <Button
                 type="text"
                 size="small"
@@ -2123,6 +2205,15 @@ function ModelPlaza({
               <span style={{ flexShrink: 0, fontSize: 16, fontWeight: 600, color: '#1d2129', whiteSpace: 'nowrap' }}>
                 模型 {filtered.length} 个
               </span>
+              <RequirementDot
+                title="模型广场 · 模型列表"
+                sections={[
+                  {
+                    label: '',
+                    items: ['搜索框移动到列表上。其他不变。'],
+                  },
+                ]}
+              />
               <Input
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
@@ -2303,13 +2394,13 @@ function ApiKeyManage({ keys, onChange }: { keys: ApiKeyRow[]; onChange: (keys: 
   const [dialog, setDialog] = useState<ApiKeyDialog | null>(null)
   const expireType = Form.useWatch('expireType', form)
 
-  /** 可选分组：官方分组 + 当前账号自建分组，单选，标签上标注分组类型 */
+  /** 可选分组：对外展示的官方分组 + 当前账号自建分组，单选，标签上标注分组类型 */
   const groupOptions = useMemo(
     () =>
       modelGroups
         .filter(
           (group) =>
-            group.groupType === 'official' ||
+            (group.groupType === 'official' && group.status !== 'disabled') ||
             (group.groupType === 'custom' && group.owner?.accountId === CURRENT_CONSOLE_USER.accountId),
         )
         .map((group) => ({ value: group.id, label: `${group.name}（${groupTypeLabel(group)}）` })),
@@ -2408,9 +2499,23 @@ function ApiKeyManage({ keys, onChange }: { keys: ApiKeyRow[]; onChange: (keys: 
           </span>
         }
       />
-      <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }} onClick={() => setDialog({ mode: 'create' })}>
-        创建 API 密钥
-      </Button>
+      <Space size={10} style={{ marginBottom: 16 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setDialog({ mode: 'create' })}>
+          创建 API 密钥
+        </Button>
+        <RequirementDot
+          title="API Key 管理 · 密钥列表"
+          sections={[
+            {
+              label: '',
+              items: [
+                '1.添加 API KEY 需要选择分组，必选。',
+                '2.成功创建后，列表展示分组信息，鼠标点击展示组内模型信息。文本模型直接展示价格，其他模型展示「查看价格」，点击后新开页面展开模型详情查看。',
+              ],
+            },
+          ]}
+        />
+      </Space>
       <Table
         rowKey="id"
         columns={columns}
@@ -2419,7 +2524,27 @@ function ApiKeyManage({ keys, onChange }: { keys: ApiKeyRow[]; onChange: (keys: 
         pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (t) => `共 ${t} 条记录` }}
       />
       <Modal
-        title={dialog?.mode === 'edit' ? '编辑 API 密钥' : '创建 API 密钥'}
+        title={
+          <Space size={6}>
+            {dialog?.mode === 'edit' ? '编辑 API 密钥' : '创建 API 密钥'}
+            <RequirementDot
+              title="API Key 管理 · 创建 / 编辑密钥"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1.入口：列表右上角「创建 API 密钥」与行内「编辑」，同一弹窗，标题按新增/编辑切换。',
+                    '2.名称：必填，最多 20 字，占位「请输入名称，便于识别用途」。',
+                    '3.选择分组：必填、单选，可选范围为官方分组与当前账号自建分组，选项文案标注类型（如「A 组（自建分组）」），默认选中 default 分组；密钥可调用的模型与倍率由所选分组决定。',
+                    '4.到期时间：必填，可选「永久有效」或「指定日期」；选「指定日期」时出现「到期日期」，不可早于当天，保存后到期时间记为该日 23:59:59。',
+                    '5.弹窗居中、宽 520，按钮「取消 / 保存」；校验不通过时不关闭弹窗，保存成功提示「API 密钥已创建」「API 密钥已更新」。',
+                    '6.每次打开弹窗按当前密钥重新初始化表单，不残留上一次填写内容；新建密钥由系统自动生成。',
+                  ],
+                },
+              ]}
+            />
+          </Space>
+        }
         open={!!dialog}
         centered
         width={520}
@@ -2679,10 +2804,20 @@ function RatePicker({
       align: 'center',
       render: (_, row) => row.tier.throughput.toFixed(1),
     },
+    {
+      title: '缓存命中率',
+      key: 'cacheHit',
+      width: 110,
+      align: 'center',
+      render: (_, row) => `${row.tier.cacheHit.toFixed(1)}%`,
+    },
   ]
 
   return (
     <div style={{ marginTop: 16 }}>
+      <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
+        每个分组只能添加某个模型的1个档位。如default分组添加了seedance 1x 的模型，就不可以再添加 seedance 1.5x。
+      </Text>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         {PICKER_FILTER_FIELDS.map((field) => (
           <div key={field.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -2894,7 +3029,7 @@ function MyModelGroups({ onOpenModelDetail }: { onOpenModelDetail: (model: Plaza
                   <Tooltip title="移出分组">
                     <span style={{ display: 'inline-flex' }}>
                       <Popconfirm
-                        title="是否移除该模型？"
+                        title="是否确认删除？"
                         okText="确认移除"
                         cancelText="取消"
                         okButtonProps={{ danger: true }}
@@ -2975,7 +3110,7 @@ function MyModelGroups({ onOpenModelDetail }: { onOpenModelDetail: (model: Plaza
               </Button>
             </Popconfirm>
             <Popconfirm
-              title="确认删除该模型分组？"
+              title="是否确认删除？"
               description={`组内 ${count} 条倍率引用将一并移除，模型本身不受影响。`}
               okText="删除"
               cancelText="取消"
@@ -3018,6 +3153,20 @@ function MyModelGroups({ onOpenModelDetail }: { onOpenModelDetail: (model: Plaza
         >
           重置
         </Button>
+        <RequirementDot
+          title="模型分组（控制台） · 页面与搜索"
+          sections={[
+            {
+              label: '',
+              items: [
+                '1.我的模型分组支持根据模型名称模糊搜索；分组按照创建时间倒序展示。',
+                '2.列表展示如图。',
+                '3.点击组内模型信息展示模型信息，文本的展示价格，其他展示「查看价格」，点击后新开页面跳转到模型详情。',
+                '4.点击查看详情，跳转到模型详情；点击删除模型倍率，二次确认后移除分组。',
+              ],
+            },
+          ]}
+        />
         <div style={{ flex: 1 }} />
         <Text type="secondary" style={{ fontSize: 12 }}>
           已创建 {mine.length}/{MODEL_GROUP_LIMIT_PER_USER}
@@ -3068,7 +3217,23 @@ function MyModelGroups({ onOpenModelDetail }: { onOpenModelDetail: (model: Plaza
         ]}
       />
       <Modal
-        title={dialog?.mode === 'edit' ? '编辑模型分组' : '新建模型分组'}
+        title={
+          <Space size={6}>
+            {dialog?.mode === 'edit' ? '编辑模型分组' : '新建模型分组'}
+            <RequirementDot
+              title="模型分组（控制台） · 新建 / 编辑分组"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1.分组名称必填，最长 10 字，不可重复，也不能跟官方重复；描述选填，最长 100 字并展示字数。',
+                    '2.保存后提示保存成功，弹窗关闭，刷新列表。',
+                  ],
+                },
+              ]}
+            />
+          </Space>
+        }
         open={!!dialog}
         centered
         width={520}
@@ -3103,7 +3268,24 @@ function MyModelGroups({ onOpenModelDetail }: { onOpenModelDetail: (model: Plaza
         </Form>
       </Modal>
       <Modal
-        title="添加模型"
+        title={
+          <Space size={6}>
+            添加模型
+            <RequirementDot
+              title="模型分组（控制台） · 添加模型"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1.支持根据模型名称模糊搜索、生产商模糊搜索、倍率数字搜索。',
+                    '2.每个分组只能添加某个模型的1个倍率。',
+                    '3.保存后验证，模型是否存在，验证模型下倍率是否只有1个。否则提示「模型不存在」「每个分组只能添加某个模型的1个倍率」。验证成功，将模型添加到分组。',
+                  ],
+                },
+              ]}
+            />
+          </Space>
+        }
         open={!!pickerGroup}
         centered
         width={1040}
@@ -3840,6 +4022,19 @@ function ExperiencePlayground({
         }}
       >
         {modelCascader(model, tier, selectModelTier, { minWidth: 260 })}
+        <RequirementDot
+          title="体验语言模型 · 模型选择"
+          sections={[
+            {
+              label: '',
+              items: [
+                '1.模型选择改为级联选择：一级选模型，二级选该模型的档位-倍率。',
+                '2.选择倍率后，倒推当前用户，倍率所在的组，组所对应的key是否存在，不存在提示「当前模型档位尚未创建API KEY，请创建」；如果存在，默认选中。',
+                '3.模型对比逻辑与上方一致。',
+              ],
+            },
+          ]}
+        />
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           {topAction('模型对比', <SwapOutlined />, openCompare)}
           {topAction('调用示例', <CodeOutlined />, () => setDialog({ kind: 'sample', model, tier }))}

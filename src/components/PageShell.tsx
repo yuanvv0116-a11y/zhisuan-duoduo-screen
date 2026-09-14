@@ -19,6 +19,8 @@ interface PageShellProps {
   searchExtra?: ReactNode
   titleExtra?: ReactNode
   addExtra?: ReactNode
+  /** 列表卡右上角自定义操作区（无 onAdd 时也能渲染） */
+  listActions?: ReactNode
   children: ReactNode
 }
 
@@ -37,6 +39,7 @@ export default function PageShell({
   searchExtra,
   titleExtra,
   addExtra,
+  listActions,
   children,
 }: PageShellProps) {
   return (
@@ -83,12 +86,15 @@ export default function PageShell({
             )}
             {titleExtra}
           </Space>
-          {onAdd && (
+          {(onAdd || listActions) && (
             <Space size={8}>
-              <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
-                {addText ?? '新增'}
-              </Button>
+              {onAdd && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
+                  {addText ?? '新增'}
+                </Button>
+              )}
               {addExtra}
+              {listActions}
             </Space>
           )}
         </div>

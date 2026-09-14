@@ -22,7 +22,7 @@ import {
 import type { ChannelModelItem, ModelCostConfig, ModelPerfStatus } from '../types'
 import { useChannels, useChannelModels } from '../store'
 import { endpointLabel } from '../constants'
-import { channelModelPerf, PERF_NORMAL_RATE_THRESHOLD, PERF_STATUS_META } from '../perf'
+import { channelModelPerf, PERF_NORMAL_RATE_THRESHOLD, PERF_WARN_RATE_THRESHOLD, PERF_STATUS_META } from '../perf'
 import ChannelModelModal from '../components/ChannelModelModal'
 import ModelCostModal from '../components/ModelCostModal'
 import ModelPerformanceModal from '../components/ModelPerformanceModal'
@@ -132,7 +132,7 @@ function StatusCell({ status }: { status: ModelPerfStatus }) {
   const meta = PERF_STATUS_META[status]
   const color = colorOf(meta.tone)
   return (
-    <Tooltip title={`24h 访问成功率 ≥ ${PERF_NORMAL_RATE_THRESHOLD}% 为正常，否则为异常`}>
+    <Tooltip title="最新一次访问状态">
       <Space size={6}>
         <span
           style={{
@@ -149,15 +149,25 @@ function StatusCell({ status }: { status: ModelPerfStatus }) {
   )
 }
 
-/** 数值单元格：0 视为无数据，统一显示 — */
-function NumCell({ value, digits, suffix }: { value?: number; digits: number; suffix?: string }) {
+/** 数值单元格：0 视为无数据，统一显示 —；colorByRate 控制百分比是否按成功率阈值染色（缓存命中率等比率不适用该阈值） */
+function NumCell({
+  value,
+  digits,
+  suffix,
+  colorByRate = true,
+}: {
+  value?: number
+  digits: number
+  suffix?: string
+  colorByRate?: boolean
+}) {
   const colorOf = usePerfColor()
   if (!value) return <Text type="secondary">—</Text>
   const tone =
-    suffix === '%'
+    suffix === '%' && colorByRate
       ? value >= PERF_NORMAL_RATE_THRESHOLD
         ? 'success'
-        : value >= 95
+        : value >= PERF_WARN_RATE_THRESHOLD
           ? 'warning'
           : 'danger'
       : undefined
@@ -257,6 +267,23 @@ export default function ChannelModelManage({ onViewHourlyDetail }: ChannelModelM
       hideTotal
       addText="新增渠道模型"
       onAdd={openCreate}
+      titleExtra={
+        <RequirementDot
+          title="渠道模型管理 · 新增运行性能列"
+          sections={[
+            {
+              label: '',
+              items: [
+                '1.在「Model Code」后新增一组性能列：模型最新状态、24h 访问成功率、24h 平均延迟（s）、24h TTFT（s）、24h TPOT（ms）、24h 缓存命中率。',
+                '2.模型最新状态：彩色圆点 + 文字展示正常/异常，鼠标悬浮状态值提示「最新一次访问状态」，即按最新一次访问判定，不用窗口均值判定。',
+                '3.24h 访问成功率保留 2 位小数并带百分号；平均延迟、TTFT 单位为秒，TPOT 单位为毫秒，缓存命中率保留 1 位小数、不参与着色。',
+                '4.统计口径为最近 24 小时；窗口内无调用数据时统一显示「—」，不做 0 值兜底。',
+                '5.数据与「查看性能」弹窗、模型性能明细（小时）同源，三处指标口径一致。',
+              ],
+            },
+          ]}
+        />
+      }
       addExtra={
         <RequirementDot
           title="新增渠道模型"
@@ -373,6 +400,19 @@ export default function ChannelModelManage({ onViewHourlyDetail }: ChannelModelM
             render: (_, r) => <NumCell value={channelModelPerf(r).tpot} digits={1} />,
           },
           {
+            title: '24h 缓存命中率',
+            key: 'perfCacheHit',
+            width: 150,
+            render: (_, r) => (
+              <NumCell
+                value={channelModelPerf(r).cacheHit}
+                digits={1}
+                suffix="%"
+                colorByRate={false}
+              />
+            ),
+          },
+          {
             title: '端点映射',
             dataIndex: 'endpoints',
             width: 140,
@@ -431,6 +471,19 @@ export default function ChannelModelManage({ onViewHourlyDetail }: ChannelModelM
                 >
                   查看性能
                 </Button>
+                <RequirementDot
+                  title="查看性能"
+                  sections={[
+                    {
+                      label: '',
+                      items: [
+                        '1.行内「查看性能」打开弹窗，按当前渠道模型展示最近 24 小时的运行指标卡与逐小时明细。',
+                        '2.指标卡包含 TPS、首 Token 延迟、平均延迟、每个 Token 生成时间、Token 吞吐量、缓存命中率、请求成功率，与列表新增列同源。',
+                        '3.弹窗内提供「查看全部」，点击后跳转「渠道管理 › 模型性能明细（小时）」，并自动带入当前渠道与模型、直接完成搜索。',
+                      ],
+                    },
+                  ]}
+                />
                 <Popconfirm
                   title="确认删除该渠道模型？"
                   onConfirm={() => {

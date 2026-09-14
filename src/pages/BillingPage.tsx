@@ -38,6 +38,7 @@ import {
   ORDER_STATUS_LABEL,
   RESOURCE_STATUS_LABEL,
 } from '../types'
+import RequirementDot from '../components/RequirementDot'
 
 export type BillingSubPage =
   | 'accountOverview'
@@ -918,7 +919,25 @@ function ConsumptionSection() {
       ),
     },
     {
-      title: '倍率信息',
+      title: (
+        <Space size={6}>
+          倍率信息
+          <RequirementDot
+            title="消费明细 · 倍率信息"
+            sections={[
+              {
+                label: '',
+                items: [
+                  '1.位置：新增在「产品名称」之后，固定展示两行：上行倍率名称（如「标准倍率」），下行灰色小字倍率（如「1x」）。',
+                  '2.数据来源：与该笔消费实际命中的计费档位一致，取自模型广场 / 渠道模型配置中的倍率名称与模型倍率，不可手填。',
+                  '3.同一模型存在多个倍率档位时，按本次调用实际使用的档位展示，与「费用总额」的计算口径保持一一对应。',
+                  '4.本次调整同步移除了原「资源包信息」列，消费明细只保留现金计费口径。',
+                ],
+              },
+            ]}
+          />
+        </Space>
+      ),
       key: 'multiplier',
       width: 150,
       render: (_v, r) => (
@@ -935,7 +954,25 @@ function ConsumptionSection() {
     itemColumn('缓存读取', (r) => r.cacheRead),
     itemColumn('媒体信息', (r) => r.media, 120),
     {
-      title: '费用总额（元）',
+      title: (
+        <Space size={6}>
+          费用总额（元）
+          <RequirementDot
+            title="消费明细 · 列表与汇总"
+            sections={[
+              {
+                label: '',
+                items: [
+                  '1.计费项列（输入、输出、缓存、缓存创建、缓存读取、媒体信息）统一拆为两行：上行调用用量（数值 + 单位），下行蓝色小字该项费用「¥金额」，右对齐。',
+                  '2.该笔调用没有产生该项计费时整格显示灰色「--」，不显示 0，避免与真实零元调用混淆。',
+                  '3.「费用总额（元）」= 该行各计费项费用之和，固定在表格最右侧；金额大于 0 时加粗，横向滚动时始终可见。',
+                  '4.首列「流水号」固定左侧、超长悬浮显示完整编号；末列固定右侧，表格横向滚动；分页支持切换每页条数与快速跳页，展示「共 N 条」。',
+                ],
+              },
+            ]}
+          />
+        </Space>
+      ),
       key: 'total',
       width: 130,
       fixed: 'right',
@@ -1029,6 +1066,21 @@ function ConsumptionSection() {
               >
                 导出账单
               </Button>
+              <RequirementDot
+                title="消费明细 · 搜索与导出"
+                sections={[
+                  {
+                    label: '',
+                    items: [
+                      '1.搜索条件：产品名称（模糊匹配，输入框回车等同点击「查询」）、统计周期（按费用发生时间取闭区间，按日粒度过滤）。',
+                      '2.交互规则：标签 + 控件一行排列，右侧固定「查询」「重置」「导出账单」；点击「查询」才生效过滤，输入过程不做实时过滤。',
+                      '3.「重置」清空条件并将列表回到第 1 页；「查询」后同样重置到第 1 页，避免停留在无数据的页码。',
+                      '4.「导出账单」（绿色主按钮）按当前搜索条件导出，点击后提示「已提交导出，稍后可在通知中心下载」。',
+                      '5.顶部常驻说明：按需计费按次出账，单次费用低于 ¥0.0001 时按最低收费标准 ¥0.0001 收取。',
+                    ],
+                  },
+                ]}
+              />
             </Space>
           </div>
         </Form>

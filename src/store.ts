@@ -1299,8 +1299,8 @@ export function useModels() {
   return { models, addModel, updateModel, removeModel }
 }
 
-/** v3：自定义分组 seed 收敛为「同一模型只保留一个档位」，同步递增版本号以刷新本地旧数据 */
-const MODEL_GROUP_STORAGE_KEY = 'zsdd_model_groups_v3'
+/** v4：展示顺序改为「数值越大越优先展示」，官方/自定义分组 seed 顺序相应重排，同步递增版本号以刷新本地旧数据 */
+const MODEL_GROUP_STORAGE_KEY = 'zsdd_model_groups_v4'
 export const DEFAULT_MODEL_GROUP_ID = 'default'
 type ModelGroupInput = Pick<ModelGroup, 'name' | 'description' | 'status' | 'sort'>
 
@@ -1322,7 +1322,7 @@ const customGroupSeed: {
     name: '在线客服可用模型',
     description: '用户自建：客服问答场景常用模型',
     owner: { nickname: '张明', phone: '13811305182', accountId: 'ACC20260810PVPbI3MgE' },
-    sort: 10,
+    sort: 40,
     createdAt: '2026-08-20T02:15:00.000Z',
     modelNames: ['DeepSeek-V4-Flash', 'GLM-5.2'],
     configRefs: [
@@ -1335,7 +1335,7 @@ const customGroupSeed: {
     name: '多模态创作组',
     description: '用户自建：图片与视频生成',
     owner: { nickname: '李怡凡', phone: '13900001111', accountId: 'ACC20260814lyfMj9dPB' },
-    sort: 20,
+    sort: 30,
     createdAt: '2026-08-24T06:40:00.000Z',
     modelNames: ['Doubao-Seedream-5.0-Pro', 'DODO-AC-Ultra-5'],
   },
@@ -1344,7 +1344,7 @@ const customGroupSeed: {
     name: '知识库向量化',
     description: '用户自建：文档理解与向量化',
     owner: { nickname: '王强', phone: '13700002222', accountId: 'ACC20260811WQabc1234' },
-    sort: 30,
+    sort: 20,
     createdAt: '2026-08-28T09:05:00.000Z',
     modelNames: ['Qwen3.6-27B-NVFP4'],
   },
@@ -1353,7 +1353,7 @@ const customGroupSeed: {
     name: '营销素材生成组',
     description: '用户自建：文生图素材批量出图',
     owner: CURRENT_CONSOLE_USER,
-    sort: 40,
+    sort: 10,
     createdAt: '2026-09-02T03:20:00.000Z',
     modelNames: ['Doubao-Seedream-5.0-Pro'],
     /** 同一模型的档位只能有一个进组：该模型的其他档位（备用渠道/高清出图/尊享加速）不可再加入 */
@@ -1374,7 +1374,7 @@ const officialGroupSeed: {
     id: 'official_general',
     name: '通用对话分组',
     description: '官方预置：通用对话与文本生成，含组内模型的全部倍率档位',
-    sort: 5,
+    sort: 70,
     createdAt: '2026-09-05T02:10:00.000Z',
     modelNames: ['DeepSeek-V4-Flash', 'GLM-5.2'],
   },
@@ -1382,7 +1382,7 @@ const officialGroupSeed: {
     id: 'official_creative',
     name: '多模态创作分组',
     description: '官方预置：文生图与多模态创作，适合素材批量产出',
-    sort: 6,
+    sort: 60,
     createdAt: '2026-09-05T02:12:00.000Z',
     modelNames: ['Doubao-Seedream-5.0-Pro', 'DODO-AC-Ultra-5'],
   },
@@ -1390,17 +1390,18 @@ const officialGroupSeed: {
     id: 'official_embedding',
     name: '文档向量化分组',
     description: '官方预置：知识库文档理解与向量化，适合批量离线处理',
-    sort: 7,
+    sort: 50,
     createdAt: '2026-09-05T02:15:00.000Z',
     modelNames: ['Qwen3.6-27B-NVFP4'],
   },
 ]
 
+/** 展示顺序为「大号优先」：数值越大越靠前，系统内置 default 恒定置顶，同值按创建时间先后排列 */
 function sortModelGroups(groups: ModelGroup[]) {
   return [...groups].sort((a, b) => {
     if (a.id === DEFAULT_MODEL_GROUP_ID) return -1
     if (b.id === DEFAULT_MODEL_GROUP_ID) return 1
-    return a.sort - b.sort || a.createdAt.localeCompare(b.createdAt)
+    return b.sort - a.sort || a.createdAt.localeCompare(b.createdAt)
   })
 }
 
@@ -1490,11 +1491,21 @@ function getModelGroupsSnapshot() {
   return modelGroupState
 }
 
-/** 分组名称通用校验：非空且全局唯一（官方分组与用户自定义分组共用一套名称空间） */
-function validateGroupName(name: string, id?: string) {
+/**
+ * 分组名称通用校验：非空，且在同一分组类型内唯一。
+ * 官方分组之间不可重名、用户自定义分组之间不可重名，但官方与自定义互不占用彼此的名称空间。
+ */
+function validateGroupName(name: string, id?: string, groupType?: ModelGroup['groupType']) {
   const trimmed = name.trim()
   if (!trimmed) throw new Error('请输入分组名称')
-  if (modelGroupState.some((group) => group.id !== id && group.name.toLowerCase() === trimmed.toLowerCase())) {
+  if (
+    modelGroupState.some(
+      (group) =>
+        group.id !== id &&
+        (!groupType || group.groupType === groupType) &&
+        group.name.trim().toLowerCase() === trimmed.toLowerCase(),
+    )
+  ) {
     throw new Error('该分组名称已存在')
   }
   return trimmed
@@ -1502,7 +1513,11 @@ function validateGroupName(name: string, id?: string) {
 
 function validateModelGroup(input: ModelGroupInput, id?: string) {
   if (!Number.isSafeInteger(input.sort) || input.sort < 0) throw new Error('展示顺序须为非负整数')
-  return { ...input, name: validateGroupName(input.name, id), description: input.description?.trim() }
+  return {
+    ...input,
+    name: validateGroupName(input.name, id, 'official'),
+    description: input.description?.trim(),
+  }
 }
 
 /** 控制台「模型分组 › 我的分组」：每个账号最多创建的自定义分组数量 */
@@ -1512,12 +1527,15 @@ export const MODEL_GROUP_LIMIT_PER_USER = 10
 type CustomGroupInput = Pick<ModelGroup, 'name' | 'description'>
 
 function validateCustomGroup(input: CustomGroupInput, id?: string) {
-  return { name: validateGroupName(input.name, id), description: input.description?.trim() }
+  return { name: validateGroupName(input.name, id, 'custom'), description: input.description?.trim() }
 }
 
-/** 取一个排在所有分组之后的展示顺序，保证新建的自定义分组落在末尾 */
+/** 展示顺序大号优先，故取一个小于所有分组的顺序值，保证新建的自定义分组落在末尾 */
 function nextModelGroupSort() {
-  return modelGroupState.reduce((max, group) => Math.max(max, group.sort), 0) + 10
+  const sorts = modelGroupState
+    .filter((group) => group.id !== DEFAULT_MODEL_GROUP_ID)
+    .map((group) => group.sort)
+  return sorts.length ? Math.max(Math.min(...sorts) - 10, 1) : 1
 }
 
 /** 分组内档位冲突：同一模型的另一条倍率配置已占用该分组 */
@@ -1597,12 +1615,28 @@ export function useModelGroups() {
     if (group.groupType === 'custom') throw new Error('用户自定义分组不支持在后台删除')
     emitModelGroups(modelGroupState.filter((item) => item.id !== id))
   }, [])
-  const setModelGroupModels = useCallback((id: string, modelIds: string[]) => {
+  /**
+   * 后台「添加模型」弹窗保存：勾选粒度是「某个模型的某个倍率」，因此入参是倍率配置 ID 的集合
+   * （模型没有任何倍率配置时以模型 ID 占位）。保存时按倍率反查所属模型重建组内模型，
+   * 并把勾选结果写入 configIds，使「组内模型信息」只展示被勾选的倍率。
+   */
+  const setModelGroupModels = useCallback((id: string, memberIds: string[]) => {
     if (!modelGroupState.some((group) => group.id === id)) throw new Error('分组不存在')
-    const validIds = new Set(modelListState.map((model) => model.id))
-    if (modelIds.some((modelId) => !validIds.has(modelId))) throw new Error('部分模型已删除，请重新选择')
+    const modelIds = new Set(modelListState.map((model) => model.id))
+    const ownerOfConfig = new Map<string, string>()
+    for (const model of modelListState) {
+      for (const cfg of model.apiConfigs ?? []) ownerOfConfig.set(cfg.id, model.id)
+    }
+    const configIds: string[] = []
+    const nextModelIds: string[] = []
+    for (const memberId of new Set(memberIds)) {
+      const ownerId = modelIds.has(memberId) ? memberId : ownerOfConfig.get(memberId)
+      if (!ownerId) throw new Error('部分模型已删除，请重新选择')
+      if (ownerId !== memberId) configIds.push(memberId)
+      if (!nextModelIds.includes(ownerId)) nextModelIds.push(ownerId)
+    }
     emitModelGroups(modelGroupState.map((group) => group.id === id
-      ? { ...group, modelIds: [...new Set(modelIds)], operator: group.groupType === 'custom' ? group.operator : CURRENT_OPERATOR }
+      ? { ...group, modelIds: nextModelIds, configIds, operator: group.groupType === 'custom' ? group.operator : CURRENT_OPERATOR }
       : group))
   }, [])
   /**
