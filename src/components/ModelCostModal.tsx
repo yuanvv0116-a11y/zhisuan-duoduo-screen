@@ -1,24 +1,31 @@
 import { useEffect, useState } from 'react'
 import { Modal, Radio, InputNumber, Switch, Typography, Row, Col, Empty, Space, message } from 'antd'
-import type { ChannelModelItem, CostPriceType, ModelCostConfig } from '../types'
-import RequirementDot from './RequirementDot'
+import type { CostPriceType, ModelCostConfig } from '../types'
 
 const { Text } = Typography
 
+interface CostModelRef {
+  id: string
+  costConfig?: ModelCostConfig
+}
+
 interface Props {
   open: boolean
-  model: ChannelModelItem | null
+  model: CostModelRef | null
   onClose: () => void
   onSubmit: (id: string, config: ModelCostConfig) => void
 }
 
 const PRICE_TYPES: { value: CostPriceType; label: string }[] = [
-  { value: 'token', label: '按 token 计费' },
+  { value: 'token', label: '按token计费' },
+  { value: 'token_busy_idle', label: '按token忙闲时计费' },
+  { value: 'token_ladder', label: '按token阶梯计费' },
   { value: 'image_quality', label: '按图片质量计费' },
   { value: 'image_token', label: '按图片token计费' },
   { value: 'video_quality', label: '按视频质量计费' },
   { value: 'video_quality_token', label: '按视频质量token计费' },
   { value: 'vidu_image_quality', label: 'vidu按图片质量计费' },
+  { value: 'video_ai_points', label: '按拍我AI视频积分计费' },
 ]
 
 const emptyConfig = (): ModelCostConfig => ({
@@ -29,6 +36,7 @@ const emptyConfig = (): ModelCostConfig => ({
   cachedPrice: undefined,
   cacheCreatePrice: undefined,
   cacheReadPrice: undefined,
+  showReferencePrice: false,
 })
 
 export default function ModelCostModal({ open, model, onClose, onSubmit }: Props) {
@@ -147,34 +155,17 @@ export default function ModelCostModal({ open, model, onClose, onSubmit }: Props
 
   return (
     <Modal
-      title={
-        <Space size={6}>
-          模型成本配置
-          <RequirementDot
-            title="模型成本配置"
-            sections={[
-              {
-                label: '',
-                items: [
-                  '成本价格同模型管理中的模型价格配置。',
-                  '配置后，为渠道的模型增加计费方式和成本价格。',
-                  '每次调用模型，需要增加成本价格的记录。',
-                ],
-              },
-            ]}
-          />
-        </Space>
-      }
+      title="价格配置"
       width={720}
       centered
       open={open}
       onCancel={onClose}
-      okText="保存"
+      okText="保存定价"
       cancelText="取消"
       onOk={handleSave}
       destroyOnHidden
     >
-      <div style={{ marginBottom: 16, color: '#8c8c8c' }}>请在下方选择渠道成本价</div>
+      <div style={{ marginBottom: 16, color: '#8c8c8c' }}>请根据多种价格类型进行价格配置</div>
 
       <Radio.Group
         value={config.priceType}
@@ -193,6 +184,24 @@ export default function ModelCostModal({ open, model, onClose, onSubmit }: Props
       ) : (
         <Empty description="该计费类型的价格配置待补充" />
       )}
+
+      <div
+        style={{
+          marginTop: 20,
+          padding: '12px 16px',
+          background: '#fafafa',
+          borderRadius: 6,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <span>是否展示参考价格</span>
+        <Switch
+          checked={config.showReferencePrice ?? false}
+          onChange={(checked) => patch({ showReferencePrice: checked })}
+        />
+      </div>
     </Modal>
   )
 }

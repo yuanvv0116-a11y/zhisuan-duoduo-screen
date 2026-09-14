@@ -62,6 +62,16 @@ body {
   }
 }
 
+/* 树形表格：渠道父行整行浅底色，与 API 子行（白底）区分层级 */
+.channel-parent-row > td.ant-table-cell {
+  background: #f7f9ff;
+}
+
+.channel-parent-row:hover > td.ant-table-cell,
+.channel-parent-row > td.ant-table-cell-row-hover {
+  background: #eef3ff !important;
+}
+
 /* 折后价输入：红色加粗，覆盖 antd 默认 input 颜色 */
 .final-price-input .ant-input-number-input,
 .final-price-input .ant-input-number-input:focus,

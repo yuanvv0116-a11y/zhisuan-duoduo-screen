@@ -3,12 +3,14 @@ import {
   Modal,
   Form,
   Input,
-  Switch,
   Space,
+  Typography,
   message,
 } from 'antd'
 import type { Channel } from '../types'
 import RequirementDot from './RequirementDot'
+
+const { Text } = Typography
 
 interface Props {
   open: boolean
@@ -20,10 +22,7 @@ interface Props {
 const emptyChannel = (): Channel => ({
   id: '',
   name: '',
-  apiName: '',
-  apiUrl: '',
-  apiKey: '',
-  status: 'enabled',
+  apiCredentials: [],
   contact: '',
   phone: '',
   remark: '',
@@ -48,13 +47,9 @@ export default function ChannelModal({
       setDraft(init)
       form.setFieldsValue({
         name: init.name,
-        apiName: init.apiName,
-        apiUrl: init.apiUrl,
-        apiKey: init.apiKey,
         contact: init.contact,
         phone: init.phone,
         remark: init.remark,
-        status: init.status === 'enabled',
       })
     }
   }, [open, channel, form])
@@ -65,13 +60,9 @@ export default function ChannelModal({
       onSubmit({
         ...draft,
         name: base.name,
-        apiName: base.apiName,
-        apiUrl: base.apiUrl,
-        apiKey: base.apiKey,
         contact: base.contact,
         phone: base.phone,
         remark: base.remark,
-        status: base.status ? 'enabled' : 'disabled',
       })
     } catch {
       message.error('请检查必填项')
@@ -94,6 +85,8 @@ export default function ChannelModal({
                   items: [
                     '1.增加渠道联系人，选填，50字内；',
                     '2.增加联系方式，选填，50字内；',
+                    '3.API 名称、API 地址、API Key、备注、状态不在本弹窗填写，保存渠道后在渠道列表操作列点击「添加API」进行配置，一个渠道可配置多组。',
+                    '4.渠道状态去掉：启用/停用改由每组 API 配置维护，在「添加API」弹窗或列表子行中设置。',
                   ],
                 },
               ]}
@@ -118,27 +111,20 @@ export default function ChannelModal({
         >
           <Input placeholder="如：阿里云百炼" />
         </Form.Item>
-        <Form.Item
-          name="apiName"
-          label="API 名称"
-          rules={[{ required: true, message: '请输入 API 名称' }]}
+
+        <div
+          style={{
+            background: '#f7f8fa',
+            border: '1px solid #eef0f4',
+            borderRadius: 8,
+            padding: '10px 12px',
+            marginBottom: 16,
+          }}
         >
-          <Input placeholder="如：阿里云-华东主站" />
-        </Form.Item>
-        <Form.Item
-          name="apiUrl"
-          label="API 地址"
-          rules={[{ required: true, message: '请输入 API 地址' }]}
-        >
-          <Input placeholder="https://api.example.com/v1" />
-        </Form.Item>
-        <Form.Item
-          name="apiKey"
-          label="API Key"
-          rules={[{ required: true, message: '请输入 API Key' }]}
-        >
-          <Input.Password placeholder="sk-..." autoComplete="new-password" />
-        </Form.Item>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            保存渠道后，可在渠道列表操作列点击「添加API」
+          </Text>
+        </div>
 
         <Form.Item name="contact" label="渠道联系人">
           <Input placeholder="选填，如：张工" />
@@ -148,14 +134,6 @@ export default function ChannelModal({
         </Form.Item>
         <Form.Item name="remark" label="备注">
           <Input.TextArea rows={2} placeholder="选填，渠道说明、对接注意事项等" />
-        </Form.Item>
-
-        <Form.Item
-          name="status"
-          label="渠道状态"
-          valuePropName="checked"
-        >
-          <Switch checkedChildren="启用" unCheckedChildren="停用" />
         </Form.Item>
       </Form>
     </Modal>

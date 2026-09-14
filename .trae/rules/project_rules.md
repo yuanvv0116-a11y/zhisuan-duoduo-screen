@@ -7,6 +7,7 @@
 - 状态：localStorage 存储 + useSyncExternalStore（见 `src/store.ts`），无后端。
 - 开发服务器端口：**5180**（`npm run dev -- --port 5180 --strictPort`，5173 常被占用）。
 - 每次改完必须跑 `npx tsc -b --pretty false` 校验通过（开启 noUnusedLocals，未使用的 import/变量要清理）。
+- 部署：`vite.config.ts` 固定 `base: './'`（产物用相对路径），`npm run build` 后的 `dist/` 是纯静态目录，可直接放到任意静态服务器的站点根目录或子目录（如 `/proto/`），无需重新构建。评审入口靠 URL 查询参数（`?review=<version>`），不依赖 history 路由，因此**不需要 SPA rewrite**。
 
 ## 1. 设计 Token（唯一来源）
 - 主色（品牌蓝）：`#2f6bff` —— 按钮、Logo、选中态、Switch、链接、主操作。

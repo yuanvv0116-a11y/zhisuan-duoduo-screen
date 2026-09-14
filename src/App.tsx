@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Layout, Menu, Typography, Space, Avatar, Dropdown, Segmented } from 'antd'
 import { ApiOutlined, AppstoreOutlined, BarChartOutlined, DownOutlined, UserOutlined, TeamOutlined, WalletOutlined, MoreOutlined, DesktopOutlined, RocketOutlined, GlobalOutlined, UnorderedListOutlined } from '@ant-design/icons'
 import UserList from './pages/UserList'
@@ -6,12 +6,14 @@ import UserTag from './pages/UserTag'
 import AccountList from './pages/AccountList'
 import ChannelManage from './pages/ChannelManage'
 import ChannelModelManage from './pages/ChannelModelManage'
+import ModelHourlyPerfDetail, { type PerfDetailFilter } from './pages/ModelHourlyPerfDetail'
 import ChannelBill from './pages/ChannelBill'
 import ChannelFeeDetail from './pages/ChannelFeeDetail'
 import ChannelStatAnalysis from './pages/ChannelStatAnalysis'
 import ModelUsageStat from './pages/ModelUsageStat'
 import ModelUsageDetail from './pages/ModelUsageDetail'
 import ModelList from './pages/ModelList'
+import ModelGroupList from './pages/ModelGroupList'
 import ResourcePack from './pages/ResourcePack'
 import TokenPlanList from './pages/TokenPlanList'
 import RechargeTask from './pages/RechargeTask'
@@ -27,11 +29,12 @@ import AgreementPage, { type AgreementType } from './pages/AgreementPage'
 import UsageGuidePage from './pages/UsageGuidePage'
 import UsageStatsPage from './pages/UsageStatsPage'
 import MySubscriptionPage from './pages/MySubscriptionPage'
-import BillingPage from './pages/BillingPage'
+import BillingPage, { type BillingSubPage } from './pages/BillingPage'
 import ResourcePackPage from './pages/ResourcePackPage'
 import OfficialWebPage from './pages/OfficialWebPage'
+import TokenFactoryPage, { type FactoryMenu } from './pages/TokenFactoryPage'
 import VersionChangelog from './pages/VersionChangelog'
-import { RELEASES } from './releases'
+import { RELEASES, parseConsoleScope } from './releases'
 import { getActiveScope, getScopeFromUrl, getScopeRouteKeys, isInScope, SCOPES } from './scope'
 import type { TokenPlan } from './types'
 
@@ -45,12 +48,14 @@ export type RouteKey =
   | 'rechargeTask'
   | 'channels'
   | 'channelModels'
+  | 'modelHourlyPerf'
   | 'channelBill'
   | 'channelFeeDetail'
   | 'channelStat'
   | 'modelUsageStat'
   | 'modelUsageDetail'
   | 'models'
+  | 'modelGroups'
   | 'resourcePack'
   | 'tokenPlan'
   | 'planBill'
@@ -87,6 +92,7 @@ const FULL_MENU: MenuItem[] = [
     label: '模型管理',
     children: [
       { key: 'models', label: '模型列表' },
+      { key: 'modelGroups', label: '模型分组' },
       { key: 'resourcePack', label: '资源包管理' },
       { key: 'tokenPlan', label: 'Token Plan' },
     ],
@@ -97,6 +103,7 @@ const FULL_MENU: MenuItem[] = [
     children: [
       { key: 'channels', label: '渠道管理' },
       { key: 'channelModels', label: '渠道模型管理' },
+      { key: 'modelHourlyPerf', label: '模型性能明细（小时）' },
       { key: 'channelBill', label: '渠道对账单' },
       { key: 'channelFeeDetail', label: '渠道费用明细' },
     ],
@@ -105,7 +112,7 @@ const FULL_MENU: MenuItem[] = [
     key: 'statGroup',
     label: '统计与分析',
     children: [
-      { key: 'channelStat', label: '渠道统计分析' },
+      { key: 'channelStat', label: '渠道统计与性能分析' },
       { key: 'modelUsageStat', label: '模型使用统计分析' },
       { key: 'modelUsageDetail', label: '模型使用明细' },
       { key: 'planStats', label: '资源包与套餐统计' },
@@ -188,15 +195,18 @@ function _exitReviewMode() {
 
 export default function App() {
   const [active, setActive] = useState<RouteKey>('channels')
+  /** 后台内容区是各页面共用的滚动容器，切页时需要它回到顶部，否则新页面会停在上一页的滚动位置 */
+  const contentRef = useRef<HTMLElement>(null)
+  /** 从「查看性能」弹窗点「查看全部」带过来的渠道与该渠道模型名称，用于明细页自动搜索 */
+  const [perfDetailFilter, setPerfDetailFilter] = useState<PerfDetailFilter | undefined>(undefined)
   const [viewMode, setViewMode] = useState<'admin' | 'console' | 'website'>('admin')
   const [webNav, setWebNav] = useState<'tokenPlan'>('tokenPlan')
-  const [consoleSubPage, setConsoleSubPage] = useState<string>('tokenPlan')
+  /** 控制台默认落在 Token工厂，顶部导航点击「控制台」时也回到该子页 */
+  const [consoleSubPage, setConsoleSubPage] = useState<string>('tokenFactory')
   const [tokenPlanSub, setTokenPlanSub] = useState<
     'overview' | 'mySubscription' | 'resourcePack' | 'mySubscriptionNoPlan' | 'mySubscriptionNoPack'
   >('overview')
-  const [billingSub, setBillingSub] = useState<
-    'accountOverview' | 'accountDetail' | 'recharge' | 'orderDetail' | 'consumption' | 'invoice'
-  >('orderDetail')
+  const [billingSub, setBillingSub] = useState<BillingSubPage>('orderDetail')
   const [checkoutPlan, setCheckoutPlan] = useState<TokenPlan | null>(null)
   const [isRenewMode, setIsRenewMode] = useState(false)
 
@@ -299,6 +309,11 @@ export default function App() {
     setActive(keys[0] as RouteKey)
   }, [active])
 
+  /** 切换页面后把共用滚动容器重置到顶部，避免新页面沿用上一页的滚动位置（长页面会只显示下半部分） */
+  useEffect(() => {
+    if (contentRef.current) contentRef.current.scrollTop = 0
+  }, [active])
+
   /** 根据评审模式 / 新功能作用域计算允许的路由 / 过滤后的菜单 */
   const { menuItems, shownCount, totalCount, reviewRelease, invalidReview } = useMemo(() => {
     const total = countLeaves(FULL_MENU)
@@ -359,6 +374,36 @@ export default function App() {
   const reviewAllowedViews = reviewRelease?.views ?? ['admin']
   const isReviewViewAllowed = !reviewRelease || reviewAllowedViews.includes(viewMode)
 
+  /** 评审模式下的控制台范围：只放行本次版本 consoleKeys 声明的 Token工厂 / 费用二级菜单 */
+  const consoleScope = useMemo(() => parseConsoleScope(reviewRelease), [reviewRelease])
+  const allowedFactoryMenus = consoleScope?.factory as FactoryMenu[] | undefined
+  const allowedBillingSubs = consoleScope?.billing as BillingSubPage[] | undefined
+  /** 控制台顶部导航：本次范围里没有对应入口时隐藏 */
+  const showConsoleFactory = !consoleScope || !!allowedFactoryMenus
+  const showConsoleBilling = !consoleScope || !!allowedBillingSubs
+  const defaultConsoleSub = showConsoleFactory
+    ? 'tokenFactory'
+    : showConsoleBilling
+      ? 'billing'
+      : 'tokenFactory'
+  const defaultBillingSub: BillingSubPage = allowedBillingSubs?.[0] ?? 'orderDetail'
+
+  /** 评审模式：控制台子页回落到本次范围内的入口 */
+  useEffect(() => {
+    if (!consoleScope) return
+    if (!showConsoleFactory && !showConsoleBilling) return
+    if (consoleSubPage === 'tokenFactory' && !showConsoleFactory) setConsoleSubPage('billing')
+    if (consoleSubPage === 'billing' && !showConsoleBilling) setConsoleSubPage('tokenFactory')
+    if (['appPlaza', 'opc', 'tokenPlan'].includes(consoleSubPage)) setConsoleSubPage(defaultConsoleSub)
+  }, [consoleScope, consoleSubPage, showConsoleFactory, showConsoleBilling, defaultConsoleSub])
+
+  /** 评审模式：费用二级菜单回落到本次范围内的第一项 */
+  useEffect(() => {
+    if (!allowedBillingSubs || allowedBillingSubs.length === 0) return
+    if (allowedBillingSubs.includes(billingSub)) return
+    setBillingSub(allowedBillingSubs[0])
+  }, [allowedBillingSubs, billingSub])
+
   const renderPage = () => {
     switch (active) {
       case 'userList':
@@ -372,7 +417,16 @@ export default function App() {
       case 'channels':
         return <ChannelManage />
       case 'channelModels':
-        return <ChannelModelManage />
+        return (
+          <ChannelModelManage
+            onViewHourlyDetail={(item) => {
+              setPerfDetailFilter({ channelId: item.channelId, modelName: item.modelName })
+              setActive('modelHourlyPerf')
+            }}
+          />
+        )
+      case 'modelHourlyPerf':
+        return <ModelHourlyPerfDetail initialFilter={perfDetailFilter} />
       case 'channelBill':
         return <ChannelBill />
       case 'channelFeeDetail':
@@ -385,6 +439,8 @@ export default function App() {
         return <ModelUsageDetail />
       case 'models':
         return <ModelList />
+      case 'modelGroups':
+        return <ModelGroupList />
       case 'resourcePack':
         return <ResourcePack />
       case 'tokenPlan':
@@ -419,7 +475,16 @@ export default function App() {
       >
         <Segmented
           value={viewMode}
-          onChange={(v) => setViewMode(v as 'admin' | 'console' | 'website')}
+          onChange={(v) => {
+            const next = v as 'admin' | 'console' | 'website'
+            setViewMode(next)
+            /** 点击「控制台」默认选中 Token工厂，并退出可能残留的套餐结算 / 支付流程 */
+            if (next === 'console') {
+              setConsoleSubPage(defaultConsoleSub)
+              setCheckoutPlan(null)
+              setPaymentData(null)
+            }
+          }}
           options={[
             {
               label: (
@@ -534,11 +599,14 @@ export default function App() {
                 selectedKeys={[active]}
                 defaultOpenKeys={['userTeamGroup', 'accountGroup', 'channelGroup', 'modelGroup', 'statGroup', 'billGroup']}
                 style={{ borderRight: 0, paddingTop: 8 }}
-                onClick={({ key }) => setActive(key as RouteKey)}
+                onClick={({ key }) => {
+                  setPerfDetailFilter(undefined)
+                  setActive(key as RouteKey)
+                }}
                 items={menuItems}
               />
             </Sider>
-            <Content style={{ padding: 16, overflow: 'auto', background: '#f0f2f5' }}>
+            <Content ref={contentRef} style={{ padding: 16, overflow: 'auto', background: '#f0f2f5' }}>
               {renderPage()}
             </Content>
           </Layout>
@@ -579,36 +647,43 @@ export default function App() {
                 </span>
                 <span style={{ color: '#1a1a1a', fontWeight: 600 }}>控制台</span>
               </Space>
-              <span
-                style={{
-                  color: consoleSubPage === 'tokenFactory' ? '#1a1a1a' : '#5a6474',
-                  fontWeight: consoleSubPage === 'tokenFactory' ? 600 : 400,
-                  cursor: 'pointer',
-                }}
-                onClick={() => { setConsoleSubPage('tokenFactory'); setCheckoutPlan(null); setPaymentData(null) }}
-              >
-                Token工厂
-              </span>
-              <span
-                style={{
-                  color: consoleSubPage === 'appPlaza' ? '#1a1a1a' : '#5a6474',
-                  fontWeight: consoleSubPage === 'appPlaza' ? 600 : 400,
-                  cursor: 'pointer',
-                }}
-                onClick={() => { setConsoleSubPage('appPlaza'); setCheckoutPlan(null); setPaymentData(null) }}
-              >
-                应用广场
-              </span>
-              <span
-                style={{
-                  color: consoleSubPage === 'opc' ? '#1a1a1a' : '#5a6474',
-                  fontWeight: consoleSubPage === 'opc' ? 600 : 400,
-                  cursor: 'pointer',
-                }}
-                onClick={() => { setConsoleSubPage('opc'); setCheckoutPlan(null); setPaymentData(null) }}
-              >
-                opc社区
-              </span>
+              {showConsoleFactory && (
+                <span
+                  style={{
+                    color: consoleSubPage === 'tokenFactory' ? '#1a1a1a' : '#5a6474',
+                    fontWeight: consoleSubPage === 'tokenFactory' ? 600 : 400,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => { setConsoleSubPage('tokenFactory'); setCheckoutPlan(null); setPaymentData(null) }}
+                >
+                  Token工厂
+                </span>
+              )}
+              {!consoleScope && (
+                <span
+                  style={{
+                    color: consoleSubPage === 'appPlaza' ? '#1a1a1a' : '#5a6474',
+                    fontWeight: consoleSubPage === 'appPlaza' ? 600 : 400,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => { setConsoleSubPage('appPlaza'); setCheckoutPlan(null); setPaymentData(null) }}
+                >
+                  应用广场
+                </span>
+              )}
+              {!consoleScope && (
+                <span
+                  style={{
+                    color: consoleSubPage === 'opc' ? '#1a1a1a' : '#5a6474',
+                    fontWeight: consoleSubPage === 'opc' ? 600 : 400,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => { setConsoleSubPage('opc'); setCheckoutPlan(null); setPaymentData(null) }}
+                >
+                  opc社区
+                </span>
+              )}
+              {!consoleScope && (
               <span
                 style={{
                   color: consoleSubPage === 'tokenPlan' ? '#2f6bff' : '#5a6474',
@@ -639,27 +714,30 @@ export default function App() {
                   NEW
                 </span>
               </span>
+              )}
             </Space>
             <Space size={20}>
-              <span
-                style={{
-                  color: consoleSubPage === 'billing' ? '#2f6bff' : '#5a6474',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  fontWeight: consoleSubPage === 'billing' ? 600 : 400,
-                }}
-                onClick={() => {
-                  setConsoleSubPage('billing')
-                  setBillingSub('orderDetail')
-                  setCheckoutPlan(null)
-                  setPaymentData(null)
-                }}
-              >
-                费用
-                <DownOutlined style={{ fontSize: 10, marginLeft: 2 }} />
-              </span>
-              <span style={{ color: '#5a6474', cursor: 'pointer' }}>文档</span>
+              {showConsoleBilling && (
+                <span
+                  style={{
+                    color: consoleSubPage === 'billing' ? '#2f6bff' : '#5a6474',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    fontWeight: consoleSubPage === 'billing' ? 600 : 400,
+                  }}
+                  onClick={() => {
+                    setConsoleSubPage('billing')
+                    setBillingSub(defaultBillingSub)
+                    setCheckoutPlan(null)
+                    setPaymentData(null)
+                  }}
+                >
+                  费用
+                  <DownOutlined style={{ fontSize: 10, marginLeft: 2 }} />
+                </span>
+              )}
+              {!consoleScope && <span style={{ color: '#5a6474', cursor: 'pointer' }}>文档</span>}
               <span
                 style={{
                   position: 'relative',
@@ -841,8 +919,14 @@ export default function App() {
               }
               onOpenAgreement={setAgreementView}
             />
+          ) : consoleSubPage === 'tokenFactory' ? (
+            <TokenFactoryPage allowedMenus={allowedFactoryMenus} />
           ) : consoleSubPage === 'billing' ? (
-            <BillingPage subPage={billingSub} onSubChange={setBillingSub} />
+            <BillingPage
+              subPage={billingSub}
+              onSubChange={setBillingSub}
+              allowedSubs={allowedBillingSubs}
+            />
           ) : (
             <div style={{ padding: 80, textAlign: 'center', color: '#999' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🚧</div>

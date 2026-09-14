@@ -28,19 +28,17 @@ import {
   ArrowRightOutlined,
   SearchOutlined,
 } from '@ant-design/icons'
+import { maskSecret } from '../components/SecretCell'
 
 const { Text } = Typography
 
 const PRIMARY = '#2f6bff'
 
 /** ====== 通用工具 ====== */
+/** API Key 脱敏：统一复用 SecretCell 的规则（首 4 位 + **** + 尾 4 位） */
 function maskKey(key: string): string {
   if (!key) return '—'
-  if (key.length <= 8) return key
-  const head = key.slice(0, 5)
-  const tail = key.slice(-4)
-  const mid = '*'.repeat(Math.max(key.length - 9, 8))
-  return `${head}${mid}${tail}`
+  return maskSecret(key)
 }
 
 function genRandomKey(name: string): string {
@@ -72,6 +70,29 @@ const INITIAL_API_KEYS: ApiKeyItem[] = [
 ]
 
 const MAX_API_KEYS = 10
+
+const API_KEYS_STORAGE_KEY = 'zsdd_api_keys_v1'
+
+function loadApiKeys(): ApiKeyItem[] {
+  try {
+    const raw = localStorage.getItem(API_KEYS_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as ApiKeyItem[]
+      if (Array.isArray(parsed)) return parsed
+    }
+  } catch {
+    // 解析失败时回退到初始数据
+  }
+  return INITIAL_API_KEYS
+}
+
+function persistApiKeys(list: ApiKeyItem[]) {
+  try {
+    localStorage.setItem(API_KEYS_STORAGE_KEY, JSON.stringify(list))
+  } catch {
+    // 存储写入失败不影响交互
+  }
+}
 
 /** ====== 模拟数据 ====== */
 const MONTHLY_TOTAL: number = 12_000_000
@@ -157,7 +178,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
   const [packDetailOpen, setPackDetailOpen] = useState(false)
 
   /** ====== API Key 列表管理 ====== */
-  const [apiKeys, setApiKeys] = useState<ApiKeyItem[]>(INITIAL_API_KEYS)
+  const [apiKeys, setApiKeys] = useState<ApiKeyItem[]>(loadApiKeys)
   const [visibleKeyIds, setVisibleKeyIds] = useState<Set<string>>(new Set())
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addForm] = Form.useForm<{
@@ -165,6 +186,14 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
     permanent: boolean
     expireAt?: string
   }>()
+
+  function updateApiKeys(updater: (prev: ApiKeyItem[]) => ApiKeyItem[]) {
+    setApiKeys((prev) => {
+      const next = updater(prev)
+      persistApiKeys(next)
+      return next
+    })
+  }
 
   function toggleKeyVisible(id: string) {
     setVisibleKeyIds((prev) => {
@@ -189,7 +218,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
         expireAt: values.permanent ? undefined : values.expireAt,
         createdAt: new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-'),
       }
-      setApiKeys((prev) => [...prev, newItem])
+      updateApiKeys((prev) => [...prev, newItem])
       message.success('API Key 已创建')
       addForm.resetFields()
       setAddModalOpen(false)
@@ -197,7 +226,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
   }
 
   function handleDeleteKey(id: string) {
-    setApiKeys((prev) => prev.filter((k) => k.id !== id))
+    updateApiKeys((prev) => prev.filter((k) => k.id !== id))
     setVisibleKeyIds((prev) => {
       const next = new Set(prev)
       next.delete(id)
@@ -213,7 +242,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
       okText: '确认',
       cancelText: '取消',
       onOk: () => {
-        setApiKeys((prev) =>
+        updateApiKeys((prev) =>
           prev.map((k) =>
             k.id === id
               ? {

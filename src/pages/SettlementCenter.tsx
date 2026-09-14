@@ -24,12 +24,16 @@ export default function SettlementCenter() {
 
   const stats = useMemo(() => {
     const totalModels = channels.reduce((s, c) => s + c.models.length, 0)
-    const enabledCount = channels.filter((c) => c.status === 'enabled').length
+    const enabledApiCount = channels.reduce(
+      (s, c) =>
+        s + (c.apiCredentials ?? []).filter((x) => x.status === 'enabled').length,
+      0,
+    )
     const byMethod = SETTLEMENT_METHODS.map((m) => ({
       ...m,
       count: channels.filter((c) => c.settlement.method === m.value).length,
     }))
-    return { totalModels, enabledCount, byMethod }
+    return { totalModels, enabledApiCount, byMethod }
   }, [channels])
 
   const rows: ModelRow[] = useMemo(() => {
@@ -40,7 +44,8 @@ export default function SettlementCenter() {
           key: `${c.id}-${m.id}`,
           channel: c.name,
           modelName: m.modelName,
-          endpoint: c.apiName || c.apiUrl || '—',
+          endpoint:
+            c.apiCredentials?.[0]?.apiName || c.apiCredentials?.[0]?.apiUrl || '—',
           billing: billingLabel(m.billingType),
           settlement: settlementLabel(c.settlement.method),
         })
@@ -59,7 +64,7 @@ export default function SettlementCenter() {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="启用渠道" value={stats.enabledCount} suffix="个" />
+            <Statistic title="启用 API" value={stats.enabledApiCount} suffix="组" />
           </Card>
         </Col>
         <Col span={6}>

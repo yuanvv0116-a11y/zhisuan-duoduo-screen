@@ -16,6 +16,8 @@ import {
   message,
   DatePicker,
   Divider,
+  Popconfirm,
+  Switch,
 } from 'antd'
 import dayjs from 'dayjs'
 import {
@@ -27,6 +29,9 @@ import {
   PlusOutlined,
   FileTextOutlined,
   ReloadOutlined,
+  EyeOutlined,
+  SettingOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { ModelItem, TokenPriceBreakdown } from '../types'
@@ -34,6 +39,7 @@ import { useModels, useChannels } from '../store'
 import { MODEL_TYPES, modelTypeLabel, MODALS } from '../constants'
 import RequirementDot from '../components/RequirementDot'
 import ModelModal from '../components/ModelModal'
+import ModelDetailModal from '../components/ModelDetailModal'
 
 const { Text } = Typography
 
@@ -85,10 +91,10 @@ function StatCard({
 }
 
 /* ---------------- Logo（对齐截图 Z 形风格） ---------------- */
-function ModelLogo({ text }: { text: string }) {
+export function ModelLogo({ text, size = 40 }: { text: string; size?: number }) {
   const char = text?.charAt(0)?.toUpperCase() || '模'
   return (
-    <svg width="40" height="40" viewBox="0 0 40 40" style={{ borderRadius: 8, display: 'block' }}>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ borderRadius: 8, display: 'block' }}>
       <defs>
         <linearGradient id={`lg-${char}`} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#1890ff" />
@@ -96,14 +102,14 @@ function ModelLogo({ text }: { text: string }) {
           <stop offset="100%" stopColor="#52c41a" />
         </linearGradient>
       </defs>
-      <rect width="40" height="40" rx="8" fill={`url(#lg-${char})`} />
+      <rect width={size} height={size} rx={size * 0.2} fill={`url(#lg-${char})`} />
       <text
         x="50%"
         y="50%"
         textAnchor="middle"
         dominantBaseline="central"
         fill="#fff"
-        fontSize="18"
+        fontSize={size * 0.45}
         fontWeight="700"
       >
         {char}
@@ -178,7 +184,8 @@ const applyDiscount = (bp: TokenPriceBreakdown, discount: number): TokenPriceBre
 })
 
 export default function ModelList() {
-  const { models, addModel, updateModel } = useModels()
+  const { models, addModel, updateModel, removeModel } = useModels()
+  const [detailModel, setDetailModel] = useState<ModelItem | null>(null)
   const { channels } = useChannels()
 
   const [kw, setKw] = useState('')
@@ -385,6 +392,40 @@ export default function ModelList() {
       render: (v: string) => v || <Text type="secondary">—</Text>,
     },
     {
+      title: (
+        <Space size={6}>
+          模型渠道
+          <RequirementDot
+            title="模型渠道 — 倍率名称 / 模型倍率"
+            sections={[{ label: '模型倍率', items: ['1.渠道模型数据，增加模型倍率。展示为：渠道名称/api名称 - 倍率x', '2.倍率之前增加展示倍率名称，展示为：渠道名称/api名称 - 倍率名称 - 倍率x'] }]}
+          />
+        </Space>
+      ),
+      dataIndex: 'apiConfigs',
+      width: 220,
+      render: (_: unknown, r: ModelItem) => {
+        const list = r.apiConfigs ?? []
+        if (!list.length) return <Text type="secondary">—</Text>
+        return (
+          <Space size={[4, 4]} wrap>
+            {list.map((cfg) => {
+              const channel = channels.find((c) => c.id === cfg.channelId)
+              const name = channel?.name ?? '未知渠道'
+              const cred =
+                channel?.apiCredentials?.find((x) => x.id === cfg.credentialId) ??
+                channel?.apiCredentials?.[0]
+              return (
+                <Tag key={cfg.id} color="blue">
+                  {cred?.apiName ? `${name}/${cred.apiName}` : name}
+                  {cfg.multiplierName ? ` - ${cfg.multiplierName}` : ''} - {cfg.modelMultiplier ?? 1}x
+                </Tag>
+              )
+            })}
+          </Space>
+        )
+      },
+    },
+    {
       title: '类型',
       dataIndex: 'type',
       width: 120,
@@ -467,8 +508,67 @@ export default function ModelList() {
       dataIndex: 'hot',
       width: 100,
       align: 'center',
-      render: (v: boolean) =>
-        v ? <Tag color="orange">热门</Tag> : <Tag color="default">普通</Tag>,
+      render: (v: boolean) => v ? <Tag color="orange">热门</Tag> : <Tag color="default">普通</Tag>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'online',
+      width: 110,
+      render: (v: boolean, r) => <Switch size="small" checked={v} onChange={(checked) => { updateModel(r.id, { ...r, online: checked }); message.success(checked ? '模型已上架' : '模型已下架') }} />,
+    },
+    {
+      title: '操作',
+      key: 'action',
+      fixed: 'right',
+      width: 180,
+      render: (_: unknown, r) => (
+        <Space size={4}>
+          <Space size={2}>
+            <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => setDetailModel(r)} />
+            <RequirementDot
+              title="模型详情 — 倍率名称 / 模型倍率 / 渠道开关"
+              sections={[
+                { label: '倍率名称', items: ['1.详情-API配置tab，在模型倍率之前展示「倍率名称」，与编辑页填写的名称一致，未填写时展示 —'] },
+                { label: '模型倍率', items: ['2.详情-API配置tab，在各个渠道中展示模型倍率，倍率后加“x”（倍）'] },
+                { label: '渠道开关', items: ['3.详情-API配置tab，去掉权重展示，增加「是否可用」只读展示，同步编辑页的开关状态', '4.详情-API配置tab，API名称放在API地址上方'] },
+              ]}
+            />
+          </Space>
+          <Space size={2}>
+            <Button type="text" size="small" icon={<SettingOutlined />} onClick={() => openEditModel(r)} />
+            <RequirementDot
+              title="编辑模型 — 倍率名称 / 模型倍率 / 渠道开关"
+              sections={[{
+                label: '倍率名称',
+                items: [
+                  '1.点击API配置tab，在模型倍率之前增加「倍率名称」输入框，必填，小于8个字，同一模型的多组API配置之间不可重复',
+                  '2.未填写、大于等于8个字或与已有名称重复时，保存被拦截并提示',
+                ],
+              }, {
+                label: '模型倍率',
+                items: [
+                  '1.点击API配置tab，在编辑渠道模型时，可以为模型修改倍率，默认为1，支持2位小数，仅可输入数字，不输入时，存储为1倍',
+                  '2.编辑模型倍率后，编辑以后产生的费用，以新的倍率为准',
+                ],
+              }, {
+                label: '渠道开关',
+                items: [
+                  '1.点击API配置tab，编辑配置时，去掉权重输入框，增加「是否可用」开关，默认开启',
+                ],
+              }]}
+            />
+          </Space>
+          <Space size={2}>
+            <Popconfirm title="确定删除该模型吗？" onConfirm={() => { removeModel(r.id); message.success('模型已删除') }} okText="确定" cancelText="取消">
+              <Button type="text" danger size="small" icon={<DeleteOutlined />} />
+            </Popconfirm>
+            <RequirementDot
+              title="删除模型 — 模型分组"
+              sections={[{ label: '模型分组', items: ['1.删除模型后，将模型从分组中删除'] }]}
+            />
+          </Space>
+        </Space>
+      ),
     },
   ]
 
@@ -591,9 +691,24 @@ export default function ModelList() {
             <Button icon={<FileTextOutlined />} onClick={openQuote}>
               生成报价单
             </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModel}>
-              添加模型
-            </Button>
+            <Space size={4}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={openAddModel}>
+                添加模型
+              </Button>
+              <RequirementDot
+                title="添加模型 — 倍率名称 / 模型倍率 / 渠道开关"
+                sections={[{
+                  label: '倍率名称',
+                  items: ['1.点击API配置tab，在模型倍率之前增加「倍率名称」输入框，必填，小于8个字，同一模型的多组API配置之间不可重复'],
+                }, {
+                  label: '模型倍率',
+                  items: ['1.点击API配置tab，在添加渠道模型时，需要为模型添加倍率，默认为1，支持2位小数，仅可输入数字，不输入时，存储为1倍'],
+                }, {
+                  label: '渠道开关',
+                  items: ['1.点击API配置tab，添加配置时，去掉权重输入框，增加「是否可用」开关，默认开启'],
+                }]}
+              />
+            </Space>
           </Space>
         </div>
         <Table<ModelItem>
@@ -1236,6 +1351,7 @@ export default function ModelList() {
       </Modal>
 
       {/* 添加/编辑模型 弹窗 */}
+      <ModelDetailModal open={!!detailModel} model={detailModel} channels={channels} onClose={() => setDetailModel(null)} />
       <ModelModal
         open={modelModalOpen}
         model={editingModel}

@@ -4,8 +4,9 @@ import { EyeOutlined, EyeInvisibleOutlined, CopyOutlined } from '@ant-design/ico
 
 const { Text } = Typography
 
+/** 统一脱敏规则：展示前 4 位 + **** + 后 4 位（长度不足 4 位时无首尾可展示，整体打码） */
 export const maskSecret = (value: string) => {
-  if (value.length <= 8) return '****'
+  if (value.length <= 4) return '****'
   return `${value.slice(0, 4)}****${value.slice(-4)}`
 }
 
@@ -32,7 +33,7 @@ export default function SecretCell({ value, maxWidth = 200 }: SecretCellProps) {
     <Space size={4} style={{ width: '100%' }}>
       <Tooltip title={revealed ? value : ''}>
         <Text
-          ellipsis
+          ellipsis={revealed}
           style={{ maxWidth, display: 'inline-block', verticalAlign: 'middle' }}
         >
           {revealed ? value : maskSecret(value)}

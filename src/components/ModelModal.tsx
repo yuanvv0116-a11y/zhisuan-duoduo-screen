@@ -4,6 +4,7 @@ import {
   Form,
   Input,
   Select,
+  Cascader,
   Switch,
   InputNumber,
   Tabs,
@@ -21,7 +22,7 @@ import {
 import { PlusOutlined } from '@ant-design/icons'
 import type { ModelItem, ModelApiConfig, Channel, EndpointMapping } from '../types'
 import { useChannels, useChannelModels } from '../store'
-import { uid } from '../store'
+import { uid, readStoredChannels } from '../store'
 import {
   MODEL_TYPES,
   MODALS,
@@ -67,7 +68,9 @@ const emptyModel = (): ModelItem => ({
       id: uid(),
       channelId: '',
       modelCode: '',
-      weight: 100,
+      multiplierName: '',
+      modelMultiplier: 1,
+      channelEnabled: true,
       endpointMappings: defaultEndpointMappings(),
       queueEnabled: true,
       queueLimit: 1,
@@ -75,6 +78,19 @@ const emptyModel = (): ModelItem => ({
     },
   ],
 })
+
+/** 倍率名称长度上限：需小于 8 个字 */
+const MULTIPLIER_NAME_MAX = 8
+
+/** 校验同一模型下各 API 配置的倍率名称：必填、小于 8 个字、不可重复 */
+const validateMultiplierNames = (configs: ModelApiConfig[]): string | null => {
+  const names = configs.map((c) => (c.multiplierName ?? '').trim())
+  if (names.some((n) => !n)) return '请填写每条 API 配置的「倍率名称」'
+  if (names.some((n) => n.length >= MULTIPLIER_NAME_MAX)) return `倍率名称需小于 ${MULTIPLIER_NAME_MAX} 个字`
+  const duplicated = names.find((n, i) => names.indexOf(n) !== i)
+  if (duplicated) return `倍率名称「${duplicated}」已存在，同一模型下不可重复`
+  return null
+}
 
 const fillMappings = (mappings: EndpointMapping[], endpoints: string[]): EndpointMapping[] =>
   endpoints.map((ep) => {
@@ -91,6 +107,8 @@ export default function ModelModal({ open, model, onClose, onSubmit }: Props) {
 
   const [configEndpoints, setConfigEndpoints] = useState<string[]>([])
   const [apiConfigs, setApiConfigs] = useState<ModelApiConfig[]>([])
+  const [optionChannels, setOptionChannels] = useState<Channel[]>(channels)
+  const [cascaderKey, setCascaderKey] = useState(0)
   const [docTags, setDocTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [tagInputVisible, setTagInputVisible] = useState(false)
@@ -102,9 +120,13 @@ export default function ModelModal({ open, model, onClose, onSubmit }: Props) {
       setDraft(init)
       setTab('basic')
       setConfigEndpoints(eps)
+      setOptionChannels(channels)
       setApiConfigs(
         (init.apiConfigs ?? []).map((c) => ({
           ...c,
+          modelMultiplier: c.modelMultiplier ?? 1,
+          multiplierName: c.multiplierName ?? '',
+          channelEnabled: c.channelEnabled ?? true,
           queueEnabled: c.queueEnabled ?? true,
           queueLimit: c.queueLimit ?? 1,
           timeout: c.timeout ?? 1,
@@ -142,7 +164,9 @@ export default function ModelModal({ open, model, onClose, onSubmit }: Props) {
         id: uid(),
         channelId: '',
         modelCode: '',
-        weight: 100,
+        multiplierName: '',
+        modelMultiplier: 1,
+        channelEnabled: true,
         endpointMappings: configEndpoints.map((ep) => ({
           endpointKey: ep,
           mappingUrl: DEFAULT_ENDPOINTS.includes(ep) ? ep : '',
@@ -162,8 +186,8 @@ export default function ModelModal({ open, model, onClose, onSubmit }: Props) {
     setApiConfigs((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)))
   }
 
-  const handleChannelChange = (id: string, channelId: string) => {
-    patchApiConfig(id, { channelId, channelModelId: undefined, modelCode: '' })
+  const handleChannelApiChange = (id: string, channelId: string, credentialId: string) => {
+    patchApiConfig(id, { channelId, credentialId, channelModelId: undefined, modelCode: '' })
   }
 
   const handleChannelModelChange = (id: string, channelModelId: string) => {
@@ -183,9 +207,6 @@ export default function ModelModal({ open, model, onClose, onSubmit }: Props) {
       }),
     )
   }
-
-  const getMapping = (cfg: ModelApiConfig, ep: string) =>
-    cfg.endpointMappings.find((m) => m.endpointKey === ep)?.mappingUrl ?? ''
 
   const removeTag = (t: string) => setDocTags((prev) => prev.filter((x) => x !== t))
   const confirmTag = () => {
@@ -212,8 +233,16 @@ export default function ModelModal({ open, model, onClose, onSubmit }: Props) {
   const handleSave = async () => {
     try {
       const base = await form.validateFields()
+      const nameError = validateMultiplierNames(apiConfigs)
+      if (nameError) {
+        setTab('api')
+        message.error(nameError)
+        return
+      }
       const cleanedConfigs = apiConfigs.map((c) => ({
         ...c,
+        multiplierName: (c.multiplierName ?? '').trim(),
+        modelMultiplier: c.modelMultiplier ?? 1,
         endpointMappings: c.endpointMappings.filter((m) => configEndpoints.includes(m.endpointKey)),
       }))
       onSubmit({
@@ -399,7 +428,7 @@ export default function ModelModal({ open, model, onClose, onSubmit }: Props) {
           marginBottom: 16,
         }}
       >
-        <Text type="secondary">配置模型可用的 API 模型渠道，支持多个渠道模型负载均衡</Text>
+        <Text type="secondary">配置模型可用的 API 模型生产方，支持多个模型生产方负载均衡</Text>
         <Button type="primary" icon={<PlusOutlined />} onClick={addApiConfig}>
           添加配置
         </Button>
@@ -410,7 +439,8 @@ export default function ModelModal({ open, model, onClose, onSubmit }: Props) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {apiConfigs.map((cfg) => {
-            const ch = channels.find((c) => c.id === cfg.channelId) as Channel | undefined
+            const ch = optionChannels.find((c) => c.id === cfg.channelId) as Channel | undefined
+            const cred = ch?.apiCredentials?.find((x) => x.id === cfg.credentialId)
             return (
               <div
                 key={cfg.id}
@@ -419,27 +449,60 @@ export default function ModelModal({ open, model, onClose, onSubmit }: Props) {
                 <Row gutter={16}>
                   <Col span={12}>
                     <div style={{ marginBottom: 6 }}>
-                      <Text type="danger">*</Text> 渠道名称
+                      <Text type="danger">*</Text> 渠道/API名称
                     </div>
-                    <Select
+                    <Cascader
+                      key={cascaderKey}
                       style={{ width: '100%', marginBottom: 12 }}
-                      placeholder="选择渠道"
-                      value={cfg.channelId || undefined}
-                      showSearch
-                      optionFilterProp="label"
-                      onChange={(v) => handleChannelChange(cfg.id, v)}
-                      options={[...channels]
+                      placeholder="请选择渠道/API名称"
+                      expandTrigger="hover"
+                      value={ch ? (cred ? [ch.id, cred.id] : [ch.id]) : undefined}
+                      onChange={(value) => {
+                        if (!Array.isArray(value) || value.length < 2) return
+                        const [chId, credId] = value as string[]
+                        const fresh = readStoredChannels()
+                        const alive = fresh
+                          .find((c) => c.id === chId)
+                          ?.apiCredentials?.some((x) => x.id === credId)
+                        if (!alive) {
+                          message.warning('当前API信息已变更，请重新选择')
+                          patchApiConfig(cfg.id, {
+                            channelId: '',
+                            credentialId: undefined,
+                            channelModelId: undefined,
+                            modelCode: '',
+                          })
+                          setOptionChannels(fresh)
+                          setCascaderKey((k) => k + 1)
+                          return
+                        }
+                        handleChannelApiChange(cfg.id, chId, credId)
+                      }}
+                      showSearch={{
+                        filter: (inputValue, path) =>
+                          path.some((option) =>
+                            String(option.label).toLowerCase().includes(inputValue.toLowerCase()),
+                          ),
+                      }}
+                      options={[...optionChannels]
+                        .filter((c) => (c.apiCredentials ?? []).length > 0)
                         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-                        .map((c) => ({ value: c.id, label: c.name }))}
+                        .map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                          children: (c.apiCredentials ?? []).map((x) => ({
+                            value: x.id,
+                            label: `${x.apiName}（${x.status === 'enabled' ? '启用' : '禁用'}）`,
+                          })),
+                        }))}
                     />
                   </Col>
                   <Col span={12}>
-                    <div style={{ marginBottom: 6 }}>权重</div>
-                    <InputNumber
-                      min={0}
-                      style={{ width: '100%', marginBottom: 12 }}
-                      value={cfg.weight}
-                      onChange={(v) => patchApiConfig(cfg.id, { weight: v ?? 0 })}
+                    <div style={{ marginBottom: 6 }}>是否可用</div>
+                    <Switch
+                      checked={cfg.channelEnabled ?? true}
+                      onChange={(checked) => patchApiConfig(cfg.id, { channelEnabled: checked })}
+                      style={{ marginBottom: 12 }}
                     />
                   </Col>
                 </Row>
@@ -448,31 +511,28 @@ export default function ModelModal({ open, model, onClose, onSubmit }: Props) {
                   <div
                     style={{
                       background: '#f5f6f8',
-                      border: '1px solid #eef0f4',
-                      borderRadius: 8,
-                      padding: 16,
+                      borderRadius: 6,
+                      padding: '10px 12px',
                       marginBottom: 12,
                     }}
                   >
-                    <Row gutter={16}>
-                      <Col span={12}>
-                        <div style={{ marginBottom: 6, color: '#5a6474' }}>API 地址</div>
-                        <div style={{ wordBreak: 'break-all' }}>
-                          <Text>{ch.apiUrl || '—'}</Text>
-                        </div>
-                      </Col>
-                      <Col span={12}>
-                        <div style={{ marginBottom: 6, color: '#5a6474' }}>API 名称</div>
-                        <div style={{ wordBreak: 'break-all' }}>
-                          <Text>{ch.apiName || '—'}</Text>
-                        </div>
-                      </Col>
-                    </Row>
+                    <div style={{ color: '#8c8c8c', fontSize: 12, marginBottom: 2 }}>API地址</div>
+                    <div
+                      style={{
+                        color: '#333',
+                        fontSize: 13,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {cred?.apiUrl || ch.apiCredentials?.[0]?.apiUrl || '—'}
+                    </div>
                   </div>
                 )}
 
                 <Row gutter={16}>
-                  <Col span={12}>
+                  <Col span={14}>
                     <div style={{ marginBottom: 6 }}>
                       <Text type="danger">*</Text> 渠道模型
                     </div>
@@ -489,35 +549,73 @@ export default function ModelModal({ open, model, onClose, onSubmit }: Props) {
                         .map((m) => ({ value: m.id, label: m.modelName }))}
                     />
                   </Col>
-                  {cfg.channelModelId && (
-                    <Col span={12}>
-                      <div style={{ marginBottom: 6 }}>Model code</div>
-                      <Input value={cfg.modelCode} disabled style={{ marginBottom: 12 }} />
-                    </Col>
-                  )}
+                  <Col span={10}>
+                    <div style={{ marginBottom: 6 }}>Model code</div>
+                    <Input
+                      disabled
+                      placeholder="自动填充"
+                      value={cfg.modelCode || ''}
+                      style={{ marginBottom: 12 }}
+                    />
+                  </Col>
+                </Row>
+
+                <Row gutter={16}>
+                  <Col span={14}>
+                    <div style={{ marginBottom: 6 }}>
+                      <Text type="danger">*</Text> 倍率名称
+                    </div>
+                    <Input
+                      maxLength={MULTIPLIER_NAME_MAX}
+                      placeholder="必填，小于8个字，如：标准倍率"
+                      value={cfg.multiplierName ?? ''}
+                      onChange={(e) => patchApiConfig(cfg.id, { multiplierName: e.target.value })}
+                      style={{ marginBottom: 16 }}
+                    />
+                  </Col>
+                  <Col span={10}>
+                    <div style={{ marginBottom: 6 }}>模型倍率</div>
+                    <InputNumber
+                      min={0}
+                      step={0.1}
+                      precision={2}
+                      style={{ width: '100%', marginBottom: 16 }}
+                      placeholder="如：1x、2.3x"
+                      addonAfter="x"
+                      value={cfg.modelMultiplier}
+                      onChange={(v) =>
+                        patchApiConfig(cfg.id, {
+                          modelMultiplier:
+                            v === null || v === undefined ? undefined : Math.round(v * 100) / 100,
+                        })
+                      }
+                    />
+                  </Col>
                 </Row>
 
                 <div style={{ marginBottom: 8 }}>
-                  <Text type="danger">*</Text> <Text strong>端点配置</Text>
+                  <Text type="danger">*</Text> 端点配置
                 </div>
                 {configEndpoints.length === 0 ? (
                   <Text type="secondary">暂无配置，请先配置端点</Text>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {configEndpoints.map((ep) => (
-                      <div key={ep} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                        <div style={{ width: 220, flex: 'none', textAlign: 'left', color: '#5a6474' }}>
-                          {ep}：
+                    {configEndpoints.map((ep) => {
+                      const mapping = cfg.endpointMappings.find((m) => m.endpointKey === ep)
+                      return (
+                        <div key={ep} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                          <div style={{ width: 220, flex: 'none', textAlign: 'left', color: '#5a6474' }}>
+                            {ep}：
+                          </div>
+                          <Input
+                            maxLength={200}
+                            placeholder="填入映射地址"
+                            value={mapping?.mappingUrl ?? ''}
+                            onChange={(e) => setEndpointMapping(cfg.id, ep, e.target.value)}
+                          />
                         </div>
-                        <Input
-                          maxLength={200}
-                          showCount
-                          placeholder="填入映射地址"
-                          value={getMapping(cfg, ep)}
-                          onChange={(e) => setEndpointMapping(cfg.id, ep, e.target.value)}
-                        />
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
 
@@ -575,20 +673,64 @@ export default function ModelModal({ open, model, onClose, onSubmit }: Props) {
     <Modal
       title={
         model ? (
-          '编辑模型'
+          <Space size={6}>
+            编辑模型
+            <RequirementDot
+              title="编辑模型 — 倍率名称 / 模型倍率 / 渠道开关"
+              sections={[
+                {
+                  label: '倍率名称',
+                  items: [
+                    '1.点击API配置tab，在模型倍率之前增加「倍率名称」输入框，必填，小于8个字，同一模型的多组API配置之间不可重复',
+                    '2.倍率名称用于区分同一模型的不同倍率配置，模型详情的API配置tab与模型列表的模型渠道中同步展示',
+                  ],
+                },
+                {
+                  label: '模型倍率',
+                  items: [
+                    '1.点击API配置tab，在编辑渠道模型时，可以为模型修改倍率，默认为1，支持2位小数，仅可输入数字，不输入时，存储为1倍',
+                    '2.编辑模型倍率后，编辑以后产生的费用，以新的倍率为准',
+                  ],
+                },
+                {
+                  label: '渠道开关',
+                  items: [
+                    '1.点击API配置tab，编辑配置时，去掉权重输入框，增加「是否可用」开关，默认开启',
+                    '2.模型详情的API配置tab中同步展示「是否可用」状态',
+                  ],
+                },
+              ]}
+            />
+          </Space>
         ) : (
           <Space size={6}>
             添加新模型
             <RequirementDot
-              title="添加新模型"
+              title="添加新模型 — 倍率名称 / 模型倍率 / 渠道开关"
               sections={[
                 {
-                  label: 'API配置中，修改同页面。',
+                  label: '倍率名称',
                   items: [
-                    '1.选择渠道，必选，展示渠道名称，按照添加时间倒序展示。选择后，展示渠道配置的api地址、api名称。',
-                    '2.点击“渠道模型”，下拉展示该渠道商下所有关联的渠道模型（下拉框中展示渠道模型名称和渠道模型状态），选择后，自动展示“Model code” 且不可修改。',
-                    '3.选择模型后，如已选择了端点，则检查模型是否为这些端点设置了映射地址，如有，则自动填写（支持修改）。 如没有，则需要自行填写。',
-                    '4.在配置端点处，修改端点；如取消或增加某些端点，则又点击API配置时，需要查询模型配置的端点映射地址，自动填写。逻辑同第3点。',
+                    '1.点击API配置tab，在模型倍率之前增加「倍率名称」输入框，必填，小于8个字，同一模型的多组API配置之间不可重复',
+                    '2.未填写、大于等于8个字或名称重复时，点击「添加模型」会被拦截并给出提示，同时自动切到API配置tab',
+                  ],
+                },
+                {
+                  label: '模型倍率',
+                  items: [
+                    '1.点击API配置tab，在添加渠道模型时，需要为模型添加倍率，默认为1，支持2位小数，仅可输入数字，不输入时，存储为1倍',
+                  ],
+                },
+                {
+                  label: '渠道开关',
+                  items: [
+                    '1.点击API配置tab，添加配置时，去掉权重输入框，增加「是否可用」开关，默认开启；关闭后渠道将不可调用，开启后，如渠道api状态关闭，也不可调用',
+                  ],
+                },
+                {
+                  label: '渠道/API名称',
+                  items: [
+                    '1.API配置中，渠道名称改为“渠道/API名称”，下拉框改为级联下拉，首先展示渠道（下方有API的，未删除的渠道），鼠标悬浮在渠道，展示渠道下API名称+（启用/禁用）。如选择后API被删除，则提示“当前API信息已变更，请重新选择”，提示完了刷新下拉列表数据',
                   ],
                 },
               ]}

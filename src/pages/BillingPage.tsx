@@ -12,12 +12,14 @@ import {
   Modal,
   Descriptions,
   message,
+  Alert,
 } from 'antd'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import {
   SearchOutlined,
   ReloadOutlined,
   ExportOutlined,
+  DownloadOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
@@ -37,7 +39,7 @@ import {
   RESOURCE_STATUS_LABEL,
 } from '../types'
 
-type BillingSubPage =
+export type BillingSubPage =
   | 'accountOverview'
   | 'accountDetail'
   | 'recharge'
@@ -48,6 +50,8 @@ type BillingSubPage =
 interface Props {
   subPage: BillingSubPage
   onSubChange: (v: BillingSubPage) => void
+  /** 评审模式放行的费用二级菜单；不传表示全部展示 */
+  allowedSubs?: BillingSubPage[]
 }
 
 const LEFT_MENU: { key: BillingSubPage; label: string }[] = [
@@ -82,6 +86,15 @@ const emptyOrderSearch: OrderSearchForm = {
   dateRange: null,
   productName: '',
   orderNo: '',
+}
+
+interface ConsumptionSearchForm {
+  productName: string
+  dateRange: [Dayjs, Dayjs] | null
+}
+const emptyConsumptionSearch: ConsumptionSearchForm = {
+  productName: '',
+  dateRange: null,
 }
 
 const { RangePicker } = DatePicker
@@ -560,7 +573,492 @@ function OrderDetailSection() {
   )
 }
 
-export default function BillingPage({ subPage, onSubChange }: Props) {
+/* ---------------- 消费明细 ---------------- */
+
+/** 单个计费项：一次调用中某一类用量及其费用，用量为 null 表示该次调用不涉及此项 */
+interface ConsumptionItem {
+  quantity: number | null
+  cost: number
+  unit?: string
+}
+
+/**
+ * 消费明细流水：按需计费产品按次出账，一条流水对应一次模型调用。
+ * multiplierName / multiplier 为本次调用实际命中的倍率档位，费用按倍率后的单价计算。
+ */
+interface ConsumptionDetail {
+  id: string
+  serialNo: string
+  occurredAt: string
+  productName: string
+  multiplierName: string
+  multiplier: number
+  input: ConsumptionItem
+  output: ConsumptionItem
+  cache: ConsumptionItem
+  cacheCreate: ConsumptionItem
+  cacheRead: ConsumptionItem
+  media: ConsumptionItem
+}
+
+const ITEM = (quantity: number | null, cost: number, unit?: string): ConsumptionItem => ({
+  quantity,
+  cost,
+  unit,
+})
+
+/** 该次调用不涉及此计费项 */
+const BLANK_ITEM: ConsumptionItem = { quantity: null, cost: 0 }
+
+/** 费用总额 = 各计费项费用之和 */
+const consumptionTotal = (r: ConsumptionDetail) =>
+  [r.input, r.output, r.cache, r.cacheCreate, r.cacheRead, r.media].reduce(
+    (sum, item) => sum + item.cost,
+    0,
+  )
+
+/** 金额展示：最多保留 6 位小数并去掉无意义的尾随 0 */
+const formatAmount = (v: number) => String(Number(v.toFixed(6)))
+
+const CONSUMPTION_SEED: ConsumptionDetail[] = [
+  {
+    id: 'cd-01',
+    serialNo: 'MXXF-2609121446271316186',
+    occurredAt: '2026-09-12 14:44:55',
+    productName: 'kimi-k3',
+    multiplierName: '尊享加速倍率',
+    multiplier: 2,
+    input: ITEM(78, 0.00106),
+    output: ITEM(3111, 0.211366),
+    cache: BLANK_ITEM,
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+  },
+  {
+    id: 'cd-02',
+    serialNo: 'MXXF-2609101346310914914',
+    occurredAt: '2026-09-10 13:46:30',
+    productName: 'qwen3.8-flash-next',
+    multiplierName: '标准倍率',
+    multiplier: 1,
+    input: ITEM(122, 0.000093),
+    output: ITEM(135, 0.000347),
+    cache: BLANK_ITEM,
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+  },
+  {
+    id: 'cd-03',
+    serialNo: 'MXXF-2609100946561221425',
+    occurredAt: '2026-09-10 09:46:18',
+    productName: 'dodo-og-g-6-astra',
+    multiplierName: '标准倍率',
+    multiplier: 1,
+    input: BLANK_ITEM,
+    output: BLANK_ITEM,
+    cache: BLANK_ITEM,
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+  },
+  {
+    id: 'cd-04',
+    serialNo: 'MXXF-2609100944392785118',
+    occurredAt: '2026-09-10 09:44:09',
+    productName: 'dodo-og-g-6-astra',
+    multiplierName: '标准倍率',
+    multiplier: 1,
+    input: BLANK_ITEM,
+    output: BLANK_ITEM,
+    cache: BLANK_ITEM,
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+  },
+  {
+    id: 'cd-05',
+    serialNo: 'MXXF-2609091857585348050',
+    occurredAt: '2026-09-09 18:57:31',
+    productName: 'dodo-og-g-6-astra',
+    multiplierName: '尊享加速倍率',
+    multiplier: 2,
+    input: ITEM(904, 0.002089),
+    output: ITEM(489, 0.005648),
+    cache: ITEM(57856, 0.013365),
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+  },
+  {
+    id: 'cd-06',
+    serialNo: 'MXXF-2609091857292211770',
+    occurredAt: '2026-09-09 18:57:13',
+    productName: 'dodo-og-g-6-astra',
+    multiplierName: '尊享加速倍率',
+    multiplier: 2,
+    input: ITEM(1581, 0.003653),
+    output: ITEM(142, 0.001641),
+    cache: ITEM(56832, 0.013129),
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+  },
+  {
+    id: 'cd-07',
+    serialNo: 'MXXF-2609091622451180362',
+    occurredAt: '2026-09-09 16:22:31',
+    productName: 'deepseek-v4-flash',
+    multiplierName: '独享资源倍率',
+    multiplier: 3,
+    input: ITEM(1204, 0.006502),
+    output: ITEM(892, 0.007213),
+    cache: ITEM(20480, 0.000614),
+    cacheCreate: ITEM(4096, 0.001229),
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+  },
+  {
+    id: 'cd-08',
+    serialNo: 'MXXF-2609091108342051776',
+    occurredAt: '2026-09-09 11:08:12',
+    productName: 'glm-5.2',
+    multiplierName: '在线客服倍率',
+    multiplier: 2,
+    input: ITEM(642, 0.00321),
+    output: ITEM(2048, 0.04096),
+    cache: BLANK_ITEM,
+    cacheCreate: BLANK_ITEM,
+    cacheRead: ITEM(10240, 0.00512),
+    media: BLANK_ITEM,
+  },
+  {
+    id: 'cd-09',
+    serialNo: 'MXXF-2609081745120933548',
+    occurredAt: '2026-09-08 17:44:50',
+    productName: 'doubao-seedream-5.0-pro',
+    multiplierName: '高清出图倍率',
+    multiplier: 2,
+    input: BLANK_ITEM,
+    output: BLANK_ITEM,
+    cache: BLANK_ITEM,
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: ITEM(2, 1.5, '张'),
+  },
+  {
+    id: 'cd-10',
+    serialNo: 'MXXF-2609081530274102663',
+    occurredAt: '2026-09-08 15:30:04',
+    productName: 'dodo-og-gpt-5-6-luna',
+    multiplierName: '算力加速倍率',
+    multiplier: 5,
+    input: ITEM(320, 0.001234),
+    output: ITEM(1536, 0.029491),
+    cache: BLANK_ITEM,
+    cacheCreate: ITEM(8192, 0.004915),
+    cacheRead: ITEM(16384, 0.002458),
+    media: BLANK_ITEM,
+  },
+  {
+    id: 'cd-11',
+    serialNo: 'MXXF-2609081015442271095',
+    occurredAt: '2026-09-08 10:15:21',
+    productName: 'kimi-k3',
+    multiplierName: '标准倍率',
+    multiplier: 1,
+    input: ITEM(96, 0.00013),
+    output: ITEM(4021, 0.140735),
+    cache: BLANK_ITEM,
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+  },
+  {
+    id: 'cd-12',
+    serialNo: 'MXXF-2609071932084416220',
+    occurredAt: '2026-09-07 19:31:45',
+    productName: 'doubao-seedance-2.0',
+    multiplierName: '视频生成倍率',
+    multiplier: 1.2,
+    input: BLANK_ITEM,
+    output: BLANK_ITEM,
+    cache: BLANK_ITEM,
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: ITEM(5, 6.0, '秒'),
+  },
+  {
+    id: 'cd-13',
+    serialNo: 'MXXF-2609071446320188745',
+    occurredAt: '2026-09-07 14:46:09',
+    productName: 'kimi-k2.6',
+    multiplierName: '活动优惠倍率',
+    multiplier: 1,
+    input: ITEM(2048, 0.002458),
+    output: ITEM(512, 0.001536),
+    cache: ITEM(3072, 0.000307),
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+  },
+  {
+    id: 'cd-14',
+    serialNo: 'MXXF-2609070932151140286',
+    occurredAt: '2026-09-07 09:31:52',
+    productName: 'qwen3.8-flash-next',
+    multiplierName: '夜间闲时倍率',
+    multiplier: 2,
+    input: ITEM(88, 0.000067),
+    output: ITEM(145, 0.000372),
+    cache: BLANK_ITEM,
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+  },
+  {
+    id: 'cd-15',
+    serialNo: 'MXXF-2609061658420077314',
+    occurredAt: '2026-09-06 16:58:19',
+    productName: 'glm-5.2',
+    multiplierName: '标准倍率',
+    multiplier: 1,
+    input: BLANK_ITEM,
+    output: BLANK_ITEM,
+    cache: BLANK_ITEM,
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+  },
+]
+
+/** 计费项单元格：第一行用量，第二行该项费用 */
+function ConsumptionItemCell({ item }: { item: ConsumptionItem }) {
+  if (item.quantity === null) return <span style={{ color: '#bfbfbf' }}>--</span>
+  return (
+    <div>
+      <div>{`${item.quantity}${item.unit ?? ''}`}</div>
+      <div style={{ color: '#2f6bff', fontSize: 12 }}>{`¥${formatAmount(item.cost)}`}</div>
+    </div>
+  )
+}
+
+function ConsumptionSection() {
+  const [form, setForm] = useState<ConsumptionSearchForm>(emptyConsumptionSearch)
+  const [applied, setApplied] = useState<ConsumptionSearchForm>(emptyConsumptionSearch)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
+  const filtered = useMemo(() => {
+    return CONSUMPTION_SEED.filter((c) => {
+      if (applied.productName) {
+        if (!c.productName.toLowerCase().includes(applied.productName.trim().toLowerCase()))
+          return false
+      }
+      if (applied.dateRange && applied.dateRange[0] && applied.dateRange[1]) {
+        const t = dayjs(c.occurredAt)
+        if (t.isBefore(applied.dateRange[0], 'day')) return false
+        if (t.isAfter(applied.dateRange[1], 'day')) return false
+      }
+      return true
+    })
+  }, [applied])
+
+  const handleSearch = () => {
+    setApplied({ ...form })
+    setPage(1)
+  }
+  const handleReset = () => {
+    setForm(emptyConsumptionSearch)
+    setApplied(emptyConsumptionSearch)
+    setPage(1)
+  }
+  const handleExport = () => {
+    message.success('已提交导出，稍后可在通知中心下载')
+  }
+
+  const itemColumn = (title: string, get: (r: ConsumptionDetail) => ConsumptionItem, width = 110) => ({
+    title,
+    key: title,
+    width,
+    align: 'right' as const,
+    render: (_v: unknown, r: ConsumptionDetail) => <ConsumptionItemCell item={get(r)} />,
+  })
+
+  const columns: ColumnsType<ConsumptionDetail> = [
+    {
+      title: '流水号',
+      dataIndex: 'serialNo',
+      key: 'serialNo',
+      width: 190,
+      fixed: 'left',
+      render: (v: string) => (
+        <Tooltip title={v}>
+          <span style={{ wordBreak: 'break-all' }}>{v}</span>
+        </Tooltip>
+      ),
+    },
+    {
+      title: '费用发生时间',
+      dataIndex: 'occurredAt',
+      key: 'occurredAt',
+      width: 170,
+    },
+    {
+      title: '产品名称',
+      dataIndex: 'productName',
+      key: 'productName',
+      width: 180,
+      ellipsis: true,
+      render: (v: string) => (
+        <Tooltip title={v}>
+          <span style={{ fontWeight: 500 }}>{v}</span>
+        </Tooltip>
+      ),
+    },
+    {
+      title: '倍率信息',
+      key: 'multiplier',
+      width: 150,
+      render: (_v, r) => (
+        <div>
+          <div>{r.multiplierName}</div>
+          <div style={{ color: '#8c8c8c', fontSize: 12 }}>{`${r.multiplier}x`}</div>
+        </div>
+      ),
+    },
+    itemColumn('输入', (r) => r.input),
+    itemColumn('输出', (r) => r.output),
+    itemColumn('缓存', (r) => r.cache),
+    itemColumn('缓存创建', (r) => r.cacheCreate),
+    itemColumn('缓存读取', (r) => r.cacheRead),
+    itemColumn('媒体信息', (r) => r.media, 120),
+    {
+      title: '费用总额（元）',
+      key: 'total',
+      width: 130,
+      fixed: 'right',
+      align: 'right',
+      render: (_v, r) => {
+        const total = consumptionTotal(r)
+        return <span style={{ fontWeight: total > 0 ? 600 : 400 }}>{formatAmount(total)}</span>
+      },
+    },
+  ]
+
+  const paginationConfig: TablePaginationConfig = {
+    current: page,
+    pageSize,
+    total: filtered.length,
+    showSizeChanger: true,
+    showQuickJumper: true,
+    pageSizeOptions: ['10', '20', '50', '100'],
+    showTotal: (t) => `共 ${t} 条`,
+    onChange: (p, ps) => {
+      setPage(p)
+      setPageSize(ps)
+    },
+  }
+
+  return (
+    <>
+      <Alert
+        type="info"
+        showIcon
+        message="按需计费产品按次出账，每调用一次进行一次费用统计，若调用一次费用低于¥0.0001，则按最低收费标准¥0.0001收取。"
+        style={{ borderRadius: 8, marginBottom: 16 }}
+      />
+
+      {/* 搜索卡 */}
+      <Card
+        variant="borderless"
+        style={{ borderRadius: 8, marginBottom: 16, border: '1px solid #eef0f4' }}
+        bodyStyle={{ padding: 16 }}
+      >
+        <Form layout="vertical" style={{ marginBottom: 0 }}>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              columnGap: 24,
+              rowGap: 16,
+              alignItems: 'end',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, color: '#333', whiteSpace: 'nowrap' }}>
+                产品名称：
+              </span>
+              <Input
+                placeholder="请输入产品名称"
+                style={{ width: 200 }}
+                value={form.productName}
+                onChange={(e) => setForm({ ...form, productName: e.target.value })}
+                onPressEnter={handleSearch}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, color: '#333', whiteSpace: 'nowrap' }}>
+                统计周期：
+              </span>
+              <RangePicker
+                style={{ width: 320 }}
+                placeholder={['年/月/日', '年/月/日']}
+                value={form.dateRange}
+                onChange={(v) => setForm({ ...form, dateRange: v as any })}
+              />
+            </div>
+            <Space size={12} style={{ marginLeft: 'auto' }}>
+              <Button
+                type="primary"
+                icon={<SearchOutlined />}
+                onClick={handleSearch}
+                style={{ borderRadius: 6, background: '#2f6bff', borderColor: '#2f6bff' }}
+              >
+                查询
+              </Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset} style={{ borderRadius: 6 }}>
+                重置
+              </Button>
+              <Button
+                type="primary"
+                icon={<DownloadOutlined />}
+                onClick={handleExport}
+                style={{ borderRadius: 6, background: '#52c41a', borderColor: '#52c41a' }}
+              >
+                导出账单
+              </Button>
+            </Space>
+          </div>
+        </Form>
+      </Card>
+
+      {/* 列表卡 */}
+      <Card
+        variant="borderless"
+        style={{ borderRadius: 8, border: '1px solid #eef0f4' }}
+        bodyStyle={{ padding: 16 }}
+      >
+        <Table<ConsumptionDetail>
+          rowKey="id"
+          columns={columns}
+          dataSource={filtered}
+          pagination={paginationConfig}
+          scroll={{ x: 'max-content' }}
+          size="middle"
+        />
+      </Card>
+    </>
+  )
+}
+
+export default function BillingPage({ subPage, onSubChange, allowedSubs }: Props) {
+  /** 评审模式下只保留本次涉及的费用二级菜单 */
+  const leftMenu =
+    allowedSubs && allowedSubs.length > 0
+      ? LEFT_MENU.filter((m) => allowedSubs.includes(m.key))
+      : LEFT_MENU
   const ledgers = useAccountLedgers()
   const [form, setForm] = useState<LedgerSearchForm>(emptyLedgerSearch)
   const [applied, setApplied] = useState<LedgerSearchForm>(emptyLedgerSearch)
@@ -722,7 +1220,7 @@ export default function BillingPage({ subPage, onSubChange }: Props) {
         >
           费用管理
         </div>
-        {LEFT_MENU.map((m) => {
+        {leftMenu.map((m) => {
           const active = subPage === m.key
           return (
             <div
@@ -858,6 +1356,8 @@ export default function BillingPage({ subPage, onSubChange }: Props) {
           </>
         ) : subPage === 'orderDetail' ? (
           <OrderDetailSection />
+        ) : subPage === 'consumption' ? (
+          <ConsumptionSection />
         ) : (
           <Card
             variant="borderless"

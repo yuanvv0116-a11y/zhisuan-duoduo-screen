@@ -6,6 +6,7 @@ import {
   Select,
   Space,
   Segmented,
+  Tabs,
   Typography,
 } from 'antd'
 import {
@@ -21,6 +22,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons'
 import RequirementDot from '../components/RequirementDot'
+import ModelPerfBoard, { PerfRequirementDot } from './ModelPerfBoard'
 
 const { Text } = Typography
 const { RangePicker } = DatePicker
@@ -370,7 +372,23 @@ const COMPARE_CHANNEL_OPTIONS = [
     '阿里云',
   ].map((c) => ({ value: c, label: c })),
 ]
-export default function ChannelStatAnalysis() {
+/** Tab1「渠道统计」的需求点，展示在 Tab 栏右侧 */
+const STAT_REQUIREMENT_SECTIONS = [
+  {
+    label: '',
+    items: [
+      '1.总消费金额改为“总收入”（第一个数值）。',
+      '2.模型成本与消费金额对比，改为“渠道成本与收入”，里面的“消费金额”改为“收入”，并增加利润，利润=消费的金额（收入）-成本，不再展示柱状图。',
+      '3.模型消费趋势改为“模型成本与收入”，展示的是选中的渠道模型的成本与实际收入，利润计算同上，中间的利润用明显的颜色表示，不再展示柱状图。',
+      '4.模型数量改为“渠道模型数量”，展示所有渠道模型（包括启用和禁用）。',
+      '5.渠道成本与收入、模型成本与收入后面的下拉框增加“全部”，统计当前搜索条件下搜索的全部渠道的成本与收入、全部模型的成本与收入（此时全部渠道与全部渠道模型应该是相同的图形）。',
+      '6.模型成本与收入的默认值是当前搜索条件下、当前选中渠道下的一个随机模型（不是全部，如果没有模型，则为全部）。',
+    ],
+  },
+]
+
+/** Tab1「渠道统计」：原「渠道统计分析」页面的全部内容 */
+function ChannelStatPane() {
   const [range, setRange] = useState('近30天')
   const [compareModel, setCompareModel] = useState('all')
   // 默认取当前渠道下的一个随机模型（排除“全部”）；无模型时回退为“全部”
@@ -381,27 +399,6 @@ export default function ChannelStatAnalysis() {
 
   return (
     <div>
-      {/* 标题 + 需求点 */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-        <Text strong style={{ fontSize: 16 }}>渠道统计分析</Text>
-        <RequirementDot
-          title="渠道统计分析"
-          sections={[
-            {
-              label: '',
-              items: [
-                '1.总消费金额改为“总收入”（第一个数值）。',
-                '2.模型成本与消费金额对比，改为“渠道成本与收入”，里面的“消费金额”改为“收入”，并增加利润，利润=消费的金额（收入）-成本，不再展示柱状图。',
-                '3.模型消费趋势改为“模型成本与收入”，展示的是选中的渠道模型的成本与实际收入，利润计算同上，中间的利润用明显的颜色表示，不再展示柱状图。',
-                '4.模型数量改为“渠道模型数量”，展示所有渠道模型（包括启用和禁用）。',
-                '5.渠道成本与收入、模型成本与收入后面的下拉框增加“全部”，统计当前搜索条件下搜索的全部渠道的成本与收入、全部模型的成本与收入（此时全部渠道与全部渠道模型应该是相同的图形）。',
-                '6.模型成本与收入的默认值是当前搜索条件下、当前选中渠道下的一个随机模型（不是全部，如果没有模型，则为全部）。',
-              ],
-            },
-          ]}
-        />
-      </div>
-
       {/* 搜索栏 */}
       <Card variant="borderless" styles={{ body: { padding: 16 } }} style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
@@ -464,6 +461,37 @@ export default function ChannelStatAnalysis() {
         </div>
         <ProfitCompareChart amount={MODEL_REVENUE} cost={MODEL_COST} amountLabel="收入" costLabel="成本" />
       </Card>
+    </div>
+  )
+}
+
+/** 渠道统计与性能分析：Tab1 渠道统计（原渠道统计分析）、Tab2 性能分析（原模型性能看板） */
+export default function ChannelStatAnalysis() {
+  const [tab, setTab] = useState('stat')
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <Text strong style={{ fontSize: 16 }}>渠道统计与性能分析</Text>
+      </div>
+      <Tabs
+        activeKey={tab}
+        onChange={setTab}
+        tabBarExtraContent={{
+          right: (
+            <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+              {tab === 'stat' ? (
+                <RequirementDot title="渠道统计需求" sections={STAT_REQUIREMENT_SECTIONS} />
+              ) : (
+                <PerfRequirementDot />
+              )}
+            </div>
+          ),
+        }}
+        items={[
+          { key: 'stat', label: '渠道统计', children: <ChannelStatPane /> },
+          { key: 'perf', label: '性能分析', children: <ModelPerfBoard /> },
+        ]}
+      />
     </div>
   )
 }

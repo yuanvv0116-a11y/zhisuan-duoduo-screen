@@ -34,6 +34,7 @@ const MENU_GROUPS: MenuGroup[] = [
     groupLabel: '模型管理',
     children: [
       { key: 'models', label: '模型列表' },
+      { key: 'modelGroups', label: '模型分组' },
       { key: 'resourcePack', label: '资源包管理' },
       { key: 'tokenPlan', label: 'Token Plan' },
     ],
@@ -44,6 +45,7 @@ const MENU_GROUPS: MenuGroup[] = [
     children: [
       { key: 'channels', label: '渠道管理' },
       { key: 'channelModels', label: '渠道模型管理' },
+      { key: 'modelHourlyPerf', label: '模型性能明细（小时）' },
       { key: 'channelBill', label: '渠道对账单' },
       { key: 'channelFeeDetail', label: '渠道费用明细' },
     ],
@@ -52,7 +54,7 @@ const MENU_GROUPS: MenuGroup[] = [
     groupKey: 'statGroup',
     groupLabel: '统计与分析',
     children: [
-      { key: 'channelStat', label: '渠道统计分析' },
+      { key: 'channelStat', label: '渠道统计与性能分析' },
       { key: 'modelUsageStat', label: '模型使用统计分析' },
       { key: 'modelUsageDetail', label: '模型使用明细' },
       { key: 'planStats', label: '资源包与套餐统计' },
@@ -62,6 +64,32 @@ const MENU_GROUPS: MenuGroup[] = [
     groupKey: 'billGroup',
     groupLabel: '账单管理',
     children: [{ key: 'planBill', label: '套餐与资源包账单' }],
+  },
+  {
+    /** 控制台菜单不在 RouteKey 体系内，用 `tf:` / `billing:` 前缀定位（见 releases.ts consoleKeys） */
+    groupKey: 'consoleFactoryGroup',
+    groupLabel: '控制台 › Token工厂',
+    children: [
+      { key: 'tf:plaza', label: '模型广场' },
+      { key: 'tf:experience', label: '体验语言模型' },
+      { key: 'tf:usage', label: '用量统计' },
+      { key: 'tf:apiKey', label: 'API Key管理' },
+      { key: 'tf:myGroups', label: '模型分组' },
+      { key: 'tf:quota', label: '配额管理' },
+      { key: 'tf:pricing', label: '模型费率' },
+    ],
+  },
+  {
+    groupKey: 'consoleBillingGroup',
+    groupLabel: '控制台 › 费用',
+    children: [
+      { key: 'billing:accountOverview', label: '账户概览' },
+      { key: 'billing:accountDetail', label: '账户明细' },
+      { key: 'billing:recharge', label: '充值记录' },
+      { key: 'billing:orderDetail', label: '订单明细' },
+      { key: 'billing:consumption', label: '消费明细' },
+      { key: 'billing:invoice', label: '发票信息' },
+    ],
   },
   {
     groupKey: 'other',
@@ -96,7 +124,7 @@ function parseNote(note: string | undefined): ParsedItem[] {
   const lines = note.split('\n').filter((l) => l.trim().length > 0)
   const result: ParsedItem[] = []
   let last: ParsedItem | null = null
-  const mainRe = /^(\d+)\.\s*(?:\[([a-zA-Z*_-]+)\]\s*)?(.*)$/
+  const mainRe = /^(\d+)\.\s*(?:\[([\w:*-]+)\]\s*)?(.*)$/
   const subRe = /^\s*[·•\-]\s*(.*)$/
 
   for (const raw of lines) {
