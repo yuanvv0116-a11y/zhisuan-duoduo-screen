@@ -89,6 +89,8 @@ const TAB_REQUIREMENTS: Record<TabKey, { title: string; sections: RequirementSec
           '1.列表展示如图，按照创建时间倒序展示。',
           '2.支持根据模板名称模糊搜索，支持根据状态搜索。',
           '3.点击删除，需要二次确认后删除；',
+          '4.关闭券状态，需要二次确认。',
+          '5.所有的发券动作，均要要正券模板是否启用。',
         ],
       },
     ],
@@ -211,10 +213,8 @@ function TplInfoCard({ rows }: { rows: { label: string; value: string }[] }) {
 const EMPTY_CELL = <Text type="secondary">—</Text>
 
 const TASK_STATUS_META: Record<VoucherIssueTask['status'], { label: string; color: string }> = {
-  draft: { label: '待执行', color: 'gold' },
   running: { label: '执行中', color: 'processing' },
   done: { label: '已完成', color: 'success' },
-  partial: { label: '部分完成', color: 'warning' },
   paused: { label: '已中止', color: 'default' },
 }
 
@@ -585,7 +585,7 @@ export default function VoucherIssueCenter() {
   /** 周期任务的「长期有效」开关：默认打开；打开时截止日期置灰、免必填 */
   const taskDeadlineLongTerm = Form.useWatch('deadlineLongTerm', taskForm) ?? true
 
-  /** 演示环境的定时触发：进入发放任务列表时，把已过指定时刻的「待执行」任务补跑一次 */
+  /** 演示环境的定时触发：进入发放任务列表时，把已过发放时刻的执行中任务补跑一次 */
   useEffect(() => {
     if (tab !== 'tasks') return
     if (runDueVoucherIssueTasks() > 0) message.success('到期的发放任务已自动执行')
@@ -804,6 +804,12 @@ export default function VoucherIssueCenter() {
   const saveTask = async () => {
     try {
       const v = await taskForm.validateFields()
+      /** 需求：所有发券动作均需校验券模板是否启用，模板停用则拦截创建任务 */
+      const tpl = templates.find((t) => t.id === v.templateId)
+      if (tpl && tpl.status !== 'enabled') {
+        message.error('卡券已停用')
+        return
+      }
       const accounts =
         v.accountScope === 'all'
           ? ISSUABLE_ACCOUNTS
@@ -869,8 +875,22 @@ export default function VoucherIssueCenter() {
           size="small"
           checked={value === 'enabled'}
           onChange={(checked) => {
-            updateVoucherTemplate(t.id, { status: checked ? 'enabled' : 'disabled' })
-            message.success(checked ? '模板已启用' : '模板已停用')
+            /** 需求：关闭券状态需要二次确认；开启保持直接切换 */
+            if (!checked) {
+              Modal.confirm({
+                title: '确定停用该券模板吗？',
+                content: '停用后将无法使用该模板发放代金券，已发出的券不受影响',
+                okText: '确定',
+                cancelText: '取消',
+                onOk: () => {
+                  updateVoucherTemplate(t.id, { status: 'disabled' })
+                  message.success('模板已停用')
+                },
+              })
+              return
+            }
+            updateVoucherTemplate(t.id, { status: 'enabled' })
+            message.success('模板已启用')
           }}
         />
       ),
@@ -1082,8 +1102,8 @@ export default function VoucherIssueCenter() {
       width: 220,
       fixed: 'right',
       render: (_: unknown, t) => {
-        /** 「中止」只对未完成的周期任务开放；已中止的任务提供「恢复」；「执行记录」所有任务常驻 */
-        const canPause = t.schedule !== 'once' && (t.status === 'running' || t.status === 'draft')
+        /** 「中止」只对执行中的周期任务开放；已中止的任务提供「恢复」；「执行记录」所有任务常驻 */
+        const canPause = t.schedule !== 'once' && t.status === 'running'
         return (
           <Space size={0}>
             {t.status === 'paused' && (

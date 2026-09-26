@@ -975,7 +975,7 @@ export interface VoucherIssueTask {
   lastRunIssued?: number
   /** 执行记录：按时间正序追加，列表「执行记录」弹窗倒序展示；未执行过时为空 */
   runs?: VoucherTaskRunRecord[]
-  status: 'draft' | 'running' | 'done' | 'partial' | 'paused'
+  status: 'running' | 'done' | 'paused'
   operator: string
   createdAt: string
 }

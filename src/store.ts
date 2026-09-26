@@ -3038,7 +3038,7 @@ const VOUCHER_TASK_SEED: VoucherIssueTask[] = [
     total: 0,
     success: 0,
     fail: 0,
-    status: 'draft',
+    status: 'running',
     operator: CURRENT_OPERATOR,
     createdAt: '2026-09-22 15:30:00',
   },
@@ -3057,7 +3057,7 @@ const VOUCHER_TASK_SEED: VoucherIssueTask[] = [
     fail: 1,
     lastRunIssued: 2,
     runs: [{ at: '2026-09-18 11:00:00', issued: 2, skipped: 1, trigger: 'auto' }],
-    status: 'partial',
+    status: 'done',
     operator: CURRENT_OPERATOR,
     createdAt: '2026-09-18 11:00:00',
   },
@@ -3313,7 +3313,8 @@ const normalizeTemplateRow = (row: Record<string, unknown>) => {
  * v3 起统一为「首次发放时间 firing」（界面早期称「本次发放时间」）——券的生效/失效只由券模板决定，任务层只管发放动作；
  * v4 新增「本次发放数量 lastRunIssued」，存量行按累计成功数回推一次；
  * v5 新增「执行记录 runs」，存量行若已有成功发放但无记录，按 lastRunIssued 回填一条 auto 记录；
- * v6 补齐覆盖全部任务状态的演示任务（待执行/部分完成/已中止），回捞时按 id 追加缺失的种子任务，仅迁移一次。
+ * v6 补齐覆盖全部任务状态的演示任务（执行中/已完成/已中止），回捞时按 id 追加缺失的种子任务，仅迁移一次；
+ * 任务状态精简为「执行中 / 已完成 / 已中止」三态，存量行的「待执行」归入「执行中」、「部分完成」归入「已完成」。
  */
 const LEGACY_VOUCHER_TASK_KEYS = [
   'zsdd_voucher_issue_tasks_v5',
@@ -3347,6 +3348,9 @@ const normalizeTaskRow = (row: Record<string, unknown>) => {
       },
     ]
   }
+  /** 任务状态精简：存量行的「待执行」归入「执行中」，「部分完成」归入「已完成」 */
+  if (next.status === 'draft') next.status = 'running'
+  if (next.status === 'partial') next.status = 'done'
   return next
 }
 
@@ -3804,6 +3808,8 @@ export function createVoucherIssueTask(input: {
 }): { ok: boolean; msg: string } {
   const tpl = voucherTemplateStore.get().find((t) => t.id === input.templateId)
   if (!tpl) return { ok: false, msg: '请选择券模板' }
+  /** 需求：所有发券动作均需校验券模板是否启用，模板停用不可创建发放任务 */
+  if (tpl.status !== 'enabled') return { ok: false, msg: '卡券已停用，请重新选择' }
   /** 任务名称不可重复 */
   if (voucherTaskStore.get().some((t) => t.name === input.name)) return { ok: false, msg: '任务名称不可重复' }
   if (input.accounts.length === 0) return { ok: false, msg: '请至少选择一个目标账号' }
@@ -3858,7 +3864,7 @@ export function createVoucherIssueTask(input: {
       fail: result.skipped.length,
       lastRunIssued: result.issued.length,
       runs: [{ at: now, issued: result.issued.length, skipped: result.skipped.length, trigger: 'auto' }],
-      status: result.skipped.length === 0 ? 'done' : 'partial',
+      status: 'done',
     }
     voucherTaskStore.set((prev) => [task, ...prev])
     return { ok: true, msg: '保存成功' }
@@ -3874,14 +3880,14 @@ export function createVoucherIssueTask(input: {
     fail: result.skipped.length,
     lastRunIssued: result.issued.length,
     runs: [{ at: now, issued: result.issued.length, skipped: result.skipped.length, trigger: 'auto' }],
-    status: pastDeadline ? (result.skipped.length === 0 ? 'done' : 'partial') : 'running',
+    status: pastDeadline ? 'done' : 'running',
     nextRunAt: pastDeadline ? undefined : rawNext,
   }
   voucherTaskStore.set((prev) => [task, ...prev])
   return { ok: true, msg: '保存成功' }
 }
 
-/** 执行一次任务（周期任务补跑，或提前执行待执行任务）；trigger 区分列表手动与到点自动，写入执行记录 */
+/** 执行一次任务（周期任务补跑，或提前执行未到点的执行中任务）；trigger 区分列表手动与到点自动，写入执行记录 */
 export function runVoucherIssueTaskNow(
   id: string,
   trigger: 'auto' | 'manual' = 'auto',
@@ -3906,9 +3912,9 @@ export function runVoucherIssueTaskNow(
       }
       if (!unit) {
         /** 单次任务执行一次即终态，清空待执行时刻 */
-        return { ...t, ...patch, status: (result.skipped.length === 0 ? 'done' : 'partial') as VoucherIssueTask['status'], nextRunAt: undefined }
+        return { ...t, ...patch, status: 'done' as VoucherIssueTask['status'], nextRunAt: undefined }
       }
-      /** 周期任务待执行转执行中，下次时刻自本次执行所在周期顺延一个周期；顺延后超过发放截止日期则收口为已完成 */
+      /** 周期任务继续按周期续发，下次时刻自本次执行所在周期顺延一个周期；顺延后超过发放截止日期则收口为已完成 */
       const next = periodRunStamp(stampToDate(now), unit, 1)
       if (t.periodDeadline && next > t.periodDeadline) {
         return { ...t, ...patch, status: 'done' as VoucherIssueTask['status'], nextRunAt: undefined }
@@ -3923,7 +3929,7 @@ export function runVoucherIssueTaskNow(
 export function runDueVoucherIssueTasks(): number {
   const now = nowStamp()
   const due = voucherTaskStore.get().filter(
-    (t) => (t.status === 'draft' || (t.status === 'running' && t.total === 0)) && Boolean(t.nextRunAt) && (t.nextRunAt as string) <= now,
+    (t) => t.status === 'running' && t.total === 0 && Boolean(t.nextRunAt) && (t.nextRunAt as string) <= now,
   )
   let fired = 0
   due.forEach((t) => {
@@ -3959,12 +3965,12 @@ export function setVoucherTaskPaused(id: string, paused: boolean): VoucherIssueT
         result = 'done'
         return { ...t, status: result, nextRunAt: undefined }
       }
-      /** 未发过券的任务统一回「执行中」，单次任务按发放结果回落终态 */
+      /** 未发过券的任务统一回「执行中」，单次已发放过的任务回「已完成」终态 */
       const resumed: VoucherIssueTask['status'] =
         t.firing !== 'immediate' && t.total === 0
           ? 'running'
           : t.schedule === 'once'
-            ? (t.fail > 0 ? 'partial' : 'done')
+            ? 'done'
             : 'running'
       result = resumed
       return { ...t, status: resumed }
