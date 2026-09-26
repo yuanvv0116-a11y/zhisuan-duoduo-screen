@@ -1320,22 +1320,7 @@ function ConsumptionSection({ initialVoucherCode = '' }: { initialVoucherCode?: 
 function InvoiceSection() {
   return (
     <Card variant="borderless" style={{ borderRadius: 8, border: '1px solid #eef0f4' }} bodyStyle={{ padding: 16 }}>
-      <Space size={6} align="center">
-        所有可开票费用应为现金主账户的消费金额，不包括代金券
-        <RequirementDot
-          title="发票信息 · 需求说明"
-          sections={[
-            {
-              label: '',
-              items: [
-                '1.页面由建设中占位改为只展示一句开票口径说明——「所有可开票费用应为现金主账户的消费金额，不包括代金券」，以普通正文文字呈现（不做提示条 / 标签样式）。',
-                '2.页面上不再有可开票金额统计、明细列表与开票按钮。',
-                '3.该句为给研发同学的开票取数口径说明：可开票费用只取现金主账户的消费金额，代金券抵扣的部分不计入。',
-              ],
-            },
-          ]}
-        />
-      </Space>
+      所有可开票费用应为现金主账户的消费金额，不包括代金券
     </Card>
   )
 }
@@ -1438,26 +1423,7 @@ export default function BillingPage({
       render: (v: AccountOperationType) => ACCOUNT_OPERATION_LABEL[v] ?? v,
     },
     {
-      title: (
-        <Space size={6}>
-          扣费账户
-          <RequirementDot
-            title="账户明细 · 扣费账户区分"
-            sections={[
-              {
-                label: '',
-                items: [
-                  '1.现金主账户与代金券分账记账：各自一条独立余额链，本页按操作时间合并展示，用「扣费账户」标明这笔钱的来源。',
-                  '2.「变动前 / 变动后金额」的口径跟随扣费账户：现金行是现金余额，代金券行是券池余额，两者不可跨账户相加，也不并入同一个净资产统计。',
-                  '3.券池流水号前缀区分业务：DJQFF 发放、DJQDK 抵扣、DJQZF 作废；发放为券池增加（绿色 +），抵扣与作废为券池减少（红色 -）。',
-                  '4.一笔消费只走一个资金池：要么全额由代金券抵扣、按参与抵扣的券逐张产生 DJQDK 券池流水（单张券余额不足时叠加下一张券，多张券流水共用同一关联业务号），要么全额由现金主账户支付，不存在一笔消费既抵券又出现金的混付流水；DJQDK 流水以关联业务号 XF- 对应「消费明细」中的扣费记录。',
-                  '5.扣券的行在「扣费账户」下方灰字标注具体券码，便于核对是哪张券出的钱；可用「操作类型＝代金券抵扣」+「扣费账户＝代金券」快速筛出全部用券消费。',
-                ],
-              },
-            ]}
-          />
-        </Space>
-      ),
+      title: '扣费账户',
       dataIndex: 'fundAccount',
       key: 'fundAccount',
       width: 160,
