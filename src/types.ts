@@ -577,6 +577,10 @@ export type AccountOperationType =
   | 'resource_pack_buy'
   | 'refund'
   | 'adjust'
+  | 'voucher_issue'
+  | 'voucher_deduct'
+  | 'voucher_refund'
+  | 'voucher_void'
 
 export const ACCOUNT_OPERATION_LABEL: Record<AccountOperationType, string> = {
   model_consume: '模型调用消费',
@@ -585,6 +589,18 @@ export const ACCOUNT_OPERATION_LABEL: Record<AccountOperationType, string> = {
   resource_pack_buy: '资源包购买',
   refund: '退款',
   adjust: '余额调整',
+  voucher_issue: '代金券发放',
+  voucher_deduct: '代金券抵扣',
+  voucher_refund: '代金券退回',
+  voucher_void: '代金券作废',
+}
+
+/** 扣费账户：现金主账户 / 代金券账户（两者分账独立，流水合并展示） */
+export type FundAccount = 'cash' | 'voucher'
+
+export const FUND_ACCOUNT_LABEL: Record<FundAccount, string> = {
+  cash: '现金主账户',
+  voucher: '代金券',
 }
 
 /** 账户明细（流水） */
@@ -602,7 +618,7 @@ export interface AccountLedger {
   operationType: AccountOperationType
   /** 变动前金额（元） */
   amountBefore: number
-  /** 变动金额（元），消费为负数、充值/退款为正数 */
+  /** 变动金额（元），统一存正的绝对值；正负方向由操作类型推导（发放/充值/退回为正，消费/抵扣/作废为负） */
   amountChange: number
   /** 变动后金额（元） */
   amountAfter: number
@@ -610,6 +626,12 @@ export interface AccountLedger {
   remark?: string
   /** 操作人姓名（预留，当前不展示） */
   operator?: string
+  /** 扣费账户：现金主账户 / 代金券 */
+  fundAccount: FundAccount
+  /** 代金券券码（仅券池流水有值） */
+  voucherCode?: string
+  /** 关联业务号：同一笔消费的券行与现金行用同一个 bizNo 配对 */
+  relatedBizNo?: string
 }
 
 /* ============================== 费用管理 - 订单明细 ============================== */
@@ -688,7 +710,7 @@ export interface OrderDetail {
   originalPrice?: number
   /** 优惠金额 */
   discountAmount?: number
-  /** 优惠券金额 */
+  /** 代金券抵扣金额 */
   couponAmount?: number
   /** 订阅名称 */
   planName?: string
@@ -704,4 +726,262 @@ export interface OrderDetail {
   remainingTokens?: string
   /** 支付渠道 */
   paymentChannel?: string
+}
+
+/* ============================== 代金券 ============================== */
+
+/** 券余额精度：面额 2 位、余额按 6 位存储（与账户余额 assets 同口径） */
+export const VOUCHER_AMOUNT_PRECISION = 6
+
+/** 四舍五入到指定小数位，避免浮点噪声 */
+export const roundAmount = (n: number, digits = VOUCHER_AMOUNT_PRECISION): number => {
+  const p = 10 ** digits
+  return Math.round((n + Number.EPSILON) * p) / p
+}
+
+/** 券适用范围 */
+export type VoucherScope = 'all' | 'models'
+
+export const VOUCHER_SCOPE_LABEL: Record<VoucherScope, string> = {
+  all: '全平台通用',
+  models: '指定模型',
+}
+
+/** 有效期类型：发放后按天计算 / 自然周期（周 / 月 / 季度对齐） / 固定日期区间 */
+export type VoucherValidityType = 'fixedDate' | 'daysAfterIssue' | 'naturalPeriod'
+
+export const VOUCHER_VALIDITY_LABEL: Record<VoucherValidityType, string> = {
+  daysAfterIssue: '发放后按天',
+  naturalPeriod: '自然周期',
+  fixedDate: '固定日期',
+}
+
+/** 自然周期单位：周 / 月 / 季度 */
+export type VoucherPeriodUnit = 'week' | 'month' | 'quarter'
+
+export const VOUCHER_PERIOD_UNIT_LABEL: Record<VoucherPeriodUnit, string> = {
+  week: '周',
+  month: '月',
+  quarter: '季度',
+}
+
+/** 自然周期有效期（不可配置）：生效 = 所在周期第一天 00:00:00，失效 = 所在周期最后一天 23:59:59（主体文案不随周期单位变化） */
+export const VOUCHER_NATURAL_PERIOD_VALIDITY = '周期第一天 00:00:00 ～ 周期最后一天 23:59:59'
+
+/** 自然周期有效期标注（新增 / 编辑券模板弹窗「周期单位」下方灰字展示，主体文案不随周期单位变化） */
+export const voucherNaturalPeriodHint = (unit: VoucherPeriodUnit) =>
+  `自然周期的有效期：${VOUCHER_NATURAL_PERIOD_VALIDITY}${
+    unit === 'week' ? '（自然周以周一为第一天）' : ''
+  }`
+
+/** 券来源：只有「发放」这一个动作，不存在用户侧自助领取 */
+export type VoucherSource = 'targeted' | 'batch' | 'manual'
+
+export const VOUCHER_SOURCE_LABEL: Record<VoucherSource, string> = {
+  targeted: '后台发放',
+  batch: '批量发放',
+  manual: '单个补发',
+}
+
+/** 券状态：券在发放那一刻即绑定账户并到账，无「待领取」中间态 */
+export type VoucherStatus = 'notEffective' | 'active' | 'usedUp' | 'expired' | 'void'
+
+export const VOUCHER_STATUS_LABEL: Record<VoucherStatus, string> = {
+  notEffective: '待生效',
+  active: '生效中',
+  usedUp: '已用完',
+  expired: '已过期',
+  void: '已作废',
+}
+
+export const VOUCHER_STATUS_COLOR: Record<VoucherStatus, string> = {
+  notEffective: 'blue',
+  active: 'green',
+  usedUp: 'default',
+  expired: 'default',
+  void: 'red',
+}
+
+/** 券抵扣顺序：本券与账户内其他券的抵扣次序策略 */
+export type VoucherDeductOrder = 'voucherFirst' | 'cashFirst'
+
+export const VOUCHER_DEDUCT_ORDER_LABEL: Record<VoucherDeductOrder, string> = {
+  voucherFirst: '先抵扣券，再支付现金',
+  cashFirst: '先支付现金，再抵扣券',
+}
+
+/** 抵扣规则静态说明（新增 / 编辑券模板弹窗「抵扣规则」字段下方灰字展示，不再提供单选配置） */
+export const VOUCHER_MULTI_DEDUCT_HINT =
+  '存在代金券，将优先用券；账户存在多张优惠券时，优先按照失效日期抵扣，其次按照面值由小到大抵扣。'
+
+/** 券模板（券种定义）：一次配置，多次复用；改动不回溯已发出的券 */
+export interface VoucherTemplate {
+  id: string
+  /** 券名称 */
+  name: string
+  /** 面额（元），2 位小数 */
+  faceValue: number
+  /** 抵扣规则：本券的抵扣顺序 */
+  deductOrder: VoucherDeductOrder
+  /** 适用范围 */
+  scope: VoucherScope
+  /** scope=models 时的模型名列表 */
+  scopeModels?: string[]
+  /** 有效期类型 */
+  validityType: VoucherValidityType
+  /** 固定日期：生效时间，整点时刻串 `YYYY-MM-DD HH:00:00` */
+  fixedStart?: string
+  /** 固定日期：失效时间，整点时刻串，须晚于生效时间；「长期有效」开关打开时不写该字段 */
+  fixedEnd?: string
+  /** 发放后按天：发放后 N 天生效，0 = 立即生效 */
+  effectiveDelayDays?: number
+  /** 发放后按天：生效起 N 天内可用；「长期有效」开关打开时不写该字段 */
+  validDays?: number
+  /** 自然周期：周期单位（周 / 月 / 季度），默认月；生效与到期时刻固定推导，不可配置 */
+  periodUnit?: VoucherPeriodUnit
+  /** 使用说明（展示用，如「适用于kimi-k3」） */
+  applicableTo?: string
+  status: 'enabled' | 'disabled'
+  remark?: string
+  operator: string
+  createdAt: string
+}
+
+/** 固定日期时刻串摘要：展示到小时，去掉秒 */
+const fixedTimeLabel = (s: string): string => (s.length >= 16 ? s.slice(0, 16) : s)
+
+/** 模板有效期摘要文案（券模板列表、发放弹窗等共用，不含「有效期：」前缀） */
+export const voucherValidityDesc = (t: VoucherTemplate): string => {
+  if (t.validityType === 'fixedDate') {
+    const from = t.fixedStart ? fixedTimeLabel(t.fixedStart) : undefined
+    const to = t.fixedEnd ? fixedTimeLabel(t.fixedEnd) : undefined
+    if (from && to) return `固定日期 ${from} ~ ${to}`
+    if (from) return `固定日期 ${from} 起生效，长期有效`
+    if (to) return `固定日期 至 ${to} 失效`
+    return '固定日期'
+  }
+  if (t.validityType === 'naturalPeriod') {
+    // 生效时刻 = 该券所在自然周期的第一天 00:00:00，到期时刻 = 该周期最后一天 23:59:59
+    return `自然周期 ${VOUCHER_NATURAL_PERIOD_VALIDITY}`
+  }
+  const delay = t.effectiveDelayDays ?? 0
+  if (t.validDays == null) return `发放后 ${delay} 天生效，长期有效`
+  return `发放后 ${delay} 天生效，生效后 ${t.validDays} 天内有效`
+}
+
+/** 代金券：一张真实的券，发放那一刻即绑定账户并到账，不存在未绑账户的中间态 */
+export interface Voucher {
+  id: string
+  /** 唯一券码，对外可见 */
+  code: string
+  templateId: string
+  /** 名称快照 */
+  templateName: string
+  /** 面额（元） */
+  faceValue: number
+  /** 剩余余额（元），6 位存储 */
+  balance: number
+  /** 适用范围快照 */
+  scope: VoucherScope
+  scopeModels?: string[]
+  /** 归属账户 ID */
+  accountId?: string
+  accountName?: string
+  /** 归属账户手机号（脱敏） */
+  phone?: string
+  accountType?: 'personal' | 'enterprise' | 'sub'
+  source: VoucherSource
+  status: VoucherStatus
+  /** 生效时间，发放后按天与自然周期模式都在到账那一刻解析 */
+  effectiveAt?: string
+  /** 到期时间 */
+  expireAt?: string
+  /** 发放到账时间，有效期起算点 */
+  claimedAt?: string
+  /** 发放批次号 */
+  batchNo?: string
+  /** 发放来源说明（系统写入，如「账户列表发放」） */
+  remark?: string
+  operator: string
+  createdAt: string
+}
+
+/** 发放频率：单次发放 / 每周 / 每月 / 每季度发放一次 */
+export type VoucherTaskSchedule = 'once' | 'weekly' | 'monthly' | 'quarterly'
+
+export const VOUCHER_TASK_SCHEDULE_LABEL: Record<VoucherTaskSchedule, string> = {
+  once: '单次',
+  weekly: '每周',
+  monthly: '每月',
+  quarterly: '每季度',
+}
+
+/**
+ * 首次发放时间（原「本次发放时间」）：任务层只决定「什么时候执行发放」。
+ * 券本身的生效与失效时刻由券模板的有效期规则决定（固定日期 / 发放后按天 / 自然周期）。
+ * - immediate：保存后立刻发放
+ * - scheduled：到指定时刻发放（单次发放到此为止；周期发放此后转入自动按周期续发）
+ * - next_period：不提前发放，自下一个周期第 1 天 00:00:00 起自动发放（仅周期发放可选）
+ */
+export type VoucherTaskFiring = 'immediate' | 'scheduled' | 'next_period'
+
+export const VOUCHER_TASK_FIRING_LABEL: Record<VoucherTaskFiring, string> = {
+  immediate: '立即发放',
+  scheduled: '指定时间发放',
+  next_period: '下一周期自动发放',
+}
+
+/** 单次执行记录：任务每实际执行一次发放（保存/到点自动触发或手动执行）追加一条 */
+export interface VoucherTaskRunRecord {
+  /** 执行时间 */
+  at: string
+  /** 本次实际发放成功的券数 */
+  issued: number
+  /** 本次跳过的目标账户数 */
+  skipped: number
+  /** 触发方式：auto=保存/到点自动执行，manual=「立即执行一次」手动执行 */
+  trigger: 'auto' | 'manual'
+}
+
+/** 目标账户范围：所有账户 / 部分账户 */
+export type VoucherTaskAccountScope = 'all' | 'partial'
+
+/** 发放任务：把券批量落到账户名下，支持单次与每周 / 每月 / 每季度周期 */
+export interface VoucherIssueTask {
+  id: string
+  name: string
+  templateId: string
+  templateName: string
+  /** 目标人群说明（历史字段，弹窗已改为按账户范围自动生成） */
+  targetDesc?: string
+  /** 目标账户范围：所有账户 / 部分账户 */
+  accountScope?: VoucherTaskAccountScope
+  /** 目标账户 ID 列表 */
+  targetAccounts: string[]
+  /** 发放频率 */
+  schedule: VoucherTaskSchedule
+  /** 首次发放时间（周期性发放）：立即发放 / 下一周期开始发放 */
+  firing?: VoucherTaskFiring
+  /** firing 为 scheduled 时，指定的发放时刻 */
+  scheduledAt?: string
+  /** 下次执行时间：周期任务为每周期开始的第 1 天 00:00:00 */
+  nextRunAt?: string
+  /** 周期任务的发放截止日期（截止日当天 23:59:59 前仍会发放）；空 = 长期有效，一直续发 */
+  periodDeadline?: string
+  total: number
+  success: number
+  fail: number
+  /** 本次发放数量：最近一次执行实际发出的券数，未执行过时为空 */
+  lastRunIssued?: number
+  /** 执行记录：按时间正序追加，列表「执行记录」弹窗倒序展示；未执行过时为空 */
+  runs?: VoucherTaskRunRecord[]
+  status: 'draft' | 'running' | 'done' | 'partial' | 'paused'
+  operator: string
+  createdAt: string
+}
+
+/** 账户标签（与账户管理页标签体系一致） */
+export interface AccountTag {
+  name: string
+  color: string
 }

@@ -11,12 +11,12 @@
 
 ## 0.1 部署信息速查（固定事实，跨会话直接引用，勿删）
 - **项目**：`package.json` name `zhisuan-channel-settlement`（页面标题「智算多多 · 渠道结算中心」）；纯静态 SPA，无后端，数据存各自浏览器 localStorage。
-- **线上入口**：完整版 `http://182.92.106.90:9001/`；评审版 `http://182.92.106.90:9001/?review=<版本>`（当前 `?review=2.1`）。裁剪配置在 `src/releases.ts` 的 `RELEASES`（新版本必须加在对象末尾，`LATEST_RELEASE` 取最后一个 key）。
+- **线上入口**：完整版 `http://182.92.106.90:9001/`；评审版 `http://182.92.106.90:9001/?review=<版本>`（当前 `?review=2.3`）。裁剪配置在 `src/releases.ts` 的 `RELEASES`（新版本必须加在对象末尾，`LATEST_RELEASE` 取最后一个 key）。
 - **服务器**：阿里云 ECS `182.92.106.90`，`root` 登录；**密码不入本文件**——本机 `~/.ssh/id_ed25519.pub` 已加入服务器 `authorized_keys`，可 `ssh root@182.92.106.90` 免密。Alibaba Cloud Linux 3；git 2.43.7、node v24.8.0、npm 11.6.0、nginx 1.24.0；2 核 / 可用内存约 1.3G / 磁盘 40G 用 15%。
 - **服务器落点**：源码仓库 `/var/www/zhisuan-duoduo/repo`（checkout 分支 `v2.1`）；线上产物 `/var/www/zhisuan-duoduo/dist`；上一版备份 `dist_prev`（回滚：`mv dist_prev dist` 后 reload）；发布脚本 `deploy.sh`；发布日志 `deploy.log`；站点配置 `/etc/nginx/conf.d/zhisuan-duoduo.conf`（`listen 9001`、gzip、html no-cache、`try_files` 回退）。
 - **git 远端**：`origin` = `https://github.com/yuanvv0116-a11y/zhisuan-duoduo-screen.git`；`deploy` = `ssh://root@182.92.106.90/var/www/zhisuan-duoduo/repo`。
 - **发布方式（首选）**：`git commit` → `git push deploy v2.1` → 服务器 `post-receive` 钩子自动 `npm run build` → 原子切换 dist → `nginx -t && systemctl reload nginx`，约 40 秒；构建失败线上保持原版本。手动发布：`bash /var/www/zhisuan-duoduo/deploy.sh`。
-- **分支现状**：工作分支 `v2.1`（跟踪 `origin/v2.1`，已同步）；`main` 本地领先远端 16 个提交、`new-features` 与远端分叉，推这两个需先向用户确认；`.github/workflows/deploy.yml`（Actions 用 sshpass 传 dist，依赖 `ALIYUN_HOST/USER/PASSWORD/PORT`+`DEPLOY_PATH` secrets）目前未纳入版本控制，现发布链路不依赖它。
+- **分支现状**：本地工作分支 `v2.2`（自 `v2.1` 拉出，尚未推远端）；**服务器部署分支固定为 `v2.1`**（`deploy.sh` 里 `BRANCH=${DEPLOY_BRANCH:-v2.1}`，`receive.denyCurrentBranch=updateInstead` 的非裸仓库），所以发布时必须把提交推到 `v2.1`：`git push origin v2.2:v2.1 && git push deploy v2.2:v2.1`；`main` 本地领先远端 16 个提交、`new-features` 与远端分叉，推这两个需先向用户确认；`.github/workflows/deploy.yml`（Actions 用 sshpass 传 dist，依赖 `ALIYUN_HOST/USER/PASSWORD/PORT`+`DEPLOY_PATH` secrets）目前未纳入版本控制，现发布链路不依赖它。
 - **端口占用（新增站点前先避让）**：`22` sshd；`80` nginx → `/var/www/kresta-ai`（`kresta-ai.conf`，`server_name xiatm.work`，**别的项目不可动**）；`8000` python 服务（curl 返回 401 属正常）；`9001` 本项目（安全组已放行）；`9000` 被安全组拦截勿用。
 - **网络注意**：本机与服务器访问 `github.com:443` 偶发超时，推 GitHub 失败先重试；`git push deploy` 走 22 端口不受影响。
 
@@ -46,7 +46,7 @@
 - 敏感字段（如 API Key）：默认脱敏（首尾各 4 位 + `****`），行内提供「显示/隐藏」👁 与「复制」📋 两个 text 图标按钮。优先复用 `SecretCell`。
 - 状态字段：列表内用 `Switch`（size small，启用/停用）直接切换。
 - 操作列：`type="link"` 文字按钮「编辑 / 删除」，删除必须 `Popconfirm` 二次确认。
-- 弹窗：新增/编辑用 `Modal`（`centered`、`width` 约 520、`destroyOnClose`、okText「保存」cancelText「取消」），**不用右侧 Drawer**。表单 `layout="vertical"`。
+- 弹窗：新增/编辑用 `Modal`（`centered`、`width` 约 520、`destroyOnClose`、okText「保存」cancelText「取消」），**不用右侧 Drawer**。表单 `layout="vertical"`。**弹窗标题只写弹窗名称本身（如「执行记录」），不拼接任务名/ID/模型名等额外信息。**
 
 ## 5. 文案与交互习惯
 - 实体统一称「渠道商」。

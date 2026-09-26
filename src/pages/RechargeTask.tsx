@@ -1265,7 +1265,7 @@ export default function RechargeTask() {
 
       {/* 已执行任务 弹窗 */}
       <Modal
-        title={`已执行任务 · ${execTask?.id ?? ''}`}
+        title="已执行任务"
         open={execOpen}
         onCancel={() => setExecOpen(false)}
         footer={<Button onClick={() => setExecOpen(false)}>关闭</Button>}

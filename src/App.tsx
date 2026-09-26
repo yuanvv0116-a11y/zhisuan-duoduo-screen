@@ -17,10 +17,12 @@ import ModelGroupList from './pages/ModelGroupList'
 import ResourcePack from './pages/ResourcePack'
 import TokenPlanList from './pages/TokenPlanList'
 import RechargeTask from './pages/RechargeTask'
+import VoucherIssueCenter from './pages/VoucherIssueCenter'
 import OtherRequirements from './pages/OtherRequirements'
 import PlanBill from './pages/PlanBill'
 import UserConsumeBill from './pages/UserConsumeBill'
 import PlanStats from './pages/PlanStats'
+import VoucherStats from './pages/VoucherStats'
 import PurchasePage from './pages/PurchasePage'
 import PurchaseCheckout from './pages/PurchaseCheckout'
 import PaymentPage from './pages/PaymentPage'
@@ -47,6 +49,7 @@ export type RouteKey =
   | 'userTag'
   | 'accountList'
   | 'rechargeTask'
+  | 'voucherIssueCenter'
   | 'channels'
   | 'channelModels'
   | 'modelHourlyPerf'
@@ -62,6 +65,7 @@ export type RouteKey =
   | 'planBill'
   | 'userConsumeBill'
   | 'planStats'
+  | 'voucherStats'
   | 'otherRequirements'
   | 'changelog'
 
@@ -87,6 +91,7 @@ const FULL_MENU: MenuItem[] = [
     children: [
       { key: 'accountList', label: '账户列表' },
       { key: 'rechargeTask', label: '定时充值任务' },
+      { key: 'voucherIssueCenter', label: '代金券' },
     ],
   },
   {
@@ -118,6 +123,7 @@ const FULL_MENU: MenuItem[] = [
       { key: 'modelUsageStat', label: '模型使用统计分析' },
       { key: 'modelUsageDetail', label: '模型使用明细' },
       { key: 'planStats', label: '资源包与套餐统计' },
+      { key: 'voucherStats', label: '代金券统计' },
     ],
   },
   {
@@ -204,12 +210,12 @@ export default function App() {
   const [perfDetailFilter, setPerfDetailFilter] = useState<PerfDetailFilter | undefined>(undefined)
   const [viewMode, setViewMode] = useState<'admin' | 'console' | 'website'>('admin')
   const [webNav, setWebNav] = useState<'tokenPlan'>('tokenPlan')
-  /** 控制台默认落在 Token工厂，顶部导航点击「控制台」时也回到该子页 */
-  const [consoleSubPage, setConsoleSubPage] = useState<string>('tokenFactory')
+  /** 控制台默认落在费用管理，顶部导航点击「控制台」时也回到费用管理 */
+  const [consoleSubPage, setConsoleSubPage] = useState<string>('billing')
   const [tokenPlanSub, setTokenPlanSub] = useState<
     'overview' | 'mySubscription' | 'resourcePack' | 'mySubscriptionNoPlan' | 'mySubscriptionNoPack'
   >('overview')
-  const [billingSub, setBillingSub] = useState<BillingSubPage>('orderDetail')
+  const [billingSub, setBillingSub] = useState<BillingSubPage>('accountOverview')
   const [checkoutPlan, setCheckoutPlan] = useState<TokenPlan | null>(null)
   const [isRenewMode, setIsRenewMode] = useState(false)
 
@@ -389,7 +395,10 @@ export default function App() {
     : showConsoleBilling
       ? 'billing'
       : 'tokenFactory'
-  const defaultBillingSub: BillingSubPage = allowedBillingSubs?.[0] ?? 'orderDetail'
+  /** 费用管理默认子页：评审模式取本次放行项的第一项，否则落在菜单首项「账户概览」 */
+  const defaultBillingSub: BillingSubPage = allowedBillingSubs?.[0] ?? 'accountOverview'
+  /** 点击「控制台」时的落地子页：默认费用管理；评审版本未放行费用时回落 Token工厂 */
+  const consoleLandingSub = showConsoleBilling ? 'billing' : defaultConsoleSub
 
   /** 评审模式：控制台子页回落到本次范围内的入口 */
   useEffect(() => {
@@ -417,6 +426,8 @@ export default function App() {
         return <AccountList />
       case 'rechargeTask':
         return <RechargeTask />
+      case 'voucherIssueCenter':
+        return <VoucherIssueCenter />
       case 'channels':
         return <ChannelManage />
       case 'channelModels':
@@ -454,6 +465,8 @@ export default function App() {
         return <UserConsumeBill />
       case 'planStats':
         return <PlanStats />
+      case 'voucherStats':
+        return <VoucherStats />
       case 'otherRequirements':
         return <OtherRequirements />
       case 'changelog':
@@ -483,9 +496,10 @@ export default function App() {
           onChange={(v) => {
             const next = v as 'admin' | 'console' | 'website'
             setViewMode(next)
-            /** 点击「控制台」默认选中 Token工厂，并退出可能残留的套餐结算 / 支付流程 */
+            /** 点击「控制台」默认直接进入费用管理，并退出可能残留的套餐结算 / 支付流程 */
             if (next === 'console') {
-              setConsoleSubPage(defaultConsoleSub)
+              setConsoleSubPage(consoleLandingSub)
+              if (consoleLandingSub === 'billing') setBillingSub(defaultBillingSub)
               setCheckoutPlan(null)
               setPaymentData(null)
             }

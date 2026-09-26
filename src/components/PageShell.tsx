@@ -6,6 +6,8 @@ const { Text } = Typography
 
 interface PageShellProps {
   breadcrumb: string[]
+  /** 面包屑行尾追加的内容（如需求红点） */
+  breadcrumbExtra?: ReactNode
   topExtra?: ReactNode
   searchFields: ReactNode
   onSearch: () => void
@@ -26,6 +28,7 @@ interface PageShellProps {
 
 export default function PageShell({
   breadcrumb,
+  breadcrumbExtra,
   topExtra,
   searchFields,
   onSearch,
@@ -44,10 +47,10 @@ export default function PageShell({
 }: PageShellProps) {
   return (
     <div>
-      <Breadcrumb
-        style={{ marginBottom: 12 }}
-        items={breadcrumb.map((title) => ({ title }))}
-      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <Breadcrumb items={breadcrumb.map((title) => ({ title }))} />
+        {breadcrumbExtra}
+      </div>
 
       {topExtra}
 

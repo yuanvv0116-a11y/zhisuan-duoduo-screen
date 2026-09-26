@@ -27,6 +27,7 @@ const MENU_GROUPS: MenuGroup[] = [
     children: [
       { key: 'accountList', label: '账户列表' },
       { key: 'rechargeTask', label: '定时充值任务' },
+      { key: 'voucherIssueCenter', label: '代金券' },
     ],
   },
   {
@@ -58,12 +59,16 @@ const MENU_GROUPS: MenuGroup[] = [
       { key: 'modelUsageStat', label: '模型使用统计分析' },
       { key: 'modelUsageDetail', label: '模型使用明细' },
       { key: 'planStats', label: '资源包与套餐统计' },
+      { key: 'voucherStats', label: '代金券统计' },
     ],
   },
   {
     groupKey: 'billGroup',
     groupLabel: '账单管理',
-    children: [{ key: 'planBill', label: '套餐与资源包账单' }],
+    children: [
+      { key: 'planBill', label: '套餐与资源包账单' },
+      { key: 'userConsumeBill', label: '用户消费账单' },
+    ],
   },
   {
     /** 控制台菜单不在 RouteKey 体系内，用 `tf:` / `billing:` 前缀定位（见 releases.ts consoleKeys） */
@@ -84,6 +89,7 @@ const MENU_GROUPS: MenuGroup[] = [
     groupLabel: '控制台 › 费用',
     children: [
       { key: 'billing:accountOverview', label: '账户概览' },
+      { key: 'billing:voucher', label: '代金券' },
       { key: 'billing:accountDetail', label: '账户明细' },
       { key: 'billing:recharge', label: '充值记录' },
       { key: 'billing:orderDetail', label: '订单明细' },

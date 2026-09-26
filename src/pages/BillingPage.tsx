@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   Card,
   Table,
@@ -13,6 +13,7 @@ import {
   Descriptions,
   message,
   Alert,
+  Select,
 } from 'antd'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import {
@@ -21,28 +22,34 @@ import {
   ExportOutlined,
   DownloadOutlined,
   InfoCircleOutlined,
+  ProfileOutlined,
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
-import { useAccountLedgers, useOrderDetails } from '../store'
+import { demoVoucherCompactTs, demoVoucherStamp, useAccountLedgers, useOrderDetails } from '../store'
 import type {
   AccountLedger,
   AccountOperationType,
+  FundAccount,
   OrderDetail,
   OrderStatus,
   ResourceStatus,
 } from '../types'
 import {
   ACCOUNT_OPERATION_LABEL,
+  FUND_ACCOUNT_LABEL,
   ORDER_PRODUCT_TYPE_LABEL,
   ORDER_TYPE_LABEL,
   ORDER_STATUS_LABEL,
   RESOURCE_STATUS_LABEL,
 } from '../types'
 import RequirementDot from '../components/RequirementDot'
+import ConsoleVoucher from './ConsoleVoucher'
+import AccountOverview from './AccountOverview'
 
 export type BillingSubPage =
   | 'accountOverview'
   | 'accountDetail'
+  | 'voucher'
   | 'recharge'
   | 'orderDetail'
   | 'consumption'
@@ -57,6 +64,7 @@ interface Props {
 
 const LEFT_MENU: { key: BillingSubPage; label: string }[] = [
   { key: 'accountOverview', label: '账户概览' },
+  { key: 'voucher', label: '代金券' },
   { key: 'accountDetail', label: '账户明细' },
   { key: 'recharge', label: '充值记录' },
   { key: 'orderDetail', label: '订单明细' },
@@ -68,6 +76,7 @@ interface LedgerSearchForm {
   operatorPhone: string
   operatorAccountId: string
   operationType: AccountOperationType | ''
+  fundAccount: FundAccount | ''
   dateRange: [Dayjs, Dayjs] | null
 }
 
@@ -75,6 +84,7 @@ const emptyLedgerSearch: LedgerSearchForm = {
   operatorPhone: '',
   operatorAccountId: '',
   operationType: '',
+  fundAccount: '',
   dateRange: null,
 }
 
@@ -91,11 +101,15 @@ const emptyOrderSearch: OrderSearchForm = {
 
 interface ConsumptionSearchForm {
   productName: string
+  voucherCode: string
   dateRange: [Dayjs, Dayjs] | null
+  fundAccount: ConsumptionFundAccount | ''
 }
 const emptyConsumptionSearch: ConsumptionSearchForm = {
   productName: '',
+  voucherCode: '',
   dateRange: null,
+  fundAccount: '',
 }
 
 const { RangePicker } = DatePicker
@@ -600,7 +614,22 @@ interface ConsumptionDetail {
   cacheCreate: ConsumptionItem
   cacheRead: ConsumptionItem
   media: ConsumptionItem
+  /** 本笔扣费账户：cash 现金主账户全额支付、voucher 卡券账户全额抵扣；缺省视为 cash */
+  fundAccount?: ConsumptionFundAccount
+  /** 本笔由卡券账户抵扣的金额（元），仅 voucher 有值 */
+  voucherDeduction?: number
+  /** 参与抵扣的券明细（券名称 + 券码），一张或多张，与「账户明细」代金券流水的券码一一对应 */
+  voucherItems?: ConsumptionVoucherItem[]
 }
+
+/** 参与本笔抵扣的一张代金券：名称与券码，对账以券码为准 */
+interface ConsumptionVoucherItem {
+  name: string
+  code: string
+}
+
+/** 扣费账户枚举：与账户明细「扣费账户」同源，一笔消费只走一个资金池 */
+type ConsumptionFundAccount = 'cash' | 'voucher'
 
 const ITEM = (quantity: number | null, cost: number, unit?: string): ConsumptionItem => ({
   quantity,
@@ -621,7 +650,78 @@ const consumptionTotal = (r: ConsumptionDetail) =>
 /** 金额展示：最多保留 6 位小数并去掉无意义的尾随 0 */
 const formatAmount = (v: number) => String(Number(v.toFixed(6)))
 
+/** CSV 单元格转义：统一加引号，内部引号翻倍 */
+const consumptionCsvCell = (value: string | number): string =>
+  `"${String(value).replace(/"/g, '""')}"`
+
+/** 本笔的扣费构成，未标注时视为全额现金 */
+const consumptionFundOf = (r: ConsumptionDetail): ConsumptionFundAccount =>
+  r.fundAccount ?? 'cash'
+
+const CONSUMPTION_FUND_LABEL: Record<ConsumptionFundAccount, string> = {
+  cash: '现金主账户',
+  voucher: '卡券账户',
+}
+
 const CONSUMPTION_SEED: ConsumptionDetail[] = [
+  /** 现金主账户全额支付的一笔消费，无券码 */
+  {
+    id: 'cd-19',
+    serialNo: 'MXXF-2609170931552840116',
+    occurredAt: '2026-09-17 09:31:55',
+    productName: 'glm-5.2',
+    multiplierName: '标准倍率',
+    multiplier: 1,
+    input: ITEM(12000, 3.6),
+    output: ITEM(30000, 33.6),
+    cache: BLANK_ITEM,
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+    fundAccount: 'cash',
+  },
+  /**
+   * 以下两笔与「账户明细」代金券流水（DJQDK 前缀）按券码一一对应，
+   * 演示卡券账户抵扣：一笔消费要么全额卡券抵扣、要么全额现金主账户支付；
+   * 一张券余额不足时可叠加多张券组合抵扣（cd-17 双券组合）。
+   */
+  {
+    id: 'cd-17',
+    serialNo: `MXXF-${demoVoucherCompactTs(31)}2273091`,
+    occurredAt: demoVoucherStamp(31),
+    productName: 'glm-5.2',
+    multiplierName: '标准倍率',
+    multiplier: 1,
+    input: ITEM(3200, 2),
+    output: ITEM(48000, 48),
+    cache: BLANK_ITEM,
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+    fundAccount: 'voucher',
+    voucherDeduction: 50,
+    voucherItems: [
+      { name: '七夕限定模型券', code: 'DQ-202609-000101' },
+      { name: '七夕限定模型券', code: 'DQ-202609-000102' },
+    ],
+  },
+  {
+    id: 'cd-18',
+    serialNo: `MXXF-${demoVoucherCompactTs(21)}8841227`,
+    occurredAt: demoVoucherStamp(21),
+    productName: 'kimi-k3',
+    multiplierName: '尊享加速倍率',
+    multiplier: 2,
+    input: ITEM(2100, 1.25),
+    output: ITEM(56750, 28.75),
+    cache: BLANK_ITEM,
+    cacheCreate: BLANK_ITEM,
+    cacheRead: BLANK_ITEM,
+    media: BLANK_ITEM,
+    fundAccount: 'voucher',
+    voucherDeduction: 30,
+    voucherItems: [{ name: '七夕限定模型券', code: 'DQ-202609-000101' }],
+  },
   {
     id: 'cd-01',
     serialNo: 'MXXF-2609121446271316186',
@@ -845,9 +945,15 @@ function ConsumptionItemCell({ item }: { item: ConsumptionItem }) {
   )
 }
 
-function ConsumptionSection() {
-  const [form, setForm] = useState<ConsumptionSearchForm>(emptyConsumptionSearch)
-  const [applied, setApplied] = useState<ConsumptionSearchForm>(emptyConsumptionSearch)
+function ConsumptionSection({ initialVoucherCode = '' }: { initialVoucherCode?: string }) {
+  const [form, setForm] = useState<ConsumptionSearchForm>({
+    ...emptyConsumptionSearch,
+    voucherCode: initialVoucherCode,
+  })
+  const [applied, setApplied] = useState<ConsumptionSearchForm>({
+    ...emptyConsumptionSearch,
+    voucherCode: initialVoucherCode,
+  })
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
@@ -857,10 +963,17 @@ function ConsumptionSection() {
         if (!c.productName.toLowerCase().includes(applied.productName.trim().toLowerCase()))
           return false
       }
+      if (applied.voucherCode.trim()) {
+        const code = applied.voucherCode.trim()
+        if (!(c.voucherItems ?? []).some((v) => v.code === code)) return false
+      }
       if (applied.dateRange && applied.dateRange[0] && applied.dateRange[1]) {
         const t = dayjs(c.occurredAt)
         if (t.isBefore(applied.dateRange[0], 'day')) return false
         if (t.isAfter(applied.dateRange[1], 'day')) return false
+      }
+      if (applied.fundAccount) {
+        if (consumptionFundOf(c) !== applied.fundAccount) return false
       }
       return true
     })
@@ -876,7 +989,78 @@ function ConsumptionSection() {
     setPage(1)
   }
   const handleExport = () => {
-    message.success('已提交导出，稍后可在通知中心下载')
+    if (!filtered.length) {
+      message.warning('当前筛选结果为空，暂无可导出数据')
+      return
+    }
+    const header = [
+      '流水号',
+      '费用发生时间',
+      '产品名称',
+      '倍率名称',
+      '倍率',
+      '输入',
+      '输入费用(元)',
+      '输出',
+      '输出费用(元)',
+      '缓存',
+      '缓存费用(元)',
+      '缓存创建',
+      '缓存创建费用(元)',
+      '缓存读取',
+      '缓存读取费用(元)',
+      '媒体信息',
+      '媒体费用(元)',
+      '扣费账户',
+      '卡券信息',
+      '费用总额(元)',
+    ]
+    const lines = [header.map(consumptionCsvCell).join(',')]
+    const itemCell = (item: ConsumptionItem) =>
+      item.quantity === null ? '' : `${item.quantity}${item.unit ?? ''}`
+    const itemFee = (item: ConsumptionItem) =>
+      item.quantity === null ? '' : item.cost.toFixed(6)
+    filtered.forEach((r) => {
+      const items = r.voucherItems ?? []
+      lines.push(
+        [
+          r.serialNo,
+          r.occurredAt,
+          r.productName,
+          r.multiplierName,
+          `${r.multiplier}x`,
+          itemCell(r.input),
+          itemFee(r.input),
+          itemCell(r.output),
+          itemFee(r.output),
+          itemCell(r.cache),
+          itemFee(r.cache),
+          itemCell(r.cacheCreate),
+          itemFee(r.cacheCreate),
+          itemCell(r.cacheRead),
+          itemFee(r.cacheRead),
+          itemCell(r.media),
+          itemFee(r.media),
+          /** 扣费账户列：现金主账户 / 卡券账户 */
+          CONSUMPTION_FUND_LABEL[consumptionFundOf(r)],
+          /** 卡券信息列：展示卡名称和券码，多张券以 / 分隔；现金行为空 */
+          items.map((v) => `${v.name}（${v.code}）`).join(' / '),
+          consumptionTotal(r).toFixed(6),
+        ]
+          .map(consumptionCsvCell)
+          .join(','),
+      )
+    })
+    const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `消费明细_${dayjs().format('YYYYMMDD_HHmm')}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    message.success(`已导出 ${filtered.length} 条记录`)
   }
 
   const itemColumn = (title: string, get: (r: ConsumptionDetail) => ConsumptionItem, width = 110) => ({
@@ -919,25 +1103,7 @@ function ConsumptionSection() {
       ),
     },
     {
-      title: (
-        <Space size={6}>
-          倍率信息
-          <RequirementDot
-            title="消费明细 · 倍率信息"
-            sections={[
-              {
-                label: '',
-                items: [
-                  '1.位置：新增在「产品名称」之后，固定展示两行：上行倍率名称（如「标准倍率」），下行灰色小字倍率（如「1x」）。',
-                  '2.数据来源：与该笔消费实际命中的计费档位一致，取自模型广场 / 渠道模型配置中的倍率名称与模型倍率，不可手填。',
-                  '3.同一模型存在多个倍率档位时，按本次调用实际使用的档位展示，与「费用总额」的计算口径保持一一对应。',
-                  '4.本次调整同步移除了原「资源包信息」列，消费明细只保留现金计费口径。',
-                ],
-              },
-            ]}
-          />
-        </Space>
-      ),
+      title: '倍率信息',
       key: 'multiplier',
       width: 150,
       render: (_v, r) => (
@@ -956,23 +1122,53 @@ function ConsumptionSection() {
     {
       title: (
         <Space size={6}>
-          费用总额（元）
+          扣费账户
           <RequirementDot
-            title="消费明细 · 列表与汇总"
+            title="消费明细 · 扣费账户"
             sections={[
               {
                 label: '',
                 items: [
-                  '1.计费项列（输入、输出、缓存、缓存创建、缓存读取、媒体信息）统一拆为两行：上行调用用量（数值 + 单位），下行蓝色小字该项费用「¥金额」，右对齐。',
-                  '2.该笔调用没有产生该项计费时整格显示灰色「--」，不显示 0，避免与真实零元调用混淆。',
-                  '3.「费用总额（元）」= 该行各计费项费用之和，固定在表格最右侧；金额大于 0 时加粗，横向滚动时始终可见。',
-                  '4.首列「流水号」固定左侧、超长悬浮显示完整编号；末列固定右侧，表格横向滚动；分页支持切换每页条数与快速跳页，展示「共 N 条」。',
+                  '1.增加扣费账户信息；展示该笔消费用现金主账户扣费还是卡券账户扣费。如为卡券账户，则鼠标悬浮展示所有本次扣费卡券信息，包括卡名称和卡号 ；',
+                  '2.导出账单也增加该列，并增加卡券信息列，展示卡名称和券码；',
+                  '3.增加扣费账户筛选条件。',
+                  '4.扣费逻辑：',
+                  '    如用户有在有效期内的卡片，优先扣除卡内费用，如存在多张卡券，而其中1张不足以支付本次金额，则支持从多张卡片中扣除。 如所有卡片扣费结束仍不足以支付本次消费总额，则最后一张扣费卡片计为负数。不从现金主账户扣款。',
+                  '    如用户无有效卡片，则直接从现金主账户扣款。',
                 ],
               },
             ]}
           />
         </Space>
       ),
+      key: 'fundAccount',
+      width: 190,
+      render: (_v, r) => {
+        const mode = consumptionFundOf(r)
+        const items = r.voucherItems ?? []
+        if (mode !== 'voucher' || items.length === 0) {
+          return <span>{CONSUMPTION_FUND_LABEL[mode]}</span>
+        }
+        return (
+          <Space size={6}>
+            <span>{CONSUMPTION_FUND_LABEL[mode]}</span>
+            <Tooltip
+              title={
+                <div>
+                  {items.map((v) => (
+                    <div key={v.code}>{`${v.name}（${v.code}）`}</div>
+                  ))}
+                </div>
+              }
+            >
+              <ProfileOutlined style={{ color: '#2f6bff', cursor: 'pointer' }} />
+            </Tooltip>
+          </Space>
+        )
+      },
+    },
+    {
+      title: '费用总额（元）',
       key: 'total',
       width: 130,
       fixed: 'right',
@@ -1037,6 +1233,19 @@ function ConsumptionSection() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 14, color: '#333', whiteSpace: 'nowrap' }}>
+                券码：
+              </span>
+              <Input
+                placeholder="请输入券码"
+                allowClear
+                style={{ width: 200 }}
+                value={form.voucherCode}
+                onChange={(e) => setForm({ ...form, voucherCode: e.target.value })}
+                onPressEnter={handleSearch}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, color: '#333', whiteSpace: 'nowrap' }}>
                 统计周期：
               </span>
               <RangePicker
@@ -1044,6 +1253,23 @@ function ConsumptionSection() {
                 placeholder={['年/月/日', '年/月/日']}
                 value={form.dateRange}
                 onChange={(v) => setForm({ ...form, dateRange: v as any })}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, color: '#333', whiteSpace: 'nowrap' }}>
+                扣费账户：
+              </span>
+              <Select
+                placeholder="全部"
+                allowClear
+                style={{ width: 160 }}
+                value={form.fundAccount || undefined}
+                onChange={(v) =>
+                  setForm({ ...form, fundAccount: (v ?? '') as ConsumptionFundAccount | '' })
+                }
+                options={(Object.keys(CONSUMPTION_FUND_LABEL) as ConsumptionFundAccount[]).map(
+                  (k) => ({ value: k, label: CONSUMPTION_FUND_LABEL[k] }),
+                )}
               />
             </div>
             <Space size={12} style={{ marginLeft: 'auto' }}>
@@ -1066,21 +1292,6 @@ function ConsumptionSection() {
               >
                 导出账单
               </Button>
-              <RequirementDot
-                title="消费明细 · 搜索与导出"
-                sections={[
-                  {
-                    label: '',
-                    items: [
-                      '1.搜索条件：产品名称（模糊匹配，输入框回车等同点击「查询」）、统计周期（按费用发生时间取闭区间，按日粒度过滤）。',
-                      '2.交互规则：标签 + 控件一行排列，右侧固定「查询」「重置」「导出账单」；点击「查询」才生效过滤，输入过程不做实时过滤。',
-                      '3.「重置」清空条件并将列表回到第 1 页；「查询」后同样重置到第 1 页，避免停留在无数据的页码。',
-                      '4.「导出账单」（绿色主按钮）按当前搜索条件导出，点击后提示「已提交导出，稍后可在通知中心下载」。',
-                      '5.顶部常驻说明：按需计费按次出账，单次费用低于 ¥0.0001 时按最低收费标准 ¥0.0001 收取。',
-                    ],
-                  },
-                ]}
-              />
             </Space>
           </div>
         </Form>
@@ -1105,12 +1316,43 @@ function ConsumptionSection() {
   )
 }
 
-export default function BillingPage({ subPage, onSubChange, allowedSubs }: Props) {
+/** 发票信息：按需求只展示开票口径说明文字，不做额外统计与列表。 */
+function InvoiceSection() {
+  return (
+    <Card variant="borderless" style={{ borderRadius: 8, border: '1px solid #eef0f4' }} bodyStyle={{ padding: 16 }}>
+      <Space size={6} align="center">
+        所有可开票费用应为现金主账户的消费金额，不包括代金券
+        <RequirementDot
+          title="发票信息 · 需求说明"
+          sections={[
+            {
+              label: '',
+              items: [
+                '1.页面由建设中占位改为只展示一句开票口径说明——「所有可开票费用应为现金主账户的消费金额，不包括代金券」，以普通正文文字呈现（不做提示条 / 标签样式）。',
+                '2.页面上不再有可开票金额统计、明细列表与开票按钮。',
+                '3.该句为给研发同学的开票取数口径说明：可开票费用只取现金主账户的消费金额，代金券抵扣的部分不计入。',
+              ],
+            },
+          ]}
+        />
+      </Space>
+    </Card>
+  )
+}
+
+export default function BillingPage({
+  subPage,
+  onSubChange,
+  allowedSubs,
+}: Props) {
   /** 评审模式下只保留本次涉及的费用二级菜单 */
   const leftMenu =
     allowedSubs && allowedSubs.length > 0
       ? LEFT_MENU.filter((m) => allowedSubs.includes(m.key))
       : LEFT_MENU
+  /** 待带入消费明细的券码：来自本页代金券列表的「查看消费明细」 */
+  const [pendingVoucherCode, setPendingVoucherCode] = useState('')
+
   const ledgers = useAccountLedgers()
   const [form, setForm] = useState<LedgerSearchForm>(emptyLedgerSearch)
   const [applied, setApplied] = useState<LedgerSearchForm>(emptyLedgerSearch)
@@ -1132,6 +1374,9 @@ export default function BillingPage({ subPage, onSubChange, allowedSubs }: Props
       }
       if (applied.operationType) {
         if (l.operationType !== applied.operationType) return false
+      }
+      if (applied.fundAccount) {
+        if (l.fundAccount !== applied.fundAccount) return false
       }
       if (applied.dateRange && applied.dateRange[0] && applied.dateRange[1]) {
         const t = dayjs(l.operatedAt)
@@ -1193,6 +1438,41 @@ export default function BillingPage({ subPage, onSubChange, allowedSubs }: Props
       render: (v: AccountOperationType) => ACCOUNT_OPERATION_LABEL[v] ?? v,
     },
     {
+      title: (
+        <Space size={6}>
+          扣费账户
+          <RequirementDot
+            title="账户明细 · 扣费账户区分"
+            sections={[
+              {
+                label: '',
+                items: [
+                  '1.现金主账户与代金券分账记账：各自一条独立余额链，本页按操作时间合并展示，用「扣费账户」标明这笔钱的来源。',
+                  '2.「变动前 / 变动后金额」的口径跟随扣费账户：现金行是现金余额，代金券行是券池余额，两者不可跨账户相加，也不并入同一个净资产统计。',
+                  '3.券池流水号前缀区分业务：DJQFF 发放、DJQDK 抵扣、DJQZF 作废；发放为券池增加（绿色 +），抵扣与作废为券池减少（红色 -）。',
+                  '4.一笔消费只走一个资金池：要么全额由代金券抵扣、按参与抵扣的券逐张产生 DJQDK 券池流水（单张券余额不足时叠加下一张券，多张券流水共用同一关联业务号），要么全额由现金主账户支付，不存在一笔消费既抵券又出现金的混付流水；DJQDK 流水以关联业务号 XF- 对应「消费明细」中的扣费记录。',
+                  '5.扣券的行在「扣费账户」下方灰字标注具体券码，便于核对是哪张券出的钱；可用「操作类型＝代金券抵扣」+「扣费账户＝代金券」快速筛出全部用券消费。',
+                ],
+              },
+            ]}
+          />
+        </Space>
+      ),
+      dataIndex: 'fundAccount',
+      key: 'fundAccount',
+      width: 160,
+      render: (v: FundAccount, r: AccountLedger) => (
+        <div style={{ lineHeight: 1.6 }}>
+          <Tag color={v === 'voucher' ? 'gold' : 'blue'} style={{ marginRight: 0 }}>
+            {FUND_ACCOUNT_LABEL[v] ?? v}
+          </Tag>
+          {v === 'voucher' && r.voucherCode && (
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>{r.voucherCode}</div>
+          )}
+        </div>
+      ),
+    },
+    {
       title: '变动前金额（元）',
       dataIndex: 'amountBefore',
       key: 'amountBefore',
@@ -1206,9 +1486,16 @@ export default function BillingPage({ subPage, onSubChange, allowedSubs }: Props
       key: 'amountChange',
       width: 150,
       align: 'right',
-      render: (v: number) => (
-        <span style={{ color: '#ef4444' }}>-{v.toFixed(6)}</span>
-      ),
+      render: (v: number, r: AccountLedger) => {
+        const increase =
+          r.fundAccount === 'voucher' &&
+          (r.operationType === 'voucher_issue' || r.operationType === 'voucher_refund')
+        return increase ? (
+          <span style={{ color: '#16a34a' }}>+{v.toFixed(6)}</span>
+        ) : (
+          <span style={{ color: '#ef4444' }}>-{v.toFixed(6)}</span>
+        )
+      },
     },
     {
       title: '变动后金额（元）',
@@ -1277,7 +1564,11 @@ export default function BillingPage({ subPage, onSubChange, allowedSubs }: Props
           return (
             <div
               key={m.key}
-              onClick={() => onSubChange(m.key)}
+              onClick={() => {
+                /** 手动切换菜单时清除待带入的券码，避免下次进消费明细被意外过滤 */
+                setPendingVoucherCode('')
+                onSubChange(m.key)
+              }}
               style={{
                 padding: '10px 20px',
                 cursor: 'pointer',
@@ -1296,7 +1587,13 @@ export default function BillingPage({ subPage, onSubChange, allowedSubs }: Props
 
       {/* 右侧内容区 */}
       <div style={{ flex: 1, padding: 16, overflow: 'auto' }}>
-        {subPage === 'accountDetail' ? (
+        {subPage === 'accountOverview' ? (
+          <AccountOverview
+            onViewVouchers={
+              leftMenu.some((m) => m.key === 'voucher') ? () => onSubChange('voucher') : undefined
+            }
+          />
+        ) : subPage === 'accountDetail' ? (
           <>
             {/* 搜索卡 */}
             <Card
@@ -1346,12 +1643,32 @@ export default function BillingPage({ subPage, onSubChange, allowedSubs }: Props
                     <span style={{ fontSize: 14, color: '#333', whiteSpace: 'nowrap' }}>
                       操作类型：
                     </span>
-                    <Input
+                    <Select
                       placeholder="请选择操作类型"
                       style={{ width: 200 }}
-                      value={form.operationType}
-                      onChange={(e) => setForm({ ...form, operationType: e.target.value as any })}
-                      onPressEnter={handleSearch}
+                      allowClear
+                      value={form.operationType || undefined}
+                      onChange={(v) => setForm({ ...form, operationType: (v ?? '') as AccountOperationType | '' })}
+                      options={(Object.keys(ACCOUNT_OPERATION_LABEL) as AccountOperationType[]).map((k) => ({
+                        value: k,
+                        label: ACCOUNT_OPERATION_LABEL[k],
+                      }))}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 14, color: '#333', whiteSpace: 'nowrap' }}>
+                      扣费账户：
+                    </span>
+                    <Select
+                      placeholder="请选择扣费账户"
+                      style={{ width: 180 }}
+                      allowClear
+                      value={form.fundAccount || undefined}
+                      onChange={(v) => setForm({ ...form, fundAccount: (v ?? '') as FundAccount | '' })}
+                      options={(Object.keys(FUND_ACCOUNT_LABEL) as FundAccount[]).map((k) => ({
+                        value: k,
+                        label: FUND_ACCOUNT_LABEL[k],
+                      }))}
                     />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1406,10 +1723,19 @@ export default function BillingPage({ subPage, onSubChange, allowedSubs }: Props
               />
             </Card>
           </>
+        ) : subPage === 'voucher' ? (
+          <ConsoleVoucher
+            onViewConsumption={(code) => {
+              setPendingVoucherCode(code)
+              onSubChange('consumption')
+            }}
+          />
         ) : subPage === 'orderDetail' ? (
           <OrderDetailSection />
         ) : subPage === 'consumption' ? (
-          <ConsumptionSection />
+          <ConsumptionSection initialVoucherCode={pendingVoucherCode} />
+        ) : subPage === 'invoice' ? (
+          <InvoiceSection />
         ) : (
           <Card
             variant="borderless"

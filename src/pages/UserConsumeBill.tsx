@@ -23,8 +23,8 @@ import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
 import PageShell from '../components/PageShell'
 import RequirementDot from '../components/RequirementDot'
-import { useChannels, useModels, useResourcePacks } from '../store'
-import type { ModelItem } from '../types'
+import { useChannels, useModels, useResourcePacks, useVouchers } from '../store'
+import type { ModelItem, Voucher } from '../types'
 
 const { RangePicker } = DatePicker
 const { Text } = Typography
@@ -39,7 +39,13 @@ const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   sub: '子账号',
 }
 
-/** 一条「用户消费账单」= 一次模型调用（含扣账主体、模型路由、各计费项 Token 与费用） */
+/** 一次模型调用实际从哪个资金池扣费：与消费明细 / 账户明细口径一致（仅内部路由用，列表与导出均不展示资金池字样） */
+type FundMode = 'cash' | 'voucher'
+
+/** 参与本次抵扣的代金券（券名称 + 券码），悬浮展示 */
+type VoucherItem = { name: string; code: string }
+
+/** 一条「用户消费账单」= 一次模型调用（含扣费主体、资金池、模型路由、各计费项 Token 与费用） */
 type ConsumeRow = {
   key: string
   id: number
@@ -49,6 +55,8 @@ type ConsumeRow = {
   accountId: string
   accountPhone: string
   accountType: AccountType
+  fundMode: FundMode
+  voucherItems: VoucherItem[]
   modelCode: string
   endpoint: string
   alias: string
@@ -78,14 +86,14 @@ const maskPhone = (phone: string) => `${phone.slice(0, 3)}****${phone.slice(-4)}
 /** API Key：前缀 + 首 2 位 + ****** + 后 6 位，如 sk-nb******tcmgvb */
 const maskApiKey = (key: string) => `${key.slice(0, 3)}${key.slice(3, 5)}******${key.slice(-6)}`
 
-/* ---------------- 扣账账户语料（与账户列表 / 定时充值任务同一形态） ---------------- */
+/* ---------------- 扣费账户语料（与账户列表 / 定时充值任务同一形态） ---------------- */
 
 type AccountProfile = {
   phone: string
   accountId: string
   apiKey: string
   accountType: AccountType
-  /** 子账号的扣账落到父企业账户 */
+  /** 子账号的扣费落到父企业账户 */
   parent?: { phone: string; accountId: string }
 }
 
@@ -193,14 +201,16 @@ const TOP_ID = 349821
 const TOTAL_ROWS = 60
 
 /**
- * 生成调用明细：模型、渠道、资源包均取自 store，保证与模型列表 / 渠道管理 / 资源包管理口径一致；
+ * 生成调用明细：模型、渠道、资源包、代金券均取自 store，保证与模型列表 / 渠道管理 / 资源包管理 / 券台账口径一致；
  * 时间从当天上午起逐行向前回溯，近 3 个月内均有分布，因此「本月 / 上月 / 近 3 个月」都能筛到数据。
+ * 资金池：扣费账户名下若有券在调用时刻已到账且未过期，该笔走「卡券账户」并列出参与抵扣的券，否则走「现金主账户」。
  */
 function buildRows(
   models: ModelItem[],
   channelNameById: Map<string, string>,
   fallbackChannels: string[],
   packNames: string[],
+  voucherPool: Map<string, Voucher[]>,
 ): ConsumeRow[] {
   const pool = models.length ? models : []
   const rand = makeRand(20260914)
@@ -253,15 +263,30 @@ function buildRows(
     const cacheReadTokens = useCache && !useCacheCreate ? cacheTokens : null
     const cacheReadFee = cacheReadTokens != null ? cacheFee : null
 
+    const deductAccountId = profile.parent?.accountId ?? profile.accountId
+    const usedVouchers = (voucherPool.get(deductAccountId) ?? [])
+      .filter((v) => {
+        if (v.status === 'void') return false
+        const from = v.effectiveAt ?? v.claimedAt ?? v.createdAt
+        if (from && startAt.isBefore(dayjs(from))) return false
+        if (v.expireAt && startAt.isAfter(dayjs(v.expireAt))) return false
+        return true
+      })
+      .sort((a, b) => String(a.expireAt ?? '9999-12-31').localeCompare(String(b.expireAt ?? '9999-12-31')))
+    const voucherItems: VoucherItem[] = usedVouchers.map((v) => ({ name: v.templateName, code: v.code }))
+    const fundMode: FundMode = voucherItems.length ? 'voucher' : 'cash'
+
     return {
       key: String(id),
       id,
       operatorPhone: profile.phone,
       operatorAccountId: profile.accountId,
       operatorApiKey: profile.apiKey,
-      accountId: profile.parent?.accountId ?? profile.accountId,
+      accountId: deductAccountId,
       accountPhone: profile.parent?.phone ?? profile.phone,
       accountType: profile.accountType,
+      fundMode,
+      voucherItems,
       modelCode,
       endpoint,
       alias,
@@ -395,6 +420,7 @@ export default function UserConsumeBill() {
   const { models } = useModels()
   const { channels } = useChannels()
   const { packs } = useResourcePacks()
+  const vouchers = useVouchers()
 
   const [month, setMonth] = useState<MonthPreset>('this')
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(presetRange('this'))
@@ -409,13 +435,21 @@ export default function UserConsumeBill() {
 
   const rows = useMemo(() => {
     const map = new Map(channels.map((c) => [c.id, c.name]))
+    const voucherPool = new Map<string, Voucher[]>()
+    vouchers.forEach((v) => {
+      if (!v.accountId) return
+      const list = voucherPool.get(v.accountId)
+      if (list) list.push(v)
+      else voucherPool.set(v.accountId, [v])
+    })
     return buildRows(
       models,
       map,
       channels.map((c) => c.name),
       packs.map((p) => p.name),
+      voucherPool,
     )
-  }, [models, channels, packs])
+  }, [models, channels, packs, vouchers])
 
   const filtered = useMemo(
     () =>
@@ -471,8 +505,10 @@ export default function UserConsumeBill() {
       '操作人手机号',
       '操作人账户ID',
       '操作人API Key',
-      '扣账账户ID',
-      '扣账账户手机号',
+      '扣费账户ID',
+      '扣费账户手机号',
+      '扣费账户',
+      '抵扣券码',
       '账户类型',
       '模型',
       '调用端点',
@@ -503,8 +539,13 @@ export default function UserConsumeBill() {
           maskPhone(r.operatorPhone),
           r.operatorAccountId,
           maskApiKey(r.operatorApiKey),
-          r.accountId,
-          maskPhone(r.accountPhone),
+          /** 与列表口径一致：卡券账户行不展示账户信息，现金行展示账户 ID + 手机号 */
+          r.fundMode === 'voucher' ? '' : r.accountId,
+          r.fundMode === 'voucher' ? '' : maskPhone(r.accountPhone),
+          r.fundMode === 'voucher'
+            ? r.voucherItems.map((v) => `${v.name}（${v.code}）`).join(' / ')
+            : `${maskPhone(r.accountPhone)}（${r.accountId}）`,
+          r.voucherItems.map((v) => v.code).join(' / '),
           ACCOUNT_TYPE_LABEL[r.accountType],
           r.modelCode,
           r.endpoint,
@@ -564,20 +605,9 @@ export default function UserConsumeBill() {
       onSearch={handleSearch}
       onReset={handleReset}
       listActions={
-        <>
-          <Button type="primary" icon={<DownloadOutlined />} onClick={handleExport}>
-            导出数据
-          </Button>
-          <RequirementDot
-            title="用户消费账单 · 导出数据"
-            sections={[
-              {
-                label: '',
-                items: ['1.新增「倍率名称」「倍率」两列。'],
-              },
-            ]}
-          />
-        </>
+        <Button type="primary" icon={<DownloadOutlined />} onClick={handleExport}>
+          导出数据
+        </Button>
       }
       searchFields={
         <>
@@ -619,7 +649,7 @@ export default function UserConsumeBill() {
           {breakRow}
           <Input
             style={{ width: 240 }}
-            placeholder="搜索扣账账户ID、手机号码"
+            placeholder="搜索扣费账户ID、手机号码"
             allowClear
             value={account}
             onChange={(e) => setAccount(e.target.value)}
@@ -702,20 +732,47 @@ export default function UserConsumeBill() {
             ),
           },
           {
-            title: '扣账账户',
-            key: 'account',
-            render: (_, r) => (
-              <IdentityCell
-                lines={[
-                  {
-                    icon: <MobileOutlined style={{ color: token.colorPrimary }} />,
-                    text: maskPhone(r.accountPhone),
-                    tip: `手机号：${r.accountPhone}`,
-                  },
-                  { text: r.accountId, tip: '实际扣减余额的账户' },
-                ]}
-              />
+            title: (
+              <Space size={6}>
+                扣费账户
+                <RequirementDot
+                  title="扣费账户 · 资金池"
+                  sections={[
+                    {
+                      label: '',
+                      items: [
+                        '1.「扣账账户」更名为「扣费账户」。',
+                        '2.现金主账户消费：只展示账户信息（手机号 + 账户 ID），不标注资金池字样。',
+                        '3.卡券账户消费：直接列出所有参与抵扣的代金券，每行一张「券名称（券码）」，不展示账户信息。',
+                        '4.导出也同样处理。',
+                      ],
+                    },
+                  ]}
+                />
+              </Space>
             ),
+            key: 'account',
+            render: (_, r) =>
+              r.fundMode === 'voucher' ? (
+                <Space direction="vertical" size={2} style={{ whiteSpace: 'nowrap' }}>
+                  {r.voucherItems.map((v) => (
+                    <span key={v.code} style={{ fontSize: 13 }}>
+                      {`${v.name}（${v.code}）`}
+                    </span>
+                  ))}
+                </Space>
+              ) : (
+                <IdentityCell
+                  lines={[
+                    {
+                      icon: <MobileOutlined style={{ color: token.colorPrimary }} />,
+                      text: maskPhone(r.accountPhone),
+                      tip: `手机号：${r.accountPhone}`,
+                    },
+                    { text: r.accountId, tip: '实际扣减余额的账户' },
+                  ]}
+                />
+              ),
           },
           {
             title: '账户类型',
@@ -750,23 +807,7 @@ export default function UserConsumeBill() {
             ),
           },
           {
-            title: (
-              <Space size={6}>
-                倍率信息
-                <RequirementDot
-                  title="新增列 · 倍率信息"
-                  sections={[
-                    {
-                      label: '',
-                      items: [
-                        '1.位置：在「调用时间」后新增「倍率信息」列。',
-                        '2.展示两行：上行倍率名称，下行倍率（数字 + x，如 2x）。',
-                      ],
-                    },
-                  ]}
-                />
-              </Space>
-            ),
+            title: '倍率信息',
             key: 'multiplier',
             render: (_, r) => (
               <Space direction="vertical" size={2} style={{ whiteSpace: 'nowrap' }}>

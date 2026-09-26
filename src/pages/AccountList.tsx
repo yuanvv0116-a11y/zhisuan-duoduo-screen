@@ -1,10 +1,23 @@
 import { useMemo, useState } from 'react'
-import { Card, Input, Select, Button, Breadcrumb, Table, Tag, Typography, Space, Modal, InputNumber, DatePicker, message, Popconfirm, Switch, Form } from 'antd'
+import { Card, Input, Select, Button, Breadcrumb, Table, Tag, Typography, Space, Modal, InputNumber, DatePicker, message, Popconfirm, Switch, Form, Tooltip } from 'antd'
 const { confirm } = Modal
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import RequirementDot from '../components/RequirementDot'
-import { useResourcePacks } from '../store'
+import {
+  useResourcePacks,
+  useVouchers,
+  useVoucherTemplates,
+  liveVoucherStatus,
+  voucherPoolBalance,
+  issueVouchers,
+  naturalPeriodValidity,
+} from '../store'
+import {
+  VOUCHER_STATUS_COLOR,
+  VOUCHER_STATUS_LABEL,
+} from '../types'
+import type { Voucher, VoucherTemplate } from '../types'
 import {
   SearchOutlined,
   ReloadOutlined,
@@ -15,13 +28,36 @@ import {
   DollarOutlined,
   SettingOutlined,
   CloseOutlined,
+  GiftOutlined,
+  ProfileOutlined,
 } from '@ant-design/icons'
 
 const { Text } = Typography
 
+/** 发放弹窗的有效期展示：按发放当日算出具体起止时刻「生效时间 ～ 失效时间」 */
+const validityDescForIssue = (t: VoucherTemplate): string => {
+  if (t.validityType === 'naturalPeriod') {
+    const { effectiveAt, expireAt } = naturalPeriodValidity(t, dayjs().format('YYYY-MM-DD HH:mm:ss'))
+    return `${effectiveAt} ～ ${expireAt}`
+  }
+  if (t.validityType === 'fixedDate') {
+    const from = t.fixedStart ? t.fixedStart.slice(0, 16) : undefined
+    const to = t.fixedEnd ? t.fixedEnd.slice(0, 16) : undefined
+    if (from && to) return `${from} ～ ${to}`
+    if (from) return `${from} ～ 长期`
+    if (to) return `～ ${to}`
+    return '长期'
+  }
+  const delayStart = dayjs().add(t.effectiveDelayDays ?? 0, 'day').startOf('day')
+  const start = delayStart.format('YYYY-MM-DD HH:mm:ss')
+  if (t.validDays == null) return `${start} ～ 长期`
+  const end = delayStart.add(t.validDays - 1, 'day').endOf('day').format('YYYY-MM-DD HH:mm:ss')
+  return `${start} ～ ${end}`
+}
+
 /* ---------------- 统计卡 ---------------- */
 interface StatCard {
-  label: string
+  label: React.ReactNode
   value: string
   icon: React.ReactNode
   color: string
@@ -252,6 +288,50 @@ export default function AccountList() {
   const [batchReplaceOpen, setBatchReplaceOpen] = useState(false)
   const [batchReplaceLevel, setBatchReplaceLevel] = useState<string>('T1')
 
+  /* 批量发放代金券 */
+  const [batchVoucherOpen, setBatchVoucherOpen] = useState(false)
+  const [batchVoucherTemplateId, setBatchVoucherTemplateId] = useState<string | null>(null)
+
+  const openBatchVoucher = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请选择账户')
+      return
+    }
+    setBatchVoucherTemplateId(enabledVoucherTemplates[0]?.id ?? null)
+    setBatchVoucherOpen(true)
+  }
+
+  const handleBatchVoucherIssue = () => {
+    if (!batchVoucherTemplateId) {
+      message.error('请选择要发放的券模板')
+      return
+    }
+    const tpl = voucherTemplates.find((t) => t.id === batchVoucherTemplateId)
+    if (tpl && tpl.status !== 'enabled') {
+      message.error('卡券已停用')
+      setBatchVoucherTemplateId(enabledVoucherTemplates[0]?.id ?? null)
+      return
+    }
+    const accounts = filtered
+      .filter((r) => selectedRowKeys.includes(r.key))
+      .map((r) => ({
+        accountId: r.accountId,
+        accountName: r.accountName,
+        accountType: r.accountType,
+      }))
+    const res = issueVouchers(batchVoucherTemplateId, accounts, {
+      remark: '账户列表批量发放',
+    })
+    if (res.issued.length === 0) {
+      message.error(res.skipped[0]?.reason || '发放失败')
+      return
+    }
+    message.success('发放成功')
+    setBatchVoucherOpen(false)
+    setBatchVoucherTemplateId(null)
+    setSelectedRowKeys([])
+  }
+
   /* 批量设置余额 */
   const [balanceModalOpen, setBalanceModalOpen] = useState(false)
   const [balanceType, setBalanceType] = useState<'once' | 'cycle'>('cycle')
@@ -349,6 +429,181 @@ export default function AccountList() {
       return next
     })
     message.success('资源包已关闭，将按平台价计费')
+  }
+
+  /* 代金券：与现金账户物理分离，此处只读展示名下券 + 支持发放 */
+  const vouchers = useVouchers()
+  const voucherTemplates = useVoucherTemplates()
+  /** 发放弹窗券模板下拉：仅启用状态，按创建时间倒序 */
+  const enabledVoucherTemplates = useMemo(
+    () =>
+      voucherTemplates
+        .filter((t) => t.status === 'enabled')
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [voucherTemplates],
+  )
+  /** accountId -> 名下券统计（张数 / 生效中张数 / 券池余额） */
+  const voucherStatMap = useMemo(() => {
+    const m = new Map<string, { count: number; activeCount: number; pool: number }>()
+    vouchers.forEach((v) => {
+      if (!v.accountId) return
+      const cur = m.get(v.accountId) ?? { count: 0, activeCount: 0, pool: 0 }
+      cur.count += 1
+      cur.pool += v.balance
+      const st = liveVoucherStatus(v)
+      if (st === 'active' || st === 'notEffective') cur.activeCount += 1
+      m.set(v.accountId, cur)
+    })
+    return m
+  }, [vouchers])
+  const voucherBalanceTotal = useMemo(
+    () => Array.from(voucherStatMap.values()).reduce((s, x) => s + x.pool, 0),
+    [voucherStatMap],
+  )
+  const statCards = useMemo<StatCard[]>(
+    () => [
+      ...STAT_CARDS,
+      {
+        label: (
+          <Space size={4}>
+            代金券余额合计
+            <RequirementDot
+              title="代金券余额合计 · 需求说明"
+              sections={[
+                {
+                  label: '统计口径',
+                  items: ['统计所有卡券账户中所有生效状态的代金券的余额总和。'],
+                },
+              ]}
+            />
+          </Space>
+        ),
+        value: `¥${voucherBalanceTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        icon: <GiftOutlined />,
+        color: '#eb2f96',
+      },
+    ],
+    [voucherBalanceTotal],
+  )
+
+  /* 名下券明细弹窗 */
+  const [voucherDetailRow, setVoucherDetailRow] = useState<AccountRow | null>(null)
+  /** 名下券明细：按发放时间（到账时间）倒序 */
+  const voucherDetailList = useMemo(
+    () =>
+      voucherDetailRow
+        ? vouchers
+            .filter((v) => v.accountId === voucherDetailRow.accountId)
+            .sort((a, b) => (b.claimedAt ?? b.createdAt).localeCompare(a.claimedAt ?? a.createdAt))
+        : [],
+    [voucherDetailRow, vouchers],
+  )
+  const EMPTY_CELL = <Text type="secondary">—</Text>
+  const voucherDetailColumns: ColumnsType<Voucher> = [
+    {
+      title: '券码',
+      dataIndex: 'code',
+      width: 160,
+      fixed: 'left',
+      render: (code: string) => (
+        <Text copyable={{ text: code }} style={{ fontSize: 12 }}>
+          {code}
+        </Text>
+      ),
+    },
+    {
+      title: '券名称',
+      dataIndex: 'templateName',
+      width: 160,
+      ellipsis: true,
+      render: (n: string) => (n ? <Text>{n}</Text> : EMPTY_CELL),
+    },
+    {
+      title: '面额',
+      dataIndex: 'faceValue',
+      width: 100,
+      align: 'right',
+      render: (n: number) => `¥${n.toFixed(2)}`,
+    },
+    {
+      title: '余额',
+      dataIndex: 'balance',
+      width: 100,
+      align: 'right',
+      render: (n: number) => (
+        <Text style={{ color: n > 0 ? '#fa8c16' : '#8c8c8c' }}>{`¥${n.toFixed(2)}`}</Text>
+      ),
+    },
+    {
+      title: '状态',
+      key: 'status',
+      width: 100,
+      render: (_, v) => {
+        const st = liveVoucherStatus(v)
+        return <Tag color={VOUCHER_STATUS_COLOR[st]}>{VOUCHER_STATUS_LABEL[st]}</Tag>
+      },
+    },
+    {
+      title: '生效时间',
+      dataIndex: 'effectiveAt',
+      width: 170,
+      render: (t?: string) => (t ? t : EMPTY_CELL),
+    },
+    {
+      title: '到期时间',
+      dataIndex: 'expireAt',
+      width: 170,
+      render: (t?: string) => t ?? <Text type="secondary">长期有效</Text>,
+    },
+    {
+      title: '发放时间',
+      dataIndex: 'claimedAt',
+      width: 170,
+      render: (t?: string) => (t ? t : EMPTY_CELL),
+    },
+  ]
+
+  /* 发放代金券弹窗（单账户） */
+  const [issueRow, setIssueRow] = useState<AccountRow | null>(null)
+  const [issueTemplateId, setIssueTemplateId] = useState<string | null>(null)
+  const openIssueVoucher = (row: AccountRow) => {
+    if (row.accountType === 'sub') {
+      message.error('企业子账号不支持发放代金券')
+      return
+    }
+    setIssueRow(row)
+    setIssueTemplateId(enabledVoucherTemplates[0]?.id ?? null)
+  }
+  const handleIssueVoucher = () => {
+    if (!issueRow) return
+    if (!issueTemplateId) {
+      message.error('请选择要发放的券模板')
+      return
+    }
+    const tpl = voucherTemplates.find((t) => t.id === issueTemplateId)
+    if (tpl && tpl.status !== 'enabled') {
+      message.error('卡券已停用')
+      setIssueTemplateId(enabledVoucherTemplates[0]?.id ?? null)
+      return
+    }
+    const res = issueVouchers(
+      issueTemplateId,
+      [
+        {
+          accountId: issueRow.accountId,
+          accountName: issueRow.accountName,
+          accountType: issueRow.accountType,
+        },
+      ],
+      { remark: '账户列表发放' },
+    )
+    if (res.issued.length === 0) {
+      message.error(res.skipped[0]?.reason || '发放失败')
+      return
+    }
+    message.success('发放成功')
+    setIssueRow(null)
+    setIssueTemplateId(null)
   }
 
   const filtered = useMemo(() => {
@@ -586,6 +841,46 @@ export default function AccountList() {
       render: (n: number) => <Text>{n.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 6 })}</Text>,
     },
     {
+      title: (
+        <Space size={4}>
+          卡券账户
+          <RequirementDot
+            title="卡券账户 · 需求说明"
+            sections={[
+              {
+                label: '需求内容',
+                items: [
+                  '1.将原有账户重新定义为“现金主账户”，在现金主账户下，挂卡券账户。用来展示用户名下所有卡券信息；',
+                  '2.卡券账户展示某用户卡券账户下，所有生效状态代金券的余额总和。',
+                  '3.点击余额展示用户代金券明细，按照发放时间倒序展示。',
+                ],
+              },
+            ]}
+          />
+        </Space>
+      ),
+      key: 'voucher',
+      width: 170,
+      render: (_v, r) => {
+        const st = voucherStatMap.get(r.accountId)
+        if (!st || st.count === 0) return <Text type="secondary">—</Text>
+        const pool = voucherPoolBalance(vouchers, r.accountId)
+        return (
+          <Space size={6}>
+            <Text style={{ fontWeight: 500, color: '#fa8c16' }}>{`¥${pool.toFixed(2)}`}</Text>
+            <Tooltip title="查看卡券明细">
+              <Button
+                type="link"
+                size="small"
+                icon={<ProfileOutlined />}
+                onClick={() => setVoucherDetailRow(r)}
+              />
+            </Tooltip>
+          </Space>
+        )
+      },
+    },
+    {
       title: 'API数量',
       dataIndex: 'apiKeyCount',
       width: 100,
@@ -641,7 +936,7 @@ export default function AccountList() {
     {
       title: '操作',
       fixed: 'right',
-      width: 260,
+      width: 340,
       render: (_, r) => (
         <Space size={12}>
           <a>余额调整</a>
@@ -649,6 +944,29 @@ export default function AccountList() {
           <a onClick={() => openPackModal(r)}>
             {openedPackMap[r.key] ? '修改资源包' : '开通资源包'}
           </a>
+          <a onClick={() => openIssueVoucher(r)}>发放代金券</a>
+          <RequirementDot
+            title="发放代金券 · 需求说明"
+            sections={[
+              {
+                label: '需求内容',
+                items: [
+                  '1.选择券模板下拉框按照创建时间倒序展示所有启用状态的代金券。',
+                  '2.选择后，下方展示券的面额和有效期，有效期按发放当日算出具体起止：',
+                  '发放后n天、有效期m天：有效期为 今日+n天的00:00 ～ 今日+n天+m天-1天的23:59。例：发放后3天生效、有效期5天，1月1日发放（不管几点）→ 1月2日算第1天，1月4日 00:00 生效 → 1月4日算生效第1天，1月8日 23:59:59 失效。',
+                  '自然周期：有效期为发放日的周期第一天00:00 ～ 最后一天23:59。例：选择自然月、现在为9月20日，则展示 2026-9-1 00:00 ～ 2026-9-30 23:59。',
+                  '固定周期：直接展示配置的固定起止时间。',
+                  '长期有效：展示为「2026-10-11 00:00 ～ 长期」。',
+                  '3.点击确认发放后，检查卡券状态，如状态为停用，则提示“xx卡券已停用，请重新选择”，刷新下拉框。',
+                  '如卡券被编辑，以点击发放时的信息为准。',
+                  '发放成功，记录发放时间，券的有效期；并记录卡片状态；',
+                  '当前时间<有效期开始时间，待生效；',
+                  '当前时间>=有效期开始时间 且 <=有效期结束时间，生效中；',
+                  '当前时间>有效期结束时间，已过期；',
+                ],
+              },
+            ]}
+          />
           <a>更多操作</a>
         </Space>
       ),
@@ -666,9 +984,9 @@ export default function AccountList() {
       />
 
       {/* 统计卡 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
-        {STAT_CARDS.map((s) => (
-          <Card key={s.label} variant="borderless" styles={{ body: { padding: 16 } }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 16 }}>
+        {statCards.map((s, i) => (
+          <Card key={i} variant="borderless" styles={{ body: { padding: 16 } }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <Text type="secondary" style={{ fontSize: 13 }}>{s.label}</Text>
@@ -768,28 +1086,25 @@ export default function AccountList() {
       {/* 列表卡 */}
       <Card variant="borderless" styles={{ body: { padding: 16 } }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <Space size={6} align="center">
-            <Text strong style={{ fontSize: 16 }}>账户信息</Text>
-            <RequirementDot
-              title="账户信息列表需求"
-              sections={[
-                {
-                  label: '功能需求',
-                  items: [
-                    '账户信息列表增加标签字段。展示用户的标签（不展示在个人的企业子账户上）；增加资源包列，展示已开通的资源包，点击资源包名称展示资源包详情，具体如图。',
-                    '支持按照标签搜索账户。标签支持多选；支持根据资源包名称模糊搜索；',
-                    '在账户前加复选框，支持批量选择账户，批量设置余额，点击是否选择账户，未选择，提示"请选择要设置的账户"；选择后弹窗如图',
-                    '点击【调整配额】检查是否选择账户，未选择，提示"请选择要设置的账户"；选择后弹窗',
-                    '操作栏增加开通资源包功能，点击后如弹窗。开通资源包后，则所有模型的使用按照资源包价格计费，不再走平台售价。需要标记每一次调用时是否走资源包，如果走资源包，资源包折扣是多少。',
-                    '如为预付费，则每次调用需要验证账户金额。如为后付费，则不需要验证账户金额。',
-                    '关闭资源包后，按照平台价计费。',
-                    '开通资源包仅针对个人账号和企业账号，不包括企业子账号。企业子账号不展示该操作。',
-                  ],
-                },
-              ]}
-            />
-          </Space>
+          <Text strong style={{ fontSize: 16 }}>账户信息</Text>
           <Space>
+            <Space size={4}>
+              <Button icon={<GiftOutlined />} onClick={openBatchVoucher}>
+                批量发放代金券
+              </Button>
+              <RequirementDot
+                title="批量发放代金券 · 需求说明"
+                sections={[
+                  {
+                    label: '需求内容',
+                    items: [
+                      '1.未选择账户时，提示“请选择账户”',
+                      '2.选择账户后逻辑同发放代金券按钮逻辑。为所选择账户批量发放代金券',
+                    ],
+                  },
+                ]}
+              />
+            </Space>
             <Button icon={<DollarOutlined />} onClick={openBatchBalance}>
               批量设置余额
             </Button>
@@ -817,35 +1132,7 @@ export default function AccountList() {
 
       {/* 批量设置余额 弹窗 */}
       <Modal
-        title={
-          <Space size={6} align="center">
-            批量设置余额
-            <RequirementDot
-              title="批量设置余额需求"
-              sections={[
-                {
-                  label: '功能需求',
-                  items: [
-                    '1.选择账户后，点击【批量设置余额】按钮，检查是否选择账户，未选择提示"请选择要设置的账户"',
-                    '2.调整类型分为：一次性调整、周期性调整',
-                    '2.1 一次性调整',
-                    '  · 一次性调整，即为用户一次性调整账户金额。无需执行任务',
-                    '2.2 设置方式',
-                    '  · 在现有基础上调整：不改变账户金额，从设置后直接增加金额。即账户金额=原金额+本次调整金额',
-                    '  · 现有账户清零，重新设置：把现在账户清零，重新增加金额',
-                    '2.3 金额限制',
-                    '  · 金额为1-999999的数字，支持2位小数',
-                    '2.4 周期性调整',
-                    '  · 选择周期调整，需要设置周期，默认每月',
-                    '  · 每次调整，直接增加相应金额即可',
-                    '2.5 任务关联',
-                    '  · 周期性设置后，会将本次设置添加到定时充值任务中。',
-                  ],
-                },
-              ]}
-            />
-          </Space>
-        }
+        title="批量设置余额"
         open={balanceModalOpen}
         onCancel={() => setBalanceModalOpen(false)}
         onOk={handleSaveBalance}
@@ -910,62 +1197,7 @@ export default function AccountList() {
 
       {/* 批量设置模型消费额度 弹窗 */}
       <Modal
-        title={
-          <Space size={6} align="center">
-            批量设置模型消费额度
-            <RequirementDot
-              title="批量设置模型消费额度需求"
-              sections={[
-                {
-                  label: '模型列表排序',
-                  items: ['限额的模型列表按照模型上架时间倒序展示'],
-                },
-                {
-                  label: '限额周期解释',
-                  items: [
-                    '每日：每天00:00清空前一天限额，重新计算限额',
-                    '每周：每周一00:00，清空前一周限额，重新计算限额',
-                    '每月：每月1日00:00，清空前一月限额，重新计算限额',
-                    '每季：每季度1日00:00，清空前一季度限额，重新计算限额',
-                    '每年：每年1月1日00:00，清空前一年限额，重新计算限额',
-                    '永久：不限制时间',
-                  ],
-                },
-                {
-                  label: '限额金额',
-                  items: ['限额金额为1～99999元'],
-                },
-                {
-                  label: '限额状态',
-                  items: [
-                    '默认开启限额（此处是展示设置默认开启，修改后保存修改后的信息。但未设置过的用户均不限额）',
-                    '开启时，限额生效。关闭时，不再限制使用额度',
-                  ],
-                },
-                {
-                  label: '限额规则',
-                  items: [
-                    '支持为所有已上架模型设置账户的使用限额和限额周期',
-                    '在周期内，用户在某个模型下，仅能使用设置的限额金额，周期结束后重新开始限制额度（最后一次请求可能产生负数，可在下次循环时扣减）',
-                  ],
-                },
-                {
-                  label: '通知规则',
-                  items: [
-                    '限额保存成功后，需要向用户账号发送通知，通知内容为：尊敬的用户，为了提高模型使用效率，现针对不同模型设置限额使用，具体信息如下（仅展示为当前用户设置的，限额状态为开启的信息）',
-                  ],
-                },
-                {
-                  label: '批量替换与保存',
-                  items: [
-                    '批量操作中，每次设置后，点击批量替换，则批量替换所有内容，仅页面展示内容做替换，但不生效',
-                    '所有设置，点击保存后才生效',
-                  ],
-                },
-              ]}
-            />
-          </Space>
-        }
+        title="批量设置模型消费额度"
         open={batchModalOpen}
         onCancel={() => setBatchModalOpen(false)}
         onOk={handleSaveQuota}
@@ -1103,24 +1335,7 @@ export default function AccountList() {
 
       {/* 调整配额 弹窗 */}
       <Modal
-        title={
-          <Space size={6} align="center">
-            调整配额
-            <RequirementDot
-              title="调整配额需求"
-              sections={[
-                {
-                  label: '功能需求',
-                  items: [
-                    '1.多选择下选择所有未删除模型，列表展示选中模型，选中后展示在列表中，默认不展示限额等级、RPM、TPM。下拉选择配额等级后，自动填入RPM、TPM',
-                    '2.支持批量替换限额等级；',
-                    '3.保存时验证所有模型是否都已填入限额等级；未填入提示"xx模型未填入限额等级，请填写后保存"，均填入后，为已选中的用户，将以上模型的配额调整为本次修改的配额。',
-                  ],
-                },
-              ]}
-            />
-          </Space>
-        }
+        title="调整配额"
         open={limitModalOpen}
         onCancel={() => setLimitModalOpen(false)}
         onOk={handleSaveLimit}
@@ -1260,23 +1475,7 @@ export default function AccountList() {
 
       {/* 开通/修改资源包 弹窗 */}
       <Modal
-        title={
-          <Space size={6} align="center">
-            {packTargetKey && openedPackMap[packTargetKey] ? '修改资源包' : '开通资源包'}
-            <RequirementDot
-              title="开通资源包需求"
-              sections={[
-                {
-                  label: '功能需求',
-                  items: [
-                    '1.下拉展示已上架的资源包',
-                    '2.计价方式为预付费，每次需要验证账户调用者账户余额是否充足；计价方式为后付费，每次无需验证余额',
-                  ],
-                },
-              ]}
-            />
-          </Space>
-        }
+        title={packTargetKey && openedPackMap[packTargetKey] ? '修改资源包' : '开通资源包'}
         open={packModalOpen}
         onCancel={() => setPackModalOpen(false)}
         onOk={handleSavePack}
@@ -1455,6 +1654,161 @@ export default function AccountList() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* 卡券明细弹窗 */}
+      <Modal
+        title="卡券明细"
+        open={!!voucherDetailRow}
+        onCancel={() => setVoucherDetailRow(null)}
+        footer={<Button onClick={() => setVoucherDetailRow(null)}>关闭</Button>}
+        centered
+        width={960}
+        destroyOnClose
+      >
+        <Table<Voucher>
+          rowKey="id"
+          size="small"
+          columns={voucherDetailColumns}
+          dataSource={voucherDetailList}
+          pagination={{ showTotal: (t) => `共 ${t} 条记录`, defaultPageSize: 10 }}
+          scroll={{ x: 'max-content' }}
+          locale={{ emptyText: '该账户名下暂无代金券' }}
+        />
+      </Modal>
+
+      {/* 发放代金券弹窗 */}
+      <Modal
+        title="发放代金券"
+        open={!!issueRow}
+        onCancel={() => {
+          setIssueRow(null)
+          setIssueTemplateId(null)
+        }}
+        onOk={handleIssueVoucher}
+        okText="确认发放"
+        cancelText="取消"
+        centered
+        width={520}
+        destroyOnClose
+      >
+        <Form layout="vertical" style={{ marginTop: 8 }}>
+          <div style={{ marginBottom: 24, color: '#333' }}>
+            {issueRow ? `发放账户：${issueRow.accountName}（${issueRow.accountId}）` : ''}
+          </div>
+          <Form.Item
+            label="选择券模板"
+            required
+            extra={
+              enabledVoucherTemplates.length === 0
+                ? '当前无启用的券模板，请先在「账户管理 › 代金券 › 券模板」中新增并启用'
+                : '仅可选择已启用的模板'
+            }
+          >
+            <Select
+              style={{ width: '100%' }}
+              placeholder="请选择券模板"
+              value={issueTemplateId ?? undefined}
+              onChange={(v) => setIssueTemplateId(v)}
+              options={enabledVoucherTemplates.map((t) => ({
+                value: t.id,
+                label: t.name,
+              }))}
+            />
+          </Form.Item>
+          {issueTemplateId &&
+            (() => {
+              const tpl = voucherTemplates.find((t) => t.id === issueTemplateId)
+              if (!tpl) return null
+              return (
+                <div
+                  style={{
+                    background: '#fafafa',
+                    border: '1px solid #eef0f4',
+                    borderRadius: 8,
+                    padding: '12px 16px',
+                  }}
+                >
+                  <Space size={24} wrap>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      面额：<Text strong>{`¥${tpl.faceValue.toFixed(2)}`}</Text>
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      有效期：
+                      <Text strong>{validityDescForIssue(tpl)}</Text>
+                    </Text>
+                  </Space>
+                </div>
+              )
+            })()}
+        </Form>
+      </Modal>
+
+      {/* 批量发放代金券弹窗 */}
+      <Modal
+        title="批量发放代金券"
+        open={batchVoucherOpen}
+        onCancel={() => {
+          setBatchVoucherOpen(false)
+          setBatchVoucherTemplateId(null)
+        }}
+        onOk={handleBatchVoucherIssue}
+        okText="确认发放"
+        cancelText="取消"
+        centered
+        width={520}
+        destroyOnClose
+      >
+        <Form layout="vertical" style={{ marginTop: 8 }}>
+          <div style={{ marginBottom: 24, color: '#333' }}>
+            {`已选择 ${selectedRowKeys.length} 个账户，请在下方选择优惠券。`}
+          </div>
+          <Form.Item
+            label="选择券模板"
+            required
+            extra={
+              enabledVoucherTemplates.length === 0
+                ? '当前无启用的券模板，请先在「账户管理 › 代金券 › 券模板」中新增并启用'
+                : '仅可选择已启用的模板'
+            }
+          >
+            <Select
+              style={{ width: '100%' }}
+              placeholder="请选择券模板"
+              value={batchVoucherTemplateId ?? undefined}
+              onChange={(v) => setBatchVoucherTemplateId(v)}
+              options={enabledVoucherTemplates.map((t) => ({
+                value: t.id,
+                label: t.name,
+              }))}
+            />
+          </Form.Item>
+          {batchVoucherTemplateId &&
+            (() => {
+              const tpl = voucherTemplates.find((t) => t.id === batchVoucherTemplateId)
+              if (!tpl) return null
+              return (
+                <div
+                  style={{
+                    background: '#fafafa',
+                    border: '1px solid #eef0f4',
+                    borderRadius: 8,
+                    padding: '12px 16px',
+                  }}
+                >
+                  <Space size={24} wrap>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      面额：<Text strong>{`¥${tpl.faceValue.toFixed(2)}`}</Text>
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      有效期：
+                      <Text strong>{validityDescForIssue(tpl)}</Text>
+                    </Text>
+                  </Space>
+                </div>
+              )
+            })()}
+        </Form>
       </Modal>
     </div>
   )

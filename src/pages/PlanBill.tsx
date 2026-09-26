@@ -899,7 +899,7 @@ export default function PlanBill() {
         footer={null}
         width={780}
         destroyOnClose
-        title={`调用明细 - ${callDetailRow?.userNickname ?? ''}（${callDetailRow?.productName ?? ''}）`}
+        title="调用明细"
       >
         {callDetailRow && (
           <div>

@@ -50,7 +50,7 @@ export default function RequirementDot({ title, sections }: Props) {
               </Title>
             )}
             {Array.isArray(sec.items) ? (
-              <ul style={{ margin: 0, paddingLeft: 20 }}>
+              <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
                 {sec.items.map((it, i) => (
                   <li key={i} style={{ marginBottom: 4, lineHeight: 1.7 }}>
                     <Text>{it}</Text>

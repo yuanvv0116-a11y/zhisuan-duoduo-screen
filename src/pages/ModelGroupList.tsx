@@ -1,46 +1,16 @@
 import { useMemo, useState } from 'react'
-import {
-  Button,
-  Cascader,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Popconfirm,
-  Select,
-  Space,
-  Switch,
-  Table,
-  Tabs,
-  Tag,
-  Tooltip,
-  Typography,
-  message,
-  theme,
-} from 'antd'
-import type { CSSProperties } from 'react'
+import { Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tabs, Tooltip, Typography, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import ModelPickerModal from '../components/ModelPickerModal'
 import PageShell from '../components/PageShell'
 import RequirementDot from '../components/RequirementDot'
 import SearchField from '../components/SearchField'
 import { DEFAULT_MODEL_GROUP_ID, useChannels, useModelGroups, useModels } from '../store'
-import { modelTypeLabel } from '../constants'
-import type { ModelApiConfig, ModelGroup, ModelGroupType, ModelItem } from '../types'
+import type { ModelGroup, ModelGroupType, ModelItem } from '../types'
 
 const { Text } = Typography
 type GroupForm = Pick<ModelGroup, 'name' | 'description' | 'sort'> & { enabled: boolean }
 type ShowFilter = 'all' | 'enabled' | 'disabled'
-/** 添加模型弹窗的候选行：一行一个倍率；无任何倍率的模型单独占一行（config 为 null，勾选即按模型加入） */
-type PickerRow = { key: string; model: ModelItem; config: ModelApiConfig | null }
-
-interface ModelFilter {
-  vendor: string
-  apiPath: string[]
-  name: string
-}
-const emptyModelFilter: ModelFilter = { vendor: 'all', apiPath: [], name: '' }
-/** 级联第二级的「全部」选项：等价于只选到渠道一级，即该渠道下所有 API 名称 */
-const API_ALL = 'all'
 /** 组内模型信息折叠时展示的行数，超出后提供展开/收起 */
 const COLLAPSED_MODEL_LINES = 3
 /** 手机号中间 4 位脱敏：138****5182（与用户管理列表展示口径一致） */
@@ -50,7 +20,6 @@ export default function ModelGroupList() {
   const { modelGroups, addModelGroup, updateModelGroup, removeModelGroup, setModelGroupModels } = useModelGroups()
   const { models } = useModels()
   const { channels } = useChannels()
-  const { token } = theme.useToken()
 
   const [tab, setTab] = useState<ModelGroupType>('official')
   const official = tab === 'official'
@@ -76,8 +45,6 @@ export default function ModelGroupList() {
 
   const [modelGroup, setModelGroup] = useState<ModelGroup | null>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [modelFilter, setModelFilter] = useState<ModelFilter>(emptyModelFilter)
-  const [appliedModelFilter, setAppliedModelFilter] = useState<ModelFilter>(emptyModelFilter)
   const [expandedGroups, setExpandedGroups] = useState<string[]>([])
 
   const modelMap = useMemo(() => new Map(models.map((model) => [model.id, model])), [models])
@@ -85,8 +52,6 @@ export default function ModelGroupList() {
 
   const configsOf = (model: ModelItem) => model.apiConfigs ?? []
   const channelNameOf = (channelId: string) => channelMap.get(channelId)?.name ?? '—'
-  const apiNameOf = (cfg: ModelApiConfig) =>
-    channelMap.get(cfg.channelId)?.apiCredentials?.find((cred) => cred.id === cfg.credentialId)?.apiName ?? '—'
 
   /**
    * 组内模型逐条展开为「模型名称 / 渠道 / 倍率名称 倍率」一行，同一模型的多个 API 配置各占一行；
@@ -110,57 +75,6 @@ export default function ModelGroupList() {
         : [`${model.name} / — / —`]
     })
   }
-
-  const vendorOptions = useMemo(() => {
-    const set = Array.from(new Set(models.map((m) => m.vendor).filter(Boolean)))
-    return [{ value: 'all', label: '全部' }, ...set.map((v) => ({ value: v, label: v }))]
-  }, [models])
-
-  const apiPathOptions = useMemo(
-    () =>
-      channels.map((channel) => ({
-        value: channel.id,
-        label: channel.name,
-        children: channel.apiCredentials?.length
-          ? [
-              { value: API_ALL, label: '全部' },
-              ...channel.apiCredentials.map((cred) => ({ value: cred.id, label: cred.apiName })),
-            ]
-          : undefined,
-      })),
-    [channels],
-  )
-
-  /** 全量候选行：把每个模型的每条倍率配置展开为独立一行 */
-  const pickerRows = useMemo<PickerRow[]>(
-    () =>
-      models.flatMap((model): PickerRow[] => {
-        const list = model.apiConfigs ?? []
-        return list.length
-          ? list.map((cfg) => ({ key: cfg.id, model, config: cfg }))
-          : [{ key: model.id, model, config: null }]
-      }),
-    [models],
-  )
-
-  /** 筛选后的候选行：渠道 / API 名称按当前行的倍率配置匹配，无倍率的模型行在按渠道筛选时自然被过滤掉 */
-  const filteredRows = useMemo(() => {
-    const f = appliedModelFilter
-    const kw = f.name.trim().toLowerCase()
-    const channelId = f.apiPath[0]
-    const credentialId = f.apiPath[1] === API_ALL ? undefined : f.apiPath[1]
-    return pickerRows.filter((row) => {
-      const matchVendor = f.vendor === 'all' || row.model.vendor === f.vendor
-      const matchName = !kw || row.model.name.toLowerCase().includes(kw)
-      const matchApi =
-        !channelId ||
-        (!!row.config &&
-          (credentialId
-            ? row.config.channelId === channelId && row.config.credentialId === credentialId
-            : row.config.channelId === channelId))
-      return matchVendor && matchApi && matchName
-    })
-  }, [pickerRows, appliedModelFilter])
 
   /** 列表按创建时间倒序展示（store 内的展示顺序仅决定前台排序） */
   const filtered = useMemo(
@@ -232,8 +146,6 @@ export default function ModelGroupList() {
         return (selected.length ? selected : list).map((cfg) => cfg.id)
       }),
     )
-    setModelFilter(emptyModelFilter)
-    setAppliedModelFilter(emptyModelFilter)
   }
 
   const columns: ColumnsType<ModelGroup> = [
@@ -388,70 +300,6 @@ export default function ModelGroupList() {
       /* 校验失败，不关闭弹窗 */
     }
   }
-
-  const pillStyle: CSSProperties = {
-    display: 'inline-block',
-    padding: '2px 10px',
-    borderRadius: token.borderRadiusSM,
-    background: token.colorPrimaryBg,
-    color: token.colorPrimary,
-    fontSize: 12,
-  }
-
-  const modelPickerColumns: ColumnsType<PickerRow> = [
-    {
-      title: '模型名称',
-      width: 170,
-      fixed: 'left',
-      render: (_, row) => <Text strong>{row.model.name}</Text>,
-    },
-    {
-      title: '倍率名称 / 倍率',
-      width: 170,
-      render: (_, row) =>
-        row.config ? (
-          <span style={pillStyle}>
-            {row.config.multiplierName || '—'} · {row.config.modelMultiplier ?? 1}x
-          </span>
-        ) : (
-          <Text type="secondary">—</Text>
-        ),
-    },
-    {
-      title: '渠道',
-      width: 150,
-      render: (_, row) =>
-        row.config ? (
-          <Text ellipsis style={{ display: 'block', maxWidth: 150 }}>
-            {channelNameOf(row.config.channelId)}
-          </Text>
-        ) : (
-          <Text type="secondary">—</Text>
-        ),
-    },
-    {
-      title: 'API名称',
-      width: 160,
-      render: (_, row) =>
-        row.config ? (
-          <Text ellipsis style={{ display: 'block', maxWidth: 160 }}>
-            {apiNameOf(row.config)}
-          </Text>
-        ) : (
-          <Text type="secondary">—</Text>
-        ),
-    },
-    {
-      title: '模型类型',
-      width: 100,
-      render: (_, row) => <Tag>{modelTypeLabel(row.model.type)}</Tag>,
-    },
-    {
-      title: '生产商',
-      width: 110,
-      render: (_, row) => row.model.vendor || <Text type="secondary">—</Text>,
-    },
-  ]
 
   return (
     <>
@@ -664,7 +512,8 @@ export default function ModelGroupList() {
         </Form>
       </Modal>
 
-      <Modal
+      <ModelPickerModal
+        open={!!modelGroup}
         title={
           <Space size={6}>
             {`添加模型 · ${modelGroup?.name ?? ''}`}
@@ -675,7 +524,7 @@ export default function ModelGroupList() {
                   label: '',
                   items: [
                     '1.筛选：生产商（下拉）、渠道 / API 名称（级联，先选渠道再选其下 API，可只选到渠道）、模型名称（模糊搜索）。',
-                    '2.同一模型只可勾选1条倍率。',
+                    '2.列表为树形结构：父节点是模型（生产厂商展示在模型名称前），子节点是该模型下的各条倍率（含所属渠道与 API 名称）；勾选父节点即选中其下全部倍率，可跨模型多选，支持「展开全部 / 收起全部」。',
                     '3.点击「保存」检查模型是否存在，均存在，保存成功，建立模型倍率和分组的关联关系。有模型不存在则提示「xx模型不存在，是否保存其他模型？」【确认】保存其他模型，取消则关闭提示，刷新弹窗信息。',
                   ],
                 },
@@ -683,85 +532,15 @@ export default function ModelGroupList() {
             />
           </Space>
         }
-        open={!!modelGroup}
-        centered
-        width={900}
-        okText="保存"
-        cancelText="取消"
-        destroyOnClose
+        initialSelected={selectedIds}
         onCancel={() => setModelGroup(null)}
-        onOk={() => {
+        onOk={(keys) => {
           if (modelGroup) {
-            perform(() => setModelGroupModels(modelGroup.id, selectedIds), '组内模型已更新')
+            perform(() => setModelGroupModels(modelGroup.id, keys), '组内模型已更新')
             setModelGroup(null)
           }
         }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-          <SearchField label="生产商">
-            <Select
-              value={modelFilter.vendor}
-              style={{ width: 140 }}
-              options={vendorOptions}
-              onChange={(v) => setModelFilter({ ...modelFilter, vendor: v })}
-            />
-          </SearchField>
-          <SearchField label="渠道/API名称">
-            <Cascader
-              value={modelFilter.apiPath}
-              options={apiPathOptions}
-              changeOnSelect
-              allowClear
-              showSearch
-              placeholder="全部"
-              style={{ width: 260 }}
-              onChange={(value) => setModelFilter({ ...modelFilter, apiPath: (value ?? []).map(String) })}
-            />
-          </SearchField>
-          <SearchField label="模型名称">
-            <Input
-              value={modelFilter.name}
-              allowClear
-              placeholder="请输入模型名称"
-              style={{ width: 160 }}
-              onChange={(e) => setModelFilter({ ...modelFilter, name: e.target.value })}
-              onPressEnter={() => setAppliedModelFilter(modelFilter)}
-            />
-          </SearchField>
-          <Space>
-            <Button type="primary" onClick={() => setAppliedModelFilter(modelFilter)}>
-              搜索
-            </Button>
-            <Button
-              onClick={() => {
-                setModelFilter(emptyModelFilter)
-                setAppliedModelFilter(emptyModelFilter)
-              }}
-            >
-              重置
-            </Button>
-          </Space>
-        </div>
-
-        <div style={{ marginBottom: 8 }}>
-          <Text type="secondary">已选择 {selectedIds.length} 条倍率</Text>
-        </div>
-
-        <Table
-          rowKey="key"
-          size="small"
-          columns={modelPickerColumns}
-          dataSource={filteredRows}
-          rowSelection={{
-            type: 'checkbox',
-            selectedRowKeys: selectedIds,
-            preserveSelectedRowKeys: true,
-            onChange: (keys) => setSelectedIds(keys as string[]),
-          }}
-          pagination={{ pageSize: 8, showSizeChanger: false, showTotal: (total) => `共 ${total} 条记录` }}
-          scroll={{ x: 'max-content', y: 360 }}
-        />
-      </Modal>
+      />
     </>
   )
 }

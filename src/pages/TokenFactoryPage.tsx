@@ -4129,7 +4129,7 @@ function ExperiencePlayground({
       {view === 'compare' ? compareView : chatView}
 
       <Modal
-        title={`调用示例 · ${dialogModel.name}`}
+        title="调用示例"
         open={dialog?.kind === 'sample'}
         onCancel={() => setDialog(null)}
         footer={null}
@@ -4151,7 +4151,7 @@ function ExperiencePlayground({
       </Modal>
 
       <Modal
-        title={`API文档 · ${dialogModel.name}`}
+        title="API文档"
         open={dialog?.kind === 'doc'}
         onCancel={() => setDialog(null)}
         footer={null}
@@ -4203,7 +4203,7 @@ function ExperiencePlayground({
       </Modal>
 
       <Modal
-        title={`模型信息 · ${dialogModel.name}`}
+        title="模型信息"
         open={dialog?.kind === 'info'}
         onCancel={() => setDialog(null)}
         footer={null}

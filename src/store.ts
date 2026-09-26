@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import type {
   Channel,
   ChannelModelItem,
@@ -10,8 +10,18 @@ import type {
   TokenPlan,
   AccountLedger,
   OrderDetail,
+  AccountTag,
+  Voucher,
+  VoucherIssueTask,
+  VoucherSource,
+  VoucherStatus,
+  VoucherTemplate,
+  VoucherPeriodUnit,
+  VoucherTaskAccountScope,
+  VoucherTaskFiring,
+  VoucherTaskSchedule,
 } from './types'
-import { calcPlanDiscountedPrice } from './types'
+import { calcPlanDiscountedPrice, roundAmount, VOUCHER_STATUS_LABEL } from './types'
 
 const STORAGE_KEY = 'zsdd_channels_v14'
 
@@ -2072,7 +2082,7 @@ export function useTokenPlans() {
 
 /* ============================== 费用管理 - 账户明细 ============================== */
 
-const LEDGER_STORAGE_KEY = 'zsdd_account_ledgers_v1'
+const LEDGER_STORAGE_KEY = 'zsdd_account_ledgers_v2'
 
 const OPERATOR_PHONE = '183****9299'
 const OPERATOR_ACCOUNT_ID = 'ACC202605090005'
@@ -2217,6 +2227,7 @@ function buildLedgerSeed(): AccountLedger[] {
       amountChange: change,
       amountAfter: after,
       remark: models[i % models.length],
+      fundAccount: 'cash',
     })
     baseAmount = after
   }
@@ -2231,6 +2242,7 @@ function buildLedgerSeed(): AccountLedger[] {
     amountChange: r.amountChange,
     amountAfter: r.amountAfter,
     remark: r.remark,
+    fundAccount: 'cash',
   }))
   return [...extras, ...seed]
 }
@@ -2242,7 +2254,10 @@ function loadLedgers(): AccountLedger[] {
     const raw = localStorage.getItem(LEDGER_STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as AccountLedger[]
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // v1 数据无 fundAccount 字段，读取时统一回填为现金主账户
+        return parsed.map((r) => (r.fundAccount ? r : { ...r, fundAccount: 'cash' as const }))
+      }
     }
   } catch {}
   localStorage.setItem(LEDGER_STORAGE_KEY, JSON.stringify(LEDGER_SEED))
@@ -2263,9 +2278,15 @@ function getLedgersSnapshot() {
   return ledgerState
 }
 
+/** 账户明细：现金主账户流水与代金券流水合并展示，用 fundAccount 区分扣费账户 */
 export function useAccountLedgers() {
-  const ledgers = useSyncExternalStore(subscribeLedgers, getLedgersSnapshot)
-  return ledgers
+  const cashLedgers = useSyncExternalStore(subscribeLedgers, getLedgersSnapshot)
+  const voucherLedgers = useSyncExternalStore(subVoucherLedgers, getVoucherLedgersSnapshot)
+  return useMemo(
+    () =>
+      [...cashLedgers, ...voucherLedgers].sort((a, b) => b.operatedAt.localeCompare(a.operatedAt)),
+    [cashLedgers, voucherLedgers],
+  )
 }
 
 /* ============================== 费用管理 - 订单明细 ============================== */
@@ -2503,4 +2524,1451 @@ function getOrderDetailsSnapshot() {
 export function useOrderDetails() {
   const list = useSyncExternalStore(subscribeOrderDetails, getOrderDetailsSnapshot)
   return list
+}
+
+/* ============================== 代金券 ============================== */
+
+/**
+ * 券模板 v6：新增「国庆限定模型券」演示未来生效场景，回捞 v5 数据时按 id 追加缺失的种子模板；
+ * 券实例 v4 / 券池流水 v4：演示数据裁剪为「五种状态各一条」属于删除类变更，
+ * 回捞无法删掉存量多余行，故 v3 起不再回捞，直接按新种子重建（旧键数据弃用）。
+ */
+const VOUCHER_TEMPLATE_STORAGE_KEY = 'zsdd_voucher_templates_v6'
+const VOUCHER_STORAGE_KEY = 'zsdd_vouchers_v4'
+const VOUCHER_TASK_STORAGE_KEY = 'zsdd_voucher_issue_tasks_v6'
+const VOUCHER_LEDGER_STORAGE_KEY = 'zsdd_voucher_ledgers_v4'
+
+/* ---------------- 时间与券码工具 ---------------- */
+
+const stampToDate = (s: string) => {
+  const [d, t = '00:00:00'] = s.split(' ')
+  const [y, m, day] = d.split('-').map(Number)
+  const [hh, mi, ss] = t.split(':').map(Number)
+  return new Date(y, m - 1, day, hh || 0, mi || 0, ss || 0)
+}
+const fmtStamp = (dt: Date) => {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}:${p(dt.getSeconds())}`
+}
+const nowStamp = () => fmtStamp(new Date())
+/** 周期首日：周取本周一（自然周以周一为第一天），月取 1 日，季度取 1/4/7/10 月 1 日 */
+const periodFirstDay = (base: Date, unit: VoucherPeriodUnit) => {
+  if (unit === 'week') {
+    const first = new Date(base.getFullYear(), base.getMonth(), base.getDate())
+    first.setDate(first.getDate() - ((first.getDay() + 6) % 7))
+    return first
+  }
+  if (unit === 'quarter') {
+    return new Date(base.getFullYear(), Math.floor(base.getMonth() / 3) * 3, 1)
+  }
+  return new Date(base.getFullYear(), base.getMonth(), 1)
+}
+/** 周期最后一天（零点时刻）：周 = 首日 + 6 天（周日），月 / 季度 = 顺延一个周期后取上月末日 */
+const periodLastDay = (first: Date, unit: VoucherPeriodUnit) => {
+  const last = new Date(first)
+  if (unit === 'week') {
+    last.setDate(last.getDate() + 6)
+    return last
+  }
+  last.setMonth(last.getMonth() + (unit === 'quarter' ? 3 : 1))
+  last.setDate(0)
+  return last
+}
+/**
+ * 自然周期（周 / 月 / 季度）有效期区间，规则固定不可配置：
+ * - 生效时刻 = 发券时刻所在周期的第一天 00:00:00（周期中途补发也回溯到周期首日）
+ * - 失效时刻 = 发券时刻所在周期最后一天 23:59:59
+ */
+const naturalPeriodRange = (unit: VoucherPeriodUnit, issuedAt: string) => {
+  const first = periodFirstDay(stampToDate(issuedAt), unit)
+  const last = periodLastDay(first, unit)
+  return {
+    effectiveAt: fmtStamp(first),
+    expireAt: fmtStamp(new Date(last.getFullYear(), last.getMonth(), last.getDate(), 23, 59, 59)),
+  }
+}
+export const naturalPeriodValidity = (tpl: VoucherTemplate, issuedAt: string) =>
+  naturalPeriodRange(tpl.periodUnit ?? 'month', issuedAt)
+
+/** 发放频率 → 自然周期单位；单次发放无周期 */
+const taskPeriodUnit = (schedule: VoucherTaskSchedule): VoucherPeriodUnit | null => {
+  if (schedule === 'weekly') return 'week'
+  if (schedule === 'quarterly') return 'quarter'
+  if (schedule === 'monthly') return 'month'
+  return null
+}
+/**
+ * 周期任务执行时刻：每周期开始的第 1 天 00:00:00
+ * step = 0 取 base 所在周期的第 1 天，step ≥ 1 从该周期起顺延 step 个周期
+ */
+const periodRunStamp = (base: Date, unit: VoucherPeriodUnit, step: number) => {
+  const first = periodFirstDay(base, unit)
+  if (step <= 0) return fmtStamp(first)
+  const next = new Date(first)
+  if (unit === 'week') next.setDate(next.getDate() + 7 * step)
+  else next.setMonth(next.getMonth() + (unit === 'quarter' ? 3 : 1) * step)
+  return fmtStamp(next)
+}
+
+/** 券码：DQ-YYYYMM-6位数字，发放时生成并绑定账户 */
+const genBillVoucherCode = (taken: Set<string>): string => {
+  const now = new Date()
+  const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+  let code = ''
+  do {
+    code = `DQ-${ym}-${String(Math.floor(Math.random() * 900000) + 100000)}`
+  } while (taken.has(code))
+  return code
+}
+const ymdCompact = (s: string) => s.slice(0, 10).replace(/-/g, '')
+const genBatchNo = (prefix: string) => `${prefix}-${ymdCompact(nowStamp())}-${uid().slice(0, 4).toUpperCase()}`
+const ledgerSerial = (prefix: string) => {
+  const p = (n: number, len = 2) => String(n).padStart(len, '0')
+  const d = new Date()
+  const ts = `${p(d.getFullYear() % 100)}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
+  return `${prefix}-${ts}${p(Math.floor(Math.random() * 1000000), 6)}`
+}
+
+/**
+ * 演示券锚点：存量券里「非演示种子券」的最晚发放到账时间。
+ * 五种状态的代表券（含国庆待生效券）按锚点向后铺秒级时刻，因此无论运营后续发了多少券，
+ * 这五条代表券始终按发放时间倒序排在列表第一页顶部，五种状态各占一行。
+ * 券种子在模块加载期求值，无法复用后文的 readStoredRows（存在暂时性死区），这里自带一次安全解析。
+ */
+const DEMO_VOUCHER_SEED_IDS = ['vou_001', 'vou_002', 'vou_009', 'vou_010', 'vou_012']
+/** 兜底锚点：当日 10:00；当前时刻不足 10:01 时退到当前时刻前一分钟，保证锚点恒早于「现在」 */
+const demoAnchorFallback = (): string => {
+  const now = new Date()
+  const ten = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0, 0)
+  return ten.getTime() <= now.getTime() - 60000 ? fmtStamp(ten) : fmtStamp(new Date(now.getTime() - 60000))
+}
+/** 存量券里非演示种子券的最晚发放到账时间，取不到返回空串 */
+const demoLatestStoredClaimedAt = (): string => {
+  try {
+    const raw = localStorage.getItem(VOUCHER_STORAGE_KEY)
+    if (!raw) return ''
+    const rows: unknown = JSON.parse(raw)
+    if (!Array.isArray(rows)) return ''
+    let latest = ''
+    for (const row of rows) {
+      if (!row || typeof row !== 'object') continue
+      const item = row as { id?: unknown; claimedAt?: unknown }
+      if (DEMO_VOUCHER_SEED_IDS.includes(String(item.id))) continue
+      const claimedAt = typeof item.claimedAt === 'string' ? item.claimedAt : ''
+      if (claimedAt > latest) latest = claimedAt
+    }
+    return latest
+  } catch {
+    return ''
+  }
+}
+const demoVoucherAnchor = (): string => {
+  const fallback = demoAnchorFallback()
+  const latest = demoLatestStoredClaimedAt()
+  const candidate = latest > fallback ? latest : fallback
+  /** 代表券最长向后铺 60 秒，锚点上限取「当前时刻前一分钟」，杜绝演示时刻落到未来 */
+  const ceiling = fmtStamp(new Date(Date.now() - 60000))
+  return candidate > ceiling ? ceiling : candidate
+}
+const DEMO_VOUCHER_ANCHOR = demoVoucherAnchor()
+const demoVoucherDate = (offsetSec: number): Date =>
+  new Date(stampToDate(DEMO_VOUCHER_ANCHOR).getTime() + offsetSec * 1000)
+
+/** 演示券时刻：由锚点派生的秒级时间戳串，券实例、券池流水、消费明细共用同一口径 */
+export const demoVoucherStamp = (offsetSec: number): string => fmtStamp(demoVoucherDate(offsetSec))
+
+/** 演示券流水号内的 12 位紧凑时刻（YYMMDDHHmmss） */
+export const demoVoucherCompactTs = (offsetSec: number): string => {
+  const p = (n: number) => String(n).padStart(2, '0')
+  const d = demoVoucherDate(offsetSec)
+  return `${p(d.getFullYear() % 100)}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
+}
+
+/** 演示批次号：与锚点同日，末尾序号区分五张代表券 */
+const demoBatchNo = (seq: string) => `FB-${ymdCompact(DEMO_VOUCHER_ANCHOR)}-${seq}`
+
+/** 演示券池流水号：前缀 + 锚点紧凑时刻 + 固定尾号 */
+const demoLedgerSerial = (prefix: string, offsetSec: number, tail: string) =>
+  `${prefix}-${demoVoucherCompactTs(offsetSec)}${tail}`
+
+/* ---------------- 演示账户（与账户管理页 ROWS 对齐） ---------------- */
+
+export interface VoucherIssueAccount {
+  accountId: string
+  accountName?: string
+  phone?: string
+  accountType?: 'personal' | 'enterprise' | 'sub'
+  /** 账户标签（与账户管理页标签体系一致） */
+  tags?: AccountTag[]
+}
+
+export const VOUCHER_ACCOUNT_TYPE_LABEL: Record<'personal' | 'enterprise' | 'sub', string> = {
+  personal: '个人账号',
+  enterprise: '企业账号',
+  sub: '企业子账号',
+}
+
+export const VOUCHER_DEMO_ACCOUNTS: VoucherIssueAccount[] = [
+  {
+    accountId: 'ACC20260814G3RJUGglg',
+    accountName: 'zsdd4892250602',
+    accountType: 'personal',
+    tags: [{ name: '内部员工', color: '#2f6bff' }],
+  },
+  {
+    accountId: 'ACC20260814lyfMj9dPB',
+    accountName: 'lyfyyds',
+    accountType: 'personal',
+    tags: [
+      { name: '内部员工', color: '#2f6bff' },
+      { name: '员工介绍', color: '#52c41a' },
+    ],
+  },
+  {
+    accountId: 'ACC20260810PVPbI3MgE',
+    accountName: '13811305182',
+    phone: '138****5182',
+    accountType: 'personal',
+    tags: [{ name: '员工介绍', color: '#52c41a' }],
+  },
+  {
+    accountId: 'ACC20260805nCS9F4QYv',
+    accountName: '18255445034',
+    phone: '182****5034',
+    accountType: 'personal',
+    tags: [],
+  },
+  {
+    accountId: 'ACC20260805p6UJUPOi',
+    accountName: '13355949369',
+    phone: '133****9369',
+    accountType: 'personal',
+    tags: [{ name: '合作伙伴', color: '#fa541c' }],
+  },
+  {
+    accountId: 'ACC20260805kVDg6e9tu',
+    accountName: '18160382631',
+    phone: '181****2631',
+    accountType: 'personal',
+    tags: [
+      { name: '员工介绍', color: '#52c41a' },
+      { name: '合作伙伴', color: '#fa541c' },
+    ],
+  },
+  {
+    accountId: 'ACC20260801ACME0001',
+    accountName: 'acme_corp',
+    phone: '134****5555',
+    accountType: 'enterprise',
+    tags: [{ name: 'VIP', color: '#fa8c16' }],
+  },
+  {
+    accountId: 'ACC20260802TECH0001',
+    accountName: 'tech_team',
+    phone: '133****6666',
+    accountType: 'enterprise',
+    tags: [{ name: '合作伙伴', color: '#fa541c' }],
+  },
+  {
+    accountId: 'ACC20260803SUB0001',
+    accountName: 'acme_sub01',
+    accountType: 'sub',
+    tags: [],
+  },
+]
+export const findDemoAccount = (accountId: string) => VOUCHER_DEMO_ACCOUNTS.find((a) => a.accountId === accountId)
+/** 发放弹窗的可选标签集合（由演示账户标签汇总，保证筛选值都有数据） */
+export const VOUCHER_ACCOUNT_TAGS: AccountTag[] = VOUCHER_DEMO_ACCOUNTS.reduce<AccountTag[]>((acc, a) => {
+  ;(a.tags ?? []).forEach((t) => {
+    if (!acc.some((x) => x.name === t.name)) acc.push(t)
+  })
+  return acc
+}, [])
+
+/* ---------------- seed：券模板 ---------------- */
+
+const VOUCHER_TEMPLATE_SEED: VoucherTemplate[] = [
+  {
+    id: 'vt_001',
+    name: '新人体验券',
+    faceValue: 10,
+    deductOrder: 'voucherFirst',
+    scope: 'all',
+    validityType: 'daysAfterIssue',
+    effectiveDelayDays: 0,
+    validDays: 30,
+    applicableTo: '适用于全平台模型按量计费',
+    status: 'enabled',
+    remark: '新用户注册常用券，后台直接发放到账',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-01 10:00:00',
+  },
+  {
+    id: 'vt_002',
+    name: '七夕限定模型券',
+    faceValue: 50,
+    deductOrder: 'voucherFirst',
+    scope: 'models',
+    scopeModels: ['kimi-k3', 'glm-5.2'],
+    validityType: 'fixedDate',
+    fixedStart: '2026-09-01 00:00:00',
+    fixedEnd: '2026-10-31 23:00:00',
+    applicableTo: '适用于kimi-k3、glm-5.2',
+    status: 'enabled',
+    remark: '仅限 kimi-k3、glm-5.2 消费抵扣',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-01 10:05:00',
+  },
+  {
+    id: 'vt_003',
+    name: '企业月度权益券',
+    faceValue: 200,
+    deductOrder: 'voucherFirst',
+    scope: 'all',
+    validityType: 'naturalPeriod',
+    periodUnit: 'month',
+    applicableTo: '适用于全平台 Token 按量计费',
+    status: 'enabled',
+    remark: '每月 20 日跑批发放当月权益：当月 1 日 00:00:00 起生效，当月最后一天 23:59:59 失效',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-05 09:30:00',
+  },
+  {
+    id: 'vt_004',
+    name: '开业普发券',
+    faceValue: 100,
+    deductOrder: 'cashFirst',
+    scope: 'all',
+    validityType: 'fixedDate',
+    fixedStart: '2026-06-01 00:00:00',
+    fixedEnd: '2026-08-31 23:00:00',
+    applicableTo: '适用于全平台模型按量计费',
+    status: 'disabled',
+    remark: '开业活动专用，活动结束已停用',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-05-20 09:00:00',
+  },
+  {
+    id: 'vt_005',
+    name: '国庆限定模型券',
+    faceValue: 20,
+    deductOrder: 'voucherFirst',
+    scope: 'all',
+    validityType: 'fixedDate',
+    fixedStart: '2026-10-01 00:00:00',
+    fixedEnd: '2026-10-07 23:00:00',
+    applicableTo: '适用于全平台模型按量计费',
+    status: 'enabled',
+    remark: '国庆活动券：节前提前发放，10 月 1 日 00:00 起生效、10 月 7 日 23:00 失效',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-22 11:00:00',
+  },
+]
+
+/* ---------------- seed：券实例（五种状态各一条演示数据） ---------------- */
+
+const VOUCHER_SEED: Voucher[] = [
+  {
+    id: 'vou_001',
+    code: 'DQ-202609-000101',
+    templateId: 'vt_002',
+    templateName: '七夕限定模型券',
+    faceValue: 50,
+    balance: 0,
+    scope: 'models',
+    scopeModels: ['kimi-k3', 'glm-5.2'],
+    accountId: 'ACC20260810PVPbI3MgE',
+    accountName: '13811305182',
+    phone: '138****5182',
+    accountType: 'personal',
+    source: 'targeted',
+    status: 'usedUp',
+    effectiveAt: demoVoucherStamp(0),
+    expireAt: '2026-10-31 23:59:59',
+    claimedAt: demoVoucherStamp(1),
+    batchNo: demoBatchNo('01'),
+    remark: '运营发放（9 月体验补偿）',
+    operator: CURRENT_OPERATOR,
+    createdAt: demoVoucherStamp(1),
+  },
+  {
+    id: 'vou_002',
+    code: 'DQ-202609-000102',
+    templateId: 'vt_002',
+    templateName: '七夕限定模型券',
+    faceValue: 50,
+    balance: 20,
+    scope: 'models',
+    scopeModels: ['kimi-k3', 'glm-5.2'],
+    accountId: 'ACC20260810PVPbI3MgE',
+    accountName: '13811305182',
+    phone: '138****5182',
+    accountType: 'personal',
+    source: 'targeted',
+    status: 'active',
+    effectiveAt: demoVoucherStamp(2),
+    expireAt: '2026-10-31 23:59:59',
+    claimedAt: demoVoucherStamp(3),
+    batchNo: demoBatchNo('02'),
+    remark: '运营发放（合作伙伴中秋补偿）',
+    operator: CURRENT_OPERATOR,
+    createdAt: demoVoucherStamp(3),
+  },
+  {
+    id: 'vou_009',
+    code: 'DQ-202608-000077',
+    templateId: 'vt_001',
+    templateName: '新人体验券',
+    faceValue: 10,
+    balance: 10,
+    scope: 'all',
+    accountId: 'ACC20260814lyfMj9dPB',
+    accountName: 'lyfyyds',
+    accountType: 'personal',
+    source: 'targeted',
+    status: 'expired',
+    effectiveAt: demoVoucherStamp(5),
+    expireAt: demoVoucherStamp(7),
+    claimedAt: demoVoucherStamp(5),
+    batchNo: demoBatchNo('03'),
+    operator: CURRENT_OPERATOR,
+    createdAt: demoVoucherStamp(5),
+  },
+  {
+    id: 'vou_010',
+    code: 'DQ-202609-000110',
+    templateId: 'vt_002',
+    templateName: '七夕限定模型券',
+    faceValue: 50,
+    balance: 0,
+    scope: 'models',
+    scopeModels: ['kimi-k3', 'glm-5.2'],
+    accountId: 'ACC20260805p6UJUPOi',
+    accountName: '13355949369',
+    phone: '133****9369',
+    accountType: 'personal',
+    source: 'batch',
+    status: 'void',
+    effectiveAt: demoVoucherStamp(9),
+    expireAt: '2026-10-31 23:59:59',
+    claimedAt: demoVoucherStamp(10),
+    batchNo: demoBatchNo('04'),
+    remark: '已作废：误发账户，已回收',
+    operator: CURRENT_OPERATOR,
+    createdAt: demoVoucherStamp(10),
+  },
+  {
+    id: 'vou_012',
+    code: 'DQ-202609-000112',
+    templateId: 'vt_005',
+    templateName: '国庆限定模型券',
+    faceValue: 20,
+    balance: 20,
+    scope: 'all',
+    accountId: 'ACC20260810PVPbI3MgE',
+    accountName: '13811305182',
+    phone: '138****5182',
+    accountType: 'personal',
+    source: 'batch',
+    status: 'notEffective',
+    effectiveAt: '2026-10-01 00:00:00',
+    expireAt: '2026-10-07 23:00:00',
+    claimedAt: demoVoucherStamp(60),
+    batchNo: demoBatchNo('05'),
+    remark: '国庆预热：批量提前发放，10 月 1 日 00:00 起生效',
+    operator: CURRENT_OPERATOR,
+    createdAt: demoVoucherStamp(60),
+  },
+]
+
+/* ---------------- seed：发放任务 ---------------- */
+
+const VOUCHER_TASK_SEED: VoucherIssueTask[] = [
+  {
+    id: 'vit_001',
+    name: '中秋合作伙伴批量发放',
+    templateId: 'vt_002',
+    templateName: '七夕限定模型券',
+    targetDesc: '圈选条件：标签含「合作伙伴」的个人账号',
+    accountScope: 'partial',
+    targetAccounts: ['ACC20260805p6UJUPOi'],
+    schedule: 'once',
+    firing: 'immediate',
+    total: 1,
+    success: 1,
+    fail: 0,
+    lastRunIssued: 1,
+    runs: [{ at: '2026-09-14 10:00:00', issued: 1, skipped: 0, trigger: 'auto' }],
+    status: 'done',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-14 10:00:00',
+  },
+  {
+    id: 'vit_002',
+    name: '企业权益月度发放（9 月起）',
+    templateId: 'vt_003',
+    templateName: '企业月度权益券',
+    targetDesc: '圈选条件：签约月度权益的账号',
+    accountScope: 'partial',
+    targetAccounts: ['ACC20260814G3RJUGglg'],
+    schedule: 'monthly',
+    firing: 'immediate',
+    nextRunAt: '2026-10-01 00:00:00',
+    total: 1,
+    success: 1,
+    fail: 0,
+    lastRunIssued: 1,
+    runs: [{ at: '2026-09-20 16:00:00', issued: 1, skipped: 0, trigger: 'auto' }],
+    status: 'running',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-20 16:00:00',
+  },
+  {
+    id: 'vit_003',
+    name: '国庆预热·新人体验券定时发放',
+    templateId: 'vt_001',
+    templateName: '新人体验券',
+    targetDesc: '圈选条件：9 月新注册且未领取过新人券的个人账号',
+    accountScope: 'partial',
+    targetAccounts: ['ACC20260814lyfMj9dPB', 'ACC20260810PVPbI3MgE'],
+    schedule: 'once',
+    firing: 'scheduled',
+    scheduledAt: '2026-10-08 10:00:00',
+    nextRunAt: '2026-10-08 10:00:00',
+    total: 0,
+    success: 0,
+    fail: 0,
+    status: 'draft',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-22 15:30:00',
+  },
+  {
+    id: 'vit_004',
+    name: '合作伙伴答谢券批量补发',
+    templateId: 'vt_002',
+    templateName: '七夕限定模型券',
+    targetDesc: '圈选条件：标签含「核心合作伙伴」的个人账号',
+    accountScope: 'partial',
+    targetAccounts: ['ACC20260805nCS9F4QYv', 'ACC20260805p6UJUPOi', 'ACC20260805kVDg6e9tu'],
+    schedule: 'once',
+    firing: 'immediate',
+    total: 3,
+    success: 2,
+    fail: 1,
+    lastRunIssued: 2,
+    runs: [{ at: '2026-09-18 11:00:00', issued: 2, skipped: 1, trigger: 'auto' }],
+    status: 'partial',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-18 11:00:00',
+  },
+  {
+    id: 'vit_005',
+    name: 'KA 企业月度权益发放',
+    templateId: 'vt_003',
+    templateName: '企业月度权益券',
+    targetDesc: '圈选条件：签约年度框架的 KA 企业账号',
+    accountScope: 'partial',
+    targetAccounts: ['ACC20260801ACME0001', 'ACC20260802TECH0001'],
+    schedule: 'monthly',
+    firing: 'immediate',
+    nextRunAt: '2026-10-05 10:00:00',
+    total: 2,
+    success: 2,
+    fail: 0,
+    lastRunIssued: 2,
+    runs: [{ at: '2026-09-05 10:00:00', issued: 2, skipped: 0, trigger: 'auto' }],
+    status: 'paused',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-05 10:00:00',
+  },
+]
+
+/* ---------------- seed：代金券池流水（fundAccount=voucher，按账户券池串链） ---------------- */
+
+const VLEDGER_BASE = {
+  fundAccount: 'voucher' as const,
+  operator: CURRENT_OPERATOR,
+}
+
+/** 券池流水与代表券同源：时刻、流水号、批次号全部由演示锚点派生，保证余额链与券行时间线一致 */
+const VOUCHER_LEDGER_SEED: AccountLedger[] = [
+  {
+    ...VLEDGER_BASE,
+    id: 'vledger_01',
+    serialNo: demoLedgerSerial('DJQFF', 1, '101233'),
+    operatedAt: demoVoucherStamp(1),
+    operatorPhone: '—',
+    operatorAccountId: '—',
+    operationType: 'voucher_issue',
+    amountBefore: 0,
+    amountChange: 50,
+    amountAfter: 50,
+    remark: `后台发放：七夕限定模型券（批次 ${demoBatchNo('01')}）`,
+    voucherCode: 'DQ-202609-000101',
+  },
+  {
+    ...VLEDGER_BASE,
+    id: 'vledger_02',
+    serialNo: demoLedgerSerial('DJQFF', 3, '204561'),
+    operatedAt: demoVoucherStamp(3),
+    operatorPhone: '—',
+    operatorAccountId: '—',
+    operationType: 'voucher_issue',
+    amountBefore: 50,
+    amountChange: 50,
+    amountAfter: 100,
+    remark: `后台发放：七夕限定模型券（批次 ${demoBatchNo('02')}）`,
+    voucherCode: 'DQ-202609-000102',
+  },
+  {
+    ...VLEDGER_BASE,
+    id: 'vledger_03',
+    serialNo: demoLedgerSerial('DJQDK', 21, '330001'),
+    operatedAt: demoVoucherStamp(21),
+    operatorPhone: '138****5182',
+    operatorAccountId: 'ACC20260810PVPbI3MgE',
+    operationType: 'voucher_deduct',
+    amountBefore: 100,
+    amountChange: 30,
+    amountAfter: 70,
+    remark: 'kimi-k3—模型调用消费 ¥30.00，全部由代金券抵扣',
+    voucherCode: 'DQ-202609-000101',
+    relatedBizNo: 'XF-20260915-884122',
+  },
+  {
+    ...VLEDGER_BASE,
+    id: 'vledger_04',
+    serialNo: demoLedgerSerial('DJQDK', 31, '440002'),
+    operatedAt: demoVoucherStamp(31),
+    operatorPhone: '138****5182',
+    operatorAccountId: 'ACC20260810PVPbI3MgE',
+    operationType: 'voucher_deduct',
+    amountBefore: 70,
+    amountChange: 20,
+    amountAfter: 50,
+    remark: 'glm-5.2—模型调用消费 ¥50.00，本券抵扣 ¥20.00',
+    voucherCode: 'DQ-202609-000101',
+    relatedBizNo: 'XF-20260916-227309',
+  },
+  {
+    ...VLEDGER_BASE,
+    id: 'vledger_05',
+    serialNo: demoLedgerSerial('DJQDK', 31, '440003'),
+    operatedAt: demoVoucherStamp(31),
+    operatorPhone: '138****5182',
+    operatorAccountId: 'ACC20260810PVPbI3MgE',
+    operationType: 'voucher_deduct',
+    amountBefore: 50,
+    amountChange: 30,
+    amountAfter: 20,
+    remark: 'glm-5.2—模型调用消费 ¥50.00，本券抵扣 ¥30.00',
+    voucherCode: 'DQ-202609-000102',
+    relatedBizNo: 'XF-20260916-227309',
+  },
+  {
+    ...VLEDGER_BASE,
+    id: 'vledger_07',
+    serialNo: demoLedgerSerial('DJQFF', 5, '771122'),
+    operatedAt: demoVoucherStamp(5),
+    operatorPhone: '—',
+    operatorAccountId: '—',
+    operationType: 'voucher_issue',
+    amountBefore: 0,
+    amountChange: 10,
+    amountAfter: 10,
+    remark: `后台发放：新人体验券（批次 ${demoBatchNo('03')}）`,
+    voucherCode: 'DQ-202608-000077',
+  },
+  {
+    ...VLEDGER_BASE,
+    id: 'vledger_08',
+    serialNo: demoLedgerSerial('DJQFF', 10, '883344'),
+    operatedAt: demoVoucherStamp(10),
+    operatorPhone: '—',
+    operatorAccountId: '—',
+    operationType: 'voucher_issue',
+    amountBefore: 0,
+    amountChange: 50,
+    amountAfter: 50,
+    remark: `批量发放：七夕限定模型券（批次 ${demoBatchNo('04')}）`,
+    voucherCode: 'DQ-202609-000110',
+  },
+  {
+    ...VLEDGER_BASE,
+    id: 'vledger_10',
+    serialNo: demoLedgerSerial('DJQZF', 40, '107788'),
+    operatedAt: demoVoucherStamp(40),
+    operatorPhone: '—',
+    operatorAccountId: '—',
+    operationType: 'voucher_void',
+    amountBefore: 50,
+    amountChange: 50,
+    amountAfter: 0,
+    remark: '代金券作废：误发账户，已回收',
+    voucherCode: 'DQ-202609-000110',
+  },
+  {
+    ...VLEDGER_BASE,
+    id: 'vledger_12',
+    serialNo: demoLedgerSerial('DJQFF', 60, '121122'),
+    operatedAt: demoVoucherStamp(60),
+    operatorPhone: '—',
+    operatorAccountId: '—',
+    operationType: 'voucher_issue',
+    amountBefore: 20,
+    amountChange: 20,
+    amountAfter: 40,
+    remark: `批量发放：国庆限定模型券（批次 ${demoBatchNo('05')}）`,
+    voucherCode: 'DQ-202609-000112',
+  },
+]
+
+/* ---------------- 通用实体存储（localStorage + 订阅） ---------------- */
+
+function makeVoucherStore<T>(key: string, seedRows: T[]) {
+  let state: T[] = (() => {
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw) {
+        const parsed = JSON.parse(raw) as T[]
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch {}
+    localStorage.setItem(key, JSON.stringify(seedRows))
+    return seedRows
+  })()
+  const listeners = new Set<() => void>()
+  return {
+    subscribe: (cb: () => void) => {
+      listeners.add(cb)
+      return () => {
+        listeners.delete(cb)
+      }
+    },
+    get: () => state,
+    set: (next: T[] | ((prev: T[]) => T[])) => {
+      state = typeof next === 'function' ? (next as (prev: T[]) => T[])(state) : next
+      localStorage.setItem(key, JSON.stringify(state))
+      listeners.forEach((l) => l())
+    },
+  }
+}
+
+/* ---------------- 存量数据一次性归一化（券模板 + 发放任务） ---------------- */
+
+/**
+ * 券模板历史键：v4 及之前把自然周期做成「生效方式 + 周期内第几天 + 时刻」的可配置模型；
+ * v5 为固定模型，v6 新增「国庆限定模型券」，回捞 v5 时按 id 追加缺失的种子模板（只补不删，保留用户自建模板）。
+ */
+const LEGACY_VOUCHER_TEMPLATE_KEYS = ['zsdd_voucher_templates_v5', 'zsdd_voucher_templates_v4']
+
+/** 已废弃的自然周期字段：周期锚点、生效方式、第几天生效、生效时刻、旧版截止口径 */
+const LEGACY_PERIOD_FIELDS = ['periodAnchor', 'periodStartMode', 'periodStartDay', 'periodStartHour', 'periodEndType']
+
+/** 旧版种子的自然周期备注写死了「次月生效」「发放时刻起生效」，与现行「周期第一天 00:00:00 起生效」矛盾，命中原文时一次性刷新 */
+const LEGACY_PERIOD_REMARKS: Record<string, string> = {
+  '每月 20 日跑批提前发放下月权益：次月 1 日 00:00 生效，次月最后一天 23:59:59 失效':
+    '每月 20 日跑批发放当月权益：当月 1 日 00:00:00 起生效，当月最后一天 23:59:59 失效',
+  '每月 20 日跑批发放当月权益：发放时刻起生效，当月最后一天 23:59:59 失效':
+    '每月 20 日跑批发放当月权益：当月 1 日 00:00:00 起生效，当月最后一天 23:59:59 失效',
+}
+
+const readStoredRows = (key: string): Record<string, unknown>[] | null => {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as unknown
+    return Array.isArray(parsed) && parsed.length > 0 ? (parsed as Record<string, unknown>[]) : null
+  } catch {
+    return null
+  }
+}
+
+/** 模板行换算：删掉废弃字段；旧数据没有 periodUnit 时由旧版截止口径反推（quarterEnd→季度、weekEnd→周） */
+const normalizeTemplateRow = (row: Record<string, unknown>) => {
+  const next: Record<string, unknown> = { ...row }
+  LEGACY_PERIOD_FIELDS.forEach((field) => delete next[field])
+  if (next.validityType === 'naturalPeriod') {
+    if (typeof next.periodUnit !== 'string') {
+      next.periodUnit = row.periodEndType === 'quarterEnd' ? 'quarter' : row.periodEndType === 'weekEnd' ? 'week' : 'month'
+    }
+    if (typeof next.remark === 'string' && LEGACY_PERIOD_REMARKS[next.remark]) {
+      next.remark = LEGACY_PERIOD_REMARKS[next.remark]
+    }
+  }
+  /** 旧版固定日期只存到日，按当时的边界口径换算成整点时刻串；已是时刻串的原样保留 */
+  if (next.validityType === 'fixedDate') {
+    if (typeof next.fixedStart === 'string' && next.fixedStart.length === 10) {
+      next.fixedStart = `${next.fixedStart} 00:00:00`
+    }
+    if (typeof next.fixedEnd === 'string' && next.fixedEnd.length === 10) {
+      next.fixedEnd = `${next.fixedEnd} 23:00:00`
+    }
+  }
+  return next
+}
+
+/**
+ * 发放任务历史键：v2 用「生效时机 effect」描述周期任务何时开始跑，
+ * v3 起统一为「首次发放时间 firing」（界面早期称「本次发放时间」）——券的生效/失效只由券模板决定，任务层只管发放动作；
+ * v4 新增「本次发放数量 lastRunIssued」，存量行按累计成功数回推一次；
+ * v5 新增「执行记录 runs」，存量行若已有成功发放但无记录，按 lastRunIssued 回填一条 auto 记录；
+ * v6 补齐覆盖全部任务状态的演示任务（待执行/部分完成/已中止），回捞时按 id 追加缺失的种子任务，仅迁移一次。
+ */
+const LEGACY_VOUCHER_TASK_KEYS = [
+  'zsdd_voucher_issue_tasks_v5',
+  'zsdd_voucher_issue_tasks_v4',
+  'zsdd_voucher_issue_tasks_v3',
+  'zsdd_voucher_issue_tasks_v2',
+]
+
+const LEGACY_TASK_EFFECT_FIRING: Record<string, VoucherTaskFiring> = {
+  immediate: 'immediate',
+  next_period: 'next_period',
+}
+
+const normalizeTaskRow = (row: Record<string, unknown>) => {
+  const next: Record<string, unknown> = { ...row }
+  const legacyFiring = typeof next.effect === 'string' ? LEGACY_TASK_EFFECT_FIRING[next.effect] : undefined
+  delete next.effect
+  if (next.firing !== 'immediate' && next.firing !== 'scheduled' && next.firing !== 'next_period') {
+    next.firing = legacyFiring ?? 'immediate'
+  }
+  if (typeof next.lastRunIssued !== 'number' && typeof next.success === 'number' && next.success > 0) {
+    next.lastRunIssued = next.success
+  }
+  if (!Array.isArray(next.runs) && typeof next.success === 'number' && next.success > 0) {
+    next.runs = [
+      {
+        at: String(next.createdAt ?? ''),
+        issued: typeof next.lastRunIssued === 'number' ? next.lastRunIssued : next.success,
+        skipped: typeof next.fail === 'number' ? next.fail : 0,
+        trigger: 'auto',
+      },
+    ]
+  }
+  return next
+}
+
+/**
+ * 启动时把 localStorage 里的券模板与发放任务换算到新模型，写回当前键位，因此是幂等的：
+ * - 当前键有数据 → 就地归一化；为空 → 回捞历史键的自建数据（历史键保留不动，便于回滚）；两者皆空则交给种子
+ * - 回捞时按 id 追加缺失的种子行（只补不删）：模板 v5→v6 补「国庆限定模型券」，任务 v5→v6 补三种新演示任务
+ * - 固定日期模板旧的「只到日」配置换算为整点时刻串（生效 00:00、失效 23:00），已发出的券不回溯
+ * - 券实例与券池流水不回捞：演示数据裁剪为「五种状态各一条」属于删除类变更，回捞无法删掉存量多余行，直接按新种子重建
+ * - 券池流水另做同键 remark 就地刷新：旧「券 + 现金混付」口径备注一次性改为全额券抵扣口径
+ * - 五种状态的代表券与其券池流水按演示锚点对齐：存量同 id 行只刷新时间轴字段（券的时刻与批次、流水的时刻与流水号），
+ *   锚点每天前进一次，存量数据因此始终排在按发放时间倒序的列表第一页，五种状态各占一行
+ */
+function migrateVoucherData() {
+  const storedTemplates = readStoredRows(VOUCHER_TEMPLATE_STORAGE_KEY)
+  if (storedTemplates) {
+    const normalized = storedTemplates.map(normalizeTemplateRow)
+    if (JSON.stringify(normalized) !== JSON.stringify(storedTemplates)) {
+      localStorage.setItem(VOUCHER_TEMPLATE_STORAGE_KEY, JSON.stringify(normalized))
+    }
+  } else {
+    for (const legacyKey of LEGACY_VOUCHER_TEMPLATE_KEYS) {
+      const legacy = readStoredRows(legacyKey)
+      if (!legacy) continue
+      const rows = legacy.map(normalizeTemplateRow)
+      if (legacyKey === 'zsdd_voucher_templates_v5') {
+        const existingIds = new Set(rows.map((r) => String(r.id)))
+        for (const seedTpl of VOUCHER_TEMPLATE_SEED) {
+          if (!existingIds.has(seedTpl.id)) rows.push({ ...seedTpl } as unknown as Record<string, unknown>)
+        }
+      }
+      localStorage.setItem(VOUCHER_TEMPLATE_STORAGE_KEY, JSON.stringify(rows))
+      break
+    }
+  }
+
+  const storedTasks = readStoredRows(VOUCHER_TASK_STORAGE_KEY)
+  if (storedTasks) {
+    const normalizedTasks = storedTasks.map(normalizeTaskRow)
+    if (JSON.stringify(normalizedTasks) !== JSON.stringify(storedTasks)) {
+      localStorage.setItem(VOUCHER_TASK_STORAGE_KEY, JSON.stringify(normalizedTasks))
+    }
+  } else {
+    for (const legacyKey of LEGACY_VOUCHER_TASK_KEYS) {
+      const legacy = readStoredRows(legacyKey)
+      if (!legacy) continue
+      const rows = legacy.map(normalizeTaskRow)
+      if (legacyKey === 'zsdd_voucher_issue_tasks_v5') {
+        const existingIds = new Set(rows.map((r) => String(r.id)))
+        for (const seedTask of VOUCHER_TASK_SEED) {
+          if (!existingIds.has(seedTask.id)) rows.push({ ...seedTask } as unknown as Record<string, unknown>)
+        }
+      }
+      localStorage.setItem(VOUCHER_TASK_STORAGE_KEY, JSON.stringify(rows))
+      break
+    }
+  }
+
+  /**
+   * 存量券池流水：「glm-5.2 消费 ¥50」由单张券抵扣升级为两张券组合抵扣。
+   * 按业务指纹（券池抵扣 + 券码 000102 + 关联业务号 XF-20260916-227309）命中原流水，
+   * 将其重写为券 000101 抵扣 ¥20，并在其后插入券 000102 抵扣 ¥30 的新行，
+   * 两行共用同一关联业务号；兼容「券 + 现金混付」「全额券抵扣」两种历史备注口径。
+   */
+  const VLEDGER_COMBO_BIZ_NO = 'XF-20260916-227309'
+  const VLEDGER_COMBO_SECOND_ID = 'vledger_05'
+  const storedVledgers = readStoredRows(VOUCHER_LEDGER_STORAGE_KEY)
+  if (storedVledgers && !storedVledgers.some((row) => String(row.id) === VLEDGER_COMBO_SECOND_ID)) {
+    const nextVledgers: Record<string, unknown>[] = []
+    for (const row of storedVledgers) {
+      const isComboRow =
+        String(row.operationType) === 'voucher_deduct' &&
+        String(row.voucherCode) === 'DQ-202609-000102' &&
+        String(row.relatedBizNo) === VLEDGER_COMBO_BIZ_NO
+      if (!isComboRow) {
+        nextVledgers.push(row)
+        continue
+      }
+      nextVledgers.push({
+        ...row,
+        amountBefore: 70,
+        amountChange: 20,
+        amountAfter: 50,
+        remark: 'glm-5.2—模型调用消费 ¥50.00，本券抵扣 ¥20.00',
+        voucherCode: 'DQ-202609-000101',
+      })
+      nextVledgers.push({
+        ...row,
+        id: VLEDGER_COMBO_SECOND_ID,
+        serialNo: 'DJQDK-260916110247440003',
+        amountBefore: 50,
+        amountChange: 30,
+        amountAfter: 20,
+        remark: 'glm-5.2—模型调用消费 ¥50.00，本券抵扣 ¥30.00',
+      })
+    }
+    localStorage.setItem(VOUCHER_LEDGER_STORAGE_KEY, JSON.stringify(nextVledgers))
+  }
+
+  /** 存量券实例：组合抵扣后两张券的余额与状态互换（000101 已用完、000102 剩余 ¥20），券池总余额不变 */
+  const pickFields = (source: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> => {
+    const picked: Record<string, unknown> = {}
+    for (const key of keys) if (source[key] !== undefined) picked[key] = source[key]
+    return picked
+  }
+  const demoVoucherById = new Map<string, Record<string, unknown>>(
+    VOUCHER_SEED.filter((row) => DEMO_VOUCHER_SEED_IDS.includes(row.id)).map((row) => [
+      row.id,
+      row as unknown as Record<string, unknown>,
+    ]),
+  )
+  const demoVledgerById = new Map<string, Record<string, unknown>>(
+    VOUCHER_LEDGER_SEED.map((row) => [row.id, row as unknown as Record<string, unknown>]),
+  )
+  const DEMO_VOUCHER_FIELDS = ['effectiveAt', 'expireAt', 'claimedAt', 'batchNo', 'createdAt'] as const
+  const DEMO_VLEDGER_FIELDS = ['operatedAt', 'serialNo', 'remark'] as const
+
+  const storedVouchers = readStoredRows(VOUCHER_STORAGE_KEY)
+  if (storedVouchers) {
+    const nextVouchers = storedVouchers.map((row) => {
+      const demo = demoVoucherById.get(String(row.id))
+      const aligned = demo ? { ...row, ...pickFields(demo, DEMO_VOUCHER_FIELDS) } : row
+      if (String(aligned.code) === 'DQ-202609-000101') return { ...aligned, balance: 0, status: 'usedUp' }
+      if (String(aligned.code) === 'DQ-202609-000102') return { ...aligned, balance: 20, status: 'active' }
+      return aligned
+    })
+    if (JSON.stringify(nextVouchers) !== JSON.stringify(storedVouchers)) {
+      localStorage.setItem(VOUCHER_STORAGE_KEY, JSON.stringify(nextVouchers))
+    }
+  }
+
+  /** 存量券池流水：只刷新时刻、流水号与批次备注三列，余额链（前/变/后）保持不动 */
+  const storedVledgersForAnchor = readStoredRows(VOUCHER_LEDGER_STORAGE_KEY)
+  if (storedVledgersForAnchor) {
+    const nextVledgers = storedVledgersForAnchor.map((row) => {
+      const demo = demoVledgerById.get(String(row.id))
+      return demo ? { ...row, ...pickFields(demo, DEMO_VLEDGER_FIELDS) } : row
+    })
+    if (JSON.stringify(nextVledgers) !== JSON.stringify(storedVledgersForAnchor)) {
+      localStorage.setItem(VOUCHER_LEDGER_STORAGE_KEY, JSON.stringify(nextVledgers))
+    }
+  }
+}
+
+migrateVoucherData()
+
+const voucherTemplateStore = makeVoucherStore<VoucherTemplate>(VOUCHER_TEMPLATE_STORAGE_KEY, VOUCHER_TEMPLATE_SEED)
+const vouchersStore = makeVoucherStore<Voucher>(VOUCHER_STORAGE_KEY, VOUCHER_SEED)
+const voucherTaskStore = makeVoucherStore<VoucherIssueTask>(VOUCHER_TASK_STORAGE_KEY, VOUCHER_TASK_SEED)
+const voucherLedgerStore = makeVoucherStore<AccountLedger>(VOUCHER_LEDGER_STORAGE_KEY, VOUCHER_LEDGER_SEED)
+
+export const subVoucherLedgers = voucherLedgerStore.subscribe
+export const getVoucherLedgersSnapshot = voucherLedgerStore.get
+
+/* ---------------- hooks ---------------- */
+
+export function useVoucherTemplates() {
+  return useSyncExternalStore(voucherTemplateStore.subscribe, voucherTemplateStore.get)
+}
+export function useVouchers() {
+  return useSyncExternalStore(vouchersStore.subscribe, vouchersStore.get)
+}
+export function useVoucherIssueTasks() {
+  return useSyncExternalStore(voucherTaskStore.subscribe, voucherTaskStore.get)
+}
+
+/* ---------------- 派生工具 ---------------- */
+
+/** 券池余额 = 该账户名下所有券（含已过期未用完）余额合计 */
+export function voucherPoolBalance(vouchers: Voucher[], accountId: string): number {
+  return roundAmount(
+    vouchers.filter((v) => v.accountId === accountId).reduce((sum, v) => sum + v.balance, 0),
+    6,
+  )
+}
+
+/** 按当前时间实时推导展示态（作废/已用完为终态，其余按生效与到期时间纠偏） */
+export function liveVoucherStatus(v: Voucher, now = nowStamp()): VoucherStatus {
+  if (v.status === 'void' || v.status === 'usedUp') return v.status
+  if (v.status === 'expired') return 'expired'
+  if (v.effectiveAt && v.effectiveAt > now) return 'notEffective'
+  if (v.expireAt && v.expireAt < now) return 'expired'
+  if (v.status === 'notEffective') return 'active'
+  return v.status
+}
+
+/**
+ * 券有效期定期巡检：把「到达生效时间」的待生效券落盘为生效中、把「到达失效时间」的券落盘为已过期，
+ * 返回本次被纠正的券条数。作废 / 已用完 / 已过期为终态，不回改。
+ */
+export function sweepVoucherStatuses(): number {
+  const now = nowStamp()
+  let fixed = 0
+  vouchersStore.set((prev) => {
+    const next = prev.map((v) => {
+      const target = liveVoucherStatus(v, now)
+      if (target === v.status) return v
+      fixed += 1
+      return { ...v, status: target }
+    })
+    /** 无变化时不写 localStorage，避免无谓的订阅刷新 */
+    return fixed === 0 ? prev : next
+  })
+  return fixed
+}
+
+/** 依据模板有效期类型，解析券到账时刻对应的生效/到期时间 */
+function resolveValidity(tpl: VoucherTemplate | undefined, claimedAt: string): { effectiveAt?: string; expireAt?: string } {
+  if (!tpl) return {}
+  if (tpl.validityType === 'fixedDate') {
+    /** 模板即配了生效/失效时刻（精确到小时），直接沿用，不再拼接默认时分秒 */
+    return { effectiveAt: tpl.fixedStart, expireAt: tpl.fixedEnd }
+  }
+  if (tpl.validityType === 'naturalPeriod') {
+    return naturalPeriodValidity(tpl, claimedAt)
+  }
+  /** 发放后按天：生效 = 发放日+n天 00:00:00（不受发放时刻时分秒影响），到期 = 生效日+m-1天 23:59:59 */
+  const eff = stampToDate(claimedAt)
+  eff.setDate(eff.getDate() + (tpl.effectiveDelayDays ?? 0))
+  const effectiveAt = fmtStamp(new Date(eff.getFullYear(), eff.getMonth(), eff.getDate(), 0, 0, 0))
+  // 模板「长期有效」开关打开时不落 validDays，此处即不计算到期时刻
+  const expireAt = tpl.validDays
+    ? fmtStamp(
+        (() => {
+          const exp = new Date(eff.getFullYear(), eff.getMonth(), eff.getDate())
+          exp.setDate(exp.getDate() + Math.max(tpl.validDays - 1, 0))
+          exp.setHours(23, 59, 59)
+          return exp
+        })(),
+      )
+    : undefined
+  return { effectiveAt, expireAt }
+}
+
+/** 追加一条券池流水（券行与现金行以 relatedBizNo 配对，券侧只影响券池） */
+function appendVoucherLedgerRow(row: {
+  operationType: 'voucher_issue' | 'voucher_deduct' | 'voucher_void'
+  prefix: string
+  amountBefore: number
+  amount: number
+  operatedAt: string
+  remark: string
+  voucherCode?: string
+  relatedBizNo?: string
+  operatorPhone: string
+  operatorAccountId: string
+}) {
+  const after =
+    row.operationType === 'voucher_issue'
+      ? roundAmount(row.amountBefore + row.amount, 6)
+      : roundAmount(row.amountBefore - row.amount, 6)
+  const ledger: AccountLedger = {
+    id: `vledger_${uid()}`,
+    serialNo: ledgerSerial(row.prefix),
+    operatedAt: row.operatedAt,
+    operatorPhone: row.operatorPhone,
+    operatorAccountId: row.operatorAccountId,
+    operationType: row.operationType,
+    amountBefore: roundAmount(row.amountBefore, 6),
+    amountChange: row.amount,
+    amountAfter: after,
+    remark: row.remark,
+    fundAccount: 'voucher',
+    voucherCode: row.voucherCode,
+    relatedBizNo: row.relatedBizNo,
+    operator: CURRENT_OPERATOR,
+  }
+  voucherLedgerStore.set((prev) => [ledger, ...prev])
+}
+
+/* ---------------- 写操作：券模板 ---------------- */
+
+export function createVoucherTemplate(input: Omit<VoucherTemplate, 'id' | 'createdAt' | 'operator'>): VoucherTemplate {
+  const t: VoucherTemplate = { ...input, id: `vtpl_${uid()}`, createdAt: nowStamp(), operator: CURRENT_OPERATOR }
+  voucherTemplateStore.set((prev) => [t, ...prev])
+  return t
+}
+
+export function updateVoucherTemplate(id: string, patch: Partial<VoucherTemplate>) {
+  voucherTemplateStore.set((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)))
+}
+
+export function removeVoucherTemplate(id: string): { ok: boolean; msg: string } {
+  const issued = vouchersStore.get().some((v) => v.templateId === id)
+  if (issued) return { ok: false, msg: '该模板已发出过券，建议停用而非删除' }
+  voucherTemplateStore.set((prev) => prev.filter((t) => t.id !== id))
+  return { ok: true, msg: '模板已删除' }
+}
+
+/* ---------------- 写操作：发放（单个 / 批量） ---------------- */
+
+export function issueVouchers(
+  templateId: string,
+  accounts: VoucherIssueAccount[],
+  opts: { source?: VoucherSource; remark?: string } = {},
+): { batchNo: string; issued: Voucher[]; skipped: { accountId: string; reason: string }[] } {
+  const now = nowStamp()
+  const tpl = voucherTemplateStore.get().find((t) => t.id === templateId)
+  if (!tpl) return { batchNo: '', issued: [], skipped: accounts.map((a) => ({ accountId: a.accountId, reason: '券模板不存在' })) }
+  if (tpl.status !== 'enabled') {
+    return { batchNo: '', issued: [], skipped: accounts.map((a) => ({ accountId: a.accountId, reason: '模板已停用，请先启用' })) }
+  }
+  const batchNo = genBatchNo('FB')
+  const existing = vouchersStore.get()
+  const taken = new Set(existing.map((v) => v.code))
+  const issued: Voucher[] = []
+  const skipped: { accountId: string; reason: string }[] = []
+  const poolBefore = new Map<string, number>()
+  const poolOf = (id: string) => {
+    if (!poolBefore.has(id)) poolBefore.set(id, voucherPoolBalance(existing, id))
+    return poolBefore.get(id) as number
+  }
+  const { effectiveAt, expireAt } = resolveValidity(tpl, now)
+  // 补发到已过期的固定日期区间时，直接落「已过期」，避免账面出现可用假象
+  const status: VoucherStatus =
+    expireAt && expireAt < now ? 'expired' : effectiveAt && effectiveAt > now ? 'notEffective' : 'active'
+  for (const acct of accounts) {
+    if (acct.accountType === 'sub') {
+      skipped.push({ accountId: acct.accountId, reason: '企业子账号不支持发放代金券' })
+      continue
+    }
+    const code = genBillVoucherCode(taken)
+    taken.add(code)
+    const v: Voucher = {
+      id: `vou_${uid()}`,
+      code,
+      templateId: tpl.id,
+      templateName: tpl.name,
+      faceValue: tpl.faceValue,
+      balance: tpl.faceValue,
+      scope: tpl.scope,
+      scopeModels: tpl.scopeModels ? [...tpl.scopeModels] : undefined,
+      accountId: acct.accountId,
+      accountName: acct.accountName,
+      phone: acct.phone,
+      accountType: acct.accountType,
+      source: opts.source ?? 'targeted',
+      status,
+      effectiveAt,
+      expireAt,
+      claimedAt: now,
+      batchNo,
+      remark: opts.remark,
+      operator: CURRENT_OPERATOR,
+      createdAt: now,
+    }
+    issued.push(v)
+    const before = poolOf(acct.accountId)
+    poolBefore.set(acct.accountId, roundAmount(before + tpl.faceValue, 6))
+    appendVoucherLedgerRow({
+      operationType: 'voucher_issue',
+      prefix: 'DJQFF',
+      amountBefore: before,
+      amount: tpl.faceValue,
+      operatedAt: now,
+      remark: `代金券发放：${tpl.name}（批次 ${batchNo}）`,
+      voucherCode: code,
+      operatorPhone: '—',
+      operatorAccountId: '—',
+    })
+  }
+  if (issued.length > 0) vouchersStore.set((prev) => [...issued, ...prev])
+  return { batchNo, issued, skipped }
+}
+
+/* ---------------- 写操作：券作废 ---------------- */
+
+export function voidVoucher(id: string, reason: string): { ok: boolean; msg: string } {
+  const v = vouchersStore.get().find((x) => x.id === id)
+  if (!v) return { ok: false, msg: '券不存在' }
+  /** 与消费抵扣同口径：按实时状态拦截，作废仅对「未生效 / 生效中」的券开放 */
+  const live = liveVoucherStatus(v)
+  if (live === 'void') return { ok: false, msg: '该券已作废' }
+  if (live === 'usedUp') return { ok: false, msg: '已用完的券无需作废' }
+  if (live === 'expired') return { ok: false, msg: '已过期的券无需作废' }
+  const now = nowStamp()
+  if (v.accountId && v.balance > 0) {
+    appendVoucherLedgerRow({
+      operationType: 'voucher_void',
+      prefix: 'DJQZF',
+      amountBefore: voucherPoolBalance(vouchersStore.get(), v.accountId),
+      amount: v.balance,
+      operatedAt: now,
+      remark: `代金券作废：${reason || '未填写原因'}`,
+      voucherCode: v.code,
+      operatorPhone: '—',
+      operatorAccountId: '—',
+    })
+  }
+  vouchersStore.set((prev) =>
+    prev.map((x) => (x.id === id ? { ...x, status: 'void' as VoucherStatus, balance: 0, remark: x.remark ? `${x.remark}｜已作废：${reason}` : `已作废：${reason}` } : x)),
+  )
+  return { ok: true, msg: '券已作废' }
+}
+
+/* ---------------- 写操作：券消费抵扣（原型模拟） ---------------- */
+
+/**
+ * 模拟一笔走券消费：扣减券余额并写 DJQDK 券池流水，
+ * 让「创建 → 发放 → 使用 → 记账」在原型内可实机走通（真实计费按模板抵扣顺序执行）。
+ */
+export function consumeVoucher(
+  id: string,
+  amount: number,
+  opts: { model?: string } = {},
+): { ok: boolean; msg: string } {
+  const v = vouchersStore.get().find((x) => x.id === id)
+  if (!v) return { ok: false, msg: '券不存在' }
+  const live = liveVoucherStatus(v)
+  if (live === 'void') return { ok: false, msg: '该券已作废' }
+  if (live === 'usedUp') return { ok: false, msg: '该券余额已用完' }
+  if (live === 'expired') return { ok: false, msg: '该券已过期，无法抵扣' }
+  if (live === 'notEffective') return { ok: false, msg: '该券尚未生效，无法抵扣' }
+  const deducted = roundAmount(amount, 6)
+  if (!(deducted > 0)) return { ok: false, msg: '抵扣金额需大于 0' }
+  if (deducted > v.balance) return { ok: false, msg: `抵扣金额不能超过券余额 ${v.balance}` }
+  if (v.scope === 'models' && v.scopeModels && v.scopeModels.length > 0) {
+    if (!opts.model) return { ok: false, msg: '该券仅限指定模型消费，请选择模型' }
+    if (!v.scopeModels.includes(opts.model)) {
+      return { ok: false, msg: `${opts.model} 不在该券适用范围（${v.scopeModels.join('、')}）内` }
+    }
+  }
+  const now = nowStamp()
+  const relatedBizNo = `XF-${ymdCompact(now)}-${String(Math.floor(Math.random() * 900000) + 100000)}`
+  appendVoucherLedgerRow({
+    operationType: 'voucher_deduct',
+    prefix: 'DJQDK',
+    amountBefore: voucherPoolBalance(vouchersStore.get(), v.accountId ?? ''),
+    amount: deducted,
+    operatedAt: now,
+    remark: `代金券抵扣${opts.model ? `（${opts.model}）` : ''}：${v.templateName}`,
+    voucherCode: v.code,
+    relatedBizNo,
+    operatorPhone: v.phone ?? '—',
+    operatorAccountId: v.accountId ?? '—',
+  })
+  const nextBalance = roundAmount(v.balance - deducted, 6)
+  vouchersStore.set((prev) =>
+    prev.map((x) => (x.id === id ? { ...x, balance: nextBalance, status: nextBalance <= 0 ? ('usedUp' as VoucherStatus) : x.status } : x)),
+  )
+  return { ok: true, msg: '抵扣成功，已写入券池流水（DJQDK）' }
+}
+
+/* ---------------- 写操作：发放任务 ---------------- */
+
+export function createVoucherIssueTask(input: {
+  name: string
+  templateId: string
+  accounts: VoucherIssueAccount[]
+  accountScope: VoucherTaskAccountScope
+  schedule: VoucherTaskSchedule
+  firing: VoucherTaskFiring
+  scheduledAt?: string
+  periodDeadline?: string
+}): { ok: boolean; msg: string } {
+  const tpl = voucherTemplateStore.get().find((t) => t.id === input.templateId)
+  if (!tpl) return { ok: false, msg: '请选择券模板' }
+  /** 任务名称不可重复 */
+  if (voucherTaskStore.get().some((t) => t.name === input.name)) return { ok: false, msg: '任务名称不可重复' }
+  if (input.accounts.length === 0) return { ok: false, msg: '请至少选择一个目标账号' }
+  const now = nowStamp()
+  const periodic = input.schedule !== 'once'
+  if (input.firing === 'next_period' && !periodic) return { ok: false, msg: '单次发放不支持下一周期自动发放' }
+  if (input.firing === 'scheduled') {
+    if (!input.scheduledAt) return { ok: false, msg: '请选择指定发放时间' }
+    if (input.scheduledAt <= now) return { ok: false, msg: '发放时间不可早于当前时间' }
+  }
+  if (periodic && input.periodDeadline && input.periodDeadline <= now) {
+    return { ok: false, msg: '发放截止日期需大于当前时间' }
+  }
+  const base = {
+    id: `vit_${uid()}`,
+    name: input.name,
+    templateId: tpl.id,
+    templateName: tpl.name,
+    accountScope: input.accountScope,
+    targetAccounts: input.accounts.map((a) => a.accountId),
+    schedule: input.schedule,
+    periodDeadline: periodic ? input.periodDeadline : undefined,
+    operator: CURRENT_OPERATOR,
+    createdAt: now,
+  }
+  /** 指定时间发放 / 下一周期自动发放：登记任务但零发放，等时刻到了再执行；按需求，新任务状态统一为「执行中」 */
+  if (input.firing !== 'immediate') {
+    const unit = taskPeriodUnit(input.schedule) ?? 'month'
+    const nextRunAt =
+      input.firing === 'scheduled' ? (input.scheduledAt as string) : periodRunStamp(stampToDate(now), unit, 1)
+    const task: VoucherIssueTask = {
+      ...base,
+      firing: input.firing,
+      scheduledAt: input.firing === 'scheduled' ? input.scheduledAt : undefined,
+      total: 0,
+      success: 0,
+      fail: 0,
+      status: 'running',
+      nextRunAt,
+    }
+    voucherTaskStore.set((prev) => [task, ...prev])
+    return { ok: true, msg: '保存成功' }
+  }
+  /** 立即发放：单次一次发完，周期先发本周期再按周期续发 */
+  const result = issueVouchers(tpl.id, input.accounts, { source: 'batch', remark: `发放任务：${input.name}` })
+  if (!periodic) {
+    const task: VoucherIssueTask = {
+      ...base,
+      firing: input.firing,
+      total: input.accounts.length,
+      success: result.issued.length,
+      fail: result.skipped.length,
+      lastRunIssued: result.issued.length,
+      runs: [{ at: now, issued: result.issued.length, skipped: result.skipped.length, trigger: 'auto' }],
+      status: result.skipped.length === 0 ? 'done' : 'partial',
+    }
+    voucherTaskStore.set((prev) => [task, ...prev])
+    return { ok: true, msg: '保存成功' }
+  }
+  const rawNext = periodRunStamp(stampToDate(now), taskPeriodUnit(input.schedule) ?? 'month', 1)
+  /** 下一周期已超过发放截止日期：本周期发完即收口为已完成，不再排期 */
+  const pastDeadline = Boolean(input.periodDeadline) && rawNext > (input.periodDeadline as string)
+  const task: VoucherIssueTask = {
+    ...base,
+    firing: input.firing,
+    total: input.accounts.length,
+    success: result.issued.length,
+    fail: result.skipped.length,
+    lastRunIssued: result.issued.length,
+    runs: [{ at: now, issued: result.issued.length, skipped: result.skipped.length, trigger: 'auto' }],
+    status: pastDeadline ? (result.skipped.length === 0 ? 'done' : 'partial') : 'running',
+    nextRunAt: pastDeadline ? undefined : rawNext,
+  }
+  voucherTaskStore.set((prev) => [task, ...prev])
+  return { ok: true, msg: '保存成功' }
+}
+
+/** 执行一次任务（周期任务补跑，或提前执行待执行任务）；trigger 区分列表手动与到点自动，写入执行记录 */
+export function runVoucherIssueTaskNow(
+  id: string,
+  trigger: 'auto' | 'manual' = 'auto',
+): { ok: boolean; msg: string } {
+  const task = voucherTaskStore.get().find((t) => t.id === id)
+  if (!task) return { ok: false, msg: '任务不存在' }
+  if (task.status === 'paused') return { ok: false, msg: '任务已中止，请先恢复' }
+  if (task.status === 'done') return { ok: false, msg: '单次任务已执行完毕' }
+  const accounts = task.targetAccounts.map(findDemoAccount).filter((a): a is VoucherIssueAccount => Boolean(a))
+  const result = issueVouchers(task.templateId, accounts, { source: 'batch', remark: `发放任务执行：${task.name}` })
+  const now = nowStamp()
+  const unit = taskPeriodUnit(task.schedule)
+  voucherTaskStore.set((prev) =>
+    prev.map((t) => {
+      if (t.id !== id) return t
+      const patch = {
+        total: t.total + accounts.length,
+        success: t.success + result.issued.length,
+        fail: t.fail + result.skipped.length,
+        lastRunIssued: result.issued.length,
+        runs: [...(t.runs ?? []), { at: now, issued: result.issued.length, skipped: result.skipped.length, trigger }],
+      }
+      if (!unit) {
+        /** 单次任务执行一次即终态，清空待执行时刻 */
+        return { ...t, ...patch, status: (result.skipped.length === 0 ? 'done' : 'partial') as VoucherIssueTask['status'], nextRunAt: undefined }
+      }
+      /** 周期任务待执行转执行中，下次时刻自本次执行所在周期顺延一个周期；顺延后超过发放截止日期则收口为已完成 */
+      const next = periodRunStamp(stampToDate(now), unit, 1)
+      if (t.periodDeadline && next > t.periodDeadline) {
+        return { ...t, ...patch, status: 'done' as VoucherIssueTask['status'], nextRunAt: undefined }
+      }
+      return { ...t, ...patch, status: 'running' as VoucherIssueTask['status'], nextRunAt: next }
+    }),
+  )
+  return { ok: true, msg: `本次执行：成功 ${result.issued.length}，跳过 ${result.skipped.length}` }
+}
+
+/** 到点自动触发：把已过发放时刻、尚未发过券的任务补跑，返回触发条数；已过发放截止日期的直接收口为已完成、不发券 */
+export function runDueVoucherIssueTasks(): number {
+  const now = nowStamp()
+  const due = voucherTaskStore.get().filter(
+    (t) => (t.status === 'draft' || (t.status === 'running' && t.total === 0)) && Boolean(t.nextRunAt) && (t.nextRunAt as string) <= now,
+  )
+  let fired = 0
+  due.forEach((t) => {
+    if (t.periodDeadline && now > t.periodDeadline) {
+      voucherTaskStore.set((prev) =>
+        prev.map((x) => (x.id === t.id ? { ...x, status: 'done' as VoucherIssueTask['status'], nextRunAt: undefined } : x)),
+      )
+      return
+    }
+    runVoucherIssueTaskNow(t.id)
+    fired += 1
+  })
+  return fired
+}
+
+/**
+ * 中止 / 恢复发放任务。中止后任务不再被自动触发；
+ * 恢复时先检查发放截止日期——已超过截止日期的直接变为「已完成」，否则按是否已发放过回落到「执行中 / 终态」。
+ * 返回变更后的任务状态，供页面按结果提示。
+ */
+export function setVoucherTaskPaused(id: string, paused: boolean): VoucherIssueTask['status'] | undefined {
+  const now = nowStamp()
+  let result: VoucherIssueTask['status'] | undefined
+  voucherTaskStore.set((prev) =>
+    prev.map((t) => {
+      if (t.id !== id) return t
+      if (paused) {
+        result = 'paused'
+        return { ...t, status: result }
+      }
+      /** 恢复前校验截止日期：已超过发放截止日期则不再执行，收口为已完成 */
+      if (t.periodDeadline && now > t.periodDeadline) {
+        result = 'done'
+        return { ...t, status: result, nextRunAt: undefined }
+      }
+      /** 未发过券的任务统一回「执行中」，单次任务按发放结果回落终态 */
+      const resumed: VoucherIssueTask['status'] =
+        t.firing !== 'immediate' && t.total === 0
+          ? 'running'
+          : t.schedule === 'once'
+            ? (t.fail > 0 ? 'partial' : 'done')
+            : 'running'
+      result = resumed
+      return { ...t, status: resumed }
+    }),
+  )
+  return result
 }
