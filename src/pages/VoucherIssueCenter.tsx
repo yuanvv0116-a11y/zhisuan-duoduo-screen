@@ -561,6 +561,29 @@ export default function VoucherIssueCenter() {
   const tplLongTerm = Form.useWatch('longTermValid', tplForm)
   const tplFixedLongTerm = Form.useWatch('fixedLongTerm', tplForm)
   const tplPeriodUnit: VoucherPeriodUnit = Form.useWatch('periodUnit', tplForm) ?? 'month'
+  const tplEffectiveDelayDays: number | undefined = Form.useWatch('effectiveDelayDays', tplForm)
+  const tplValidDays: number | undefined = Form.useWatch('validDays', tplForm)
+
+  /** 有效期示例（红色动态文案）：以当前日期为例，按上方设置实时算出具体起止日期；自然周期额外给出下一周期示例 */
+  const validityExamples: string[] = (() => {
+    if (tplValidity !== 'daysAfterIssue' && tplValidity !== 'naturalPeriod') return []
+    const cnDate = (d: dayjs.Dayjs) => `${d.year()}年${d.month() + 1}月${d.date()}日`
+    const now = dayjs()
+    const head = `以当前时间${cnDate(now)}为例子，\n当前设置后，有效期为`
+    if (tplValidity === 'naturalPeriod') {
+      const tpl = { periodUnit: tplPeriodUnit } as VoucherTemplate
+      const cur = naturalPeriodValidity(tpl, now.format('YYYY-MM-DD HH:mm:ss'))
+      const next = naturalPeriodValidity(tpl, dayjs(cur.expireAt).add(1, 'day').format('YYYY-MM-DD HH:mm:ss'))
+      return [
+        `${head}${cnDate(dayjs(cur.effectiveAt))}～${cnDate(dayjs(cur.expireAt))}。`,
+        `若在下一周期发放，有效期为${cnDate(dayjs(next.effectiveAt))}～${cnDate(dayjs(next.expireAt))}。`,
+      ]
+    }
+    const start = now.add(tplEffectiveDelayDays ?? 0, 'day').startOf('day')
+    if (tplLongTerm || tplValidDays == null) return [`${head}${cnDate(start)}～长期。`]
+    const end = start.add(tplValidDays - 1, 'day').endOf('day')
+    return [`${head}${cnDate(start)}～${cnDate(end)}。`]
+  })()
 
   const enabledTemplates = useMemo(() => templates.filter((t) => t.status === 'enabled'), [templates])
   const templateOptions = useMemo(
@@ -1613,15 +1636,17 @@ export default function VoucherIssueCenter() {
               </Col>
             </Row>
           )}
-          {tplValidity === 'daysAfterIssue' ? (
+          {validityExamples.length > 0 ? (
             <div style={{ marginTop: -8, marginBottom: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                例：发放后3天生效，生效后5天有效；
-              </Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                1月1日发放（不管几点） → 1月2日算第1天，1月4日 00:00 生效 → 1月4日算生效第1天，1月8日 23:59:59 失效。
-              </Text>
+              {validityExamples.map((line) => (
+                <Text
+                  key={line}
+                  type="danger"
+                  style={{ fontSize: 12, display: 'block', whiteSpace: 'pre-line' }}
+                >
+                  {line}
+                </Text>
+              ))}
             </div>
           ) : null}
           <Divider plain style={sectionDivider}>
