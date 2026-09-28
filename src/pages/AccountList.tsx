@@ -834,9 +834,9 @@ export default function AccountList() {
       render: (v) => (v ? <Text>{v}</Text> : <Text type="secondary">—</Text>),
     },
     {
-      title: '账户净资产',
+      title: '现金账户净资产',
       dataIndex: 'assets',
-      width: 130,
+      width: 150,
       align: 'right',
       render: (n: number) => <Text>{n.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 6 })}</Text>,
     },
