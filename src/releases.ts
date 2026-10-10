@@ -24,13 +24,20 @@ export interface ReleaseItem {
   routeKeys: (RouteKey | '*')[]
   /**
    * 本次涉及的控制台菜单（可选，不写表示控制台不做裁剪）
+   * - `tf:overview` 概览（Token 工厂默认首页）
    * - `tf:plaza` 模型广场 / `tf:experience` 体验语言模型 / `tf:usage` 用量统计
    * - `tf:apiKey` API Key管理 / `tf:myGroups` 模型分组 / `tf:quota` 配额管理 / `tf:pricing` 模型费率
    * - `billing:accountOverview` 账户概览 / `billing:accountDetail` 账户明细 / `billing:recharge` 充值记录
    * - `billing:orderDetail` 订单明细 / `billing:consumption` 消费明细 / `billing:invoice` 发票信息
    * - `billing:voucher` 代金券（控制台费用 › 代金券）
+   * - `promo` 控制台顶部「推广合伙人」/ `login` 登录页
    */
   consoleKeys?: string[]
+  /**
+   * 本次涉及的官方网站页面（可选，不写表示官网导航不做裁剪）
+   * - `promo` 推广合伙人落地页（官网导航目前仅此一项）
+   */
+  websiteKeys?: 'promo'[]
   note?: string
   /** 本次迭代涉及的视图（可选，默认 admin） */
   views?: ('admin' | 'console' | 'website')[]
@@ -42,6 +49,10 @@ export interface ReleaseItem {
 export interface ConsoleScope {
   factory: string[] | null
   billing: string[] | null
+  /** 是否放行控制台顶部「推广合伙人」 */
+  promo: boolean
+  /** 是否放行登录页 */
+  login: boolean
 }
 
 /** 解析某个版本的控制台菜单范围；未声明 consoleKeys 时返回 null（完全放开） */
@@ -50,7 +61,12 @@ export function parseConsoleScope(release: ReleaseItem | null | undefined): Cons
   if (!keys || keys.length === 0) return null
   const factory = keys.filter((k) => k.startsWith('tf:')).map((k) => k.slice(3))
   const billing = keys.filter((k) => k.startsWith('billing:')).map((k) => k.slice('billing:'.length))
-  return { factory: factory.length ? factory : null, billing: billing.length ? billing : null }
+  return {
+    factory: factory.length ? factory : null,
+    billing: billing.length ? billing : null,
+    promo: keys.includes('promo'),
+    login: keys.includes('login'),
+  }
 }
 
 export const RELEASES: Record<string, ReleaseItem> = {
@@ -255,6 +271,66 @@ export const RELEASES: Record<string, ReleaseItem> = {
       '· 扣费账户列与筛选：展示该笔消费由现金主账户还是卡券账户扣费，悬浮查看本次扣费卡券；导出增加扣费账户与卡券信息列',
       '8. [billing:invoice]控制台「费用管理 › 发票信息」',
       '· 开票口径说明：仅现金主账户消费金额可开票，代金券抵扣部分不计入',
+    ].join('\n'),
+  },
+
+  /** ===== 2.4：推广合伙人计划雏形（未发布，仅本地评审） ===== */
+  '2.4': {
+    title: '2.4 推广合伙人：分享一条链接，最高返 20%',
+    routeKeys: ['promoPartnerManage', 'promoRebateConfig', 'promoSettleAudit'],
+    views: ['admin', 'console', 'website'],
+    publishedAt: '',
+    note: [
+      '1. 管理后台 新增一级菜单「分销管理」，下挂三页：',
+      '· [promoPartnerManage]推广合伙人：合伙人台账（邀请/实名/首耗漏斗、累计与可用佣金、已兑券·已提现），支持关键词与状态搜索、行内冻结/解冻、行内「佣金明细」弹窗',
+      '· [promoRebateConfig]模型返佣配置：按模型维度配置返佣比例、限时推广活动（活动期计佣 ×2）、比例生效时间与规则上下线，列表实时展示「当前实际计佣」',
+      '· [promoSettleAudit]佣金与提现审核：「佣金流水」Tab 展示见面礼与消耗返佣全量流水；「提现审核」Tab 支持通过/驳回（驳回须填原因并退回可用佣金），月结批次与代征个税展示',
+      '2. 控制台 新增顶部导航「推广合伙人」（无入口时自动隐藏）：',
+      '· 进入即是推广中心，无需申请开通：首次进入自动生成本人专属邀请链接与邀请码',
+      '· 推广中心：推广物料（链接/邀请码复制）、佣金统计、兑券（1:1.2 加兑、90 天有效）与提现（满 100 元可申请）双出口、佣金流水、三红线规则；冻结时全动作拦截',
+      '3. 官方网站 新增导航「推广合伙人」落地页：',
+      '· 主口号「分享一条链接，最高返 20%」；三步赚佣金（邀请好友 → 消耗计佣 → 佣金发放），每步下方内嵌该环节权益（专属链接/智能海报、双向代金券与持续返佣、兑券增值与提现），模型返佣表（活动期 ×2 高亮）、三条红线、底部 CTA 跳转控制台',
+    ].join('\n'),
+  },
+
+  /** ===== 2.5：Token工厂 概览数据概览 + 用量统计（未发布，仅本地评审） ===== */
+  '2.5': {
+    title: '2.5 Token工厂 概览跳转用量统计',
+    routeKeys: [],
+    consoleKeys: ['tf:overview', 'tf:plaza', 'tf:usage'],
+    views: ['console'],
+    publishedAt: '',
+    note: [
+      '1. [tf:overview]概览：数据概览卡右上角「查看详情」跳转到统计分析 › 用量统计',
+      '2. [tf:usage]用量统计：新增页面，统计时间（今日/近7天/近30天/近90天 + 自定义区间）+ 四项统计卡 + 按天用量趋势 + 模型明细分页表',
+      '3. [tf:overview]开通三步曲第三步卡内新增「立即领取，新用户20元体验券」背景色标签：点击弹窗立即领取，领取成功后提示可立即体验模型，可直达模型广场，无需充值',
+    ].join('\n'),
+  },
+
+  /** ===== 2.6：分销管理 分佣明细独立页 + 分销数据弹窗 + 佣金兑券可见性（未发布，仅本地评审） ===== */
+  '2.6': {
+    title: '2.6 分销管理：分佣明细页 & 分销数据 & 分销统计',
+    routeKeys: ['promoPartnerManage', 'promoRebateConfig', 'promoCommissionDetail', 'promoSettleAudit', 'promoStats', 'voucherIssueCenter'],
+    consoleKeys: ['tf:overview', 'promo', 'login'],
+    websiteKeys: ['promo'],
+    views: ['admin', 'console', 'website'],
+    publishedAt: '',
+    note: [
+      '1. [promoCommissionDetail]增加分佣明细菜单，只记录消耗返佣的计佣流水。支持按分销员、被邀请人、计佣时间、活动筛选，支持按筛选结果导出',
+      '2. [promoPartnerManage]合伙人台账支持查看单个分销员的分销数据，包含邀请与转化消费人数、被邀请人完整名单（含注册后未消费的用户）。行内支持一键跳转该分销员的分佣明细',
+      '3. [promoSettleAudit]页面收敛为提现审核、兑券记录两页。支持提现通过（记录是否已打款与扣税金额）和驳回（填写驳回理由），兑券即时到账并在此留痕，支持导出',
+      '4. [promoRebateConfig]支持查看单个活动的分销数据，包含分销员数量、邀请与转化人数、累计消费与累计分佣。修复适用范围为「全平台模型」的活动返佣比例在官网与控制台展示不一致的问题',
+      '5. [promoStats]增加分销统计菜单，查看全平台分销规模与效果。支持查看邀请到消费的转化漏斗、分销消费与分佣总额、佣金去向（已提现 / 已兑换 / 未提现），以及分销员排行榜与按活动汇总导出',
+      '6. [voucherIssueCenter]代金券列表增加「来源」，区分后台发放与佣金兑换生成的券，支持按来源筛选。券模板支持配置为兑换专用并设置兑换金额，合伙人端按券模板配置的兑换金额消耗佣金兑券',
+      '7. [console]合伙人端申请提现需填写开户行，下次自动回填。已有提现待审核时拦截重复提交，账号被冻结时不允许兑换代金券',
+      '8. [promoInviteeLanding]被邀请人登录后静默建立邀请关系，不再展示面向邀请人的绑定信息，登录直达控制台概览。注册权益文案更新为「注册即送 ¥20 代金券 ≈ 25,000,000 Tokens」',
+      '9. [global]分销相关菜单与字段更名（「佣金明细」→「分佣明细」、「佣金与提现审核」→「提现审核与兑券」）。列表人名统一脱敏，分销各页金额统一为「¥ + 两位小数」',
+      '10. [promoLanding]官方网站导航只保留「推广合伙人」，进入官网直达推广合伙人落地页。落地页的活动横幅与模型返佣比例跟随分销活动动态展示，未配置活动时不展示',
+      '11. [promoLanding]加倍活动标记统一为「佣金加倍」，兑券权益不再按固定加兑比例宣传',
+      '12. [console]活动列表与返佣模型的加倍标记统一为「佣金加倍」。兑换代金券按券模板配置的兑换金额消耗佣金，不再展示加兑比例',
+      '13. [promoLanding]落地页获取推广链接入口按登录态分流：未登录先进登录页，登录成功直达控制台推广合伙人；已登录直接进入推广合伙人',
+      '14. [console]推广合伙人收益明细支持按全部计佣记录导出，不再展示每日 23:59 统一计佣的提示文案',
+      '15. [console]推广合伙人收益明细支持按计佣时间、被邀请人、活动名称搜索。每笔计佣都归属一个活动，活动不再为空',
     ].join('\n'),
   },
 }

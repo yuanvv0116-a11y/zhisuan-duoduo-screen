@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Layout, Menu, Typography, Space, Avatar, Dropdown, Segmented } from 'antd'
-import { ApiOutlined, AppstoreOutlined, BarChartOutlined, DownOutlined, UserOutlined, TeamOutlined, WalletOutlined, MoreOutlined, DesktopOutlined, RocketOutlined, GlobalOutlined, UnorderedListOutlined } from '@ant-design/icons'
+import { ApiOutlined, AppstoreOutlined, BarChartOutlined, DownOutlined, UserOutlined, TeamOutlined, WalletOutlined, MoreOutlined, DesktopOutlined, RocketOutlined, GlobalOutlined, UnorderedListOutlined, GiftOutlined, MoneyCollectOutlined, LoginOutlined } from '@ant-design/icons'
 import UserList from './pages/UserList'
 import UserTag from './pages/UserTag'
 import AccountList from './pages/AccountList'
@@ -34,11 +34,23 @@ import UsageStatsPage from './pages/UsageStatsPage'
 import MySubscriptionPage from './pages/MySubscriptionPage'
 import BillingPage, { type BillingSubPage } from './pages/BillingPage'
 import ResourcePackPage from './pages/ResourcePackPage'
-import OfficialWebPage from './pages/OfficialWebPage'
+import PromoLandingPage from './pages/PromoLandingPage'
+import PromoShareLandingPage from './pages/PromoShareLandingPage'
+import PromoInviteeLandingPageV2 from './pages/PromoInviteeLandingPageV2'
+import PromoLoginPage from './pages/PromoLoginPage'
+import SiteFooter from './components/SiteFooter'
+import RequirementDot from './components/RequirementDot'
+import ConsolePromo from './pages/ConsolePromo'
+import PromoPartnerManage from './pages/PromoPartnerManage'
+import PromoCommissionDetail, { type CommissionDetailFilter } from './pages/PromoCommissionDetail'
+import PromoRebateConfig from './pages/PromoRebateConfig'
+import PromoSettleAudit from './pages/PromoSettleAudit'
+import PromoStats from './pages/PromoStats'
 import TokenFactoryPage, { type FactoryMenu } from './pages/TokenFactoryPage'
 import VersionChangelog from './pages/VersionChangelog'
 import { RELEASES, parseConsoleScope } from './releases'
 import { getActiveScope, getScopeFromUrl, getScopeRouteKeys, isInScope, SCOPES } from './scope'
+import { getPromoSession } from './store'
 import type { TokenPlan } from './types'
 
 const { Sider, Content, Header } = Layout
@@ -66,6 +78,11 @@ export type RouteKey =
   | 'userConsumeBill'
   | 'planStats'
   | 'voucherStats'
+  | 'promoPartnerManage'
+  | 'promoCommissionDetail'
+  | 'promoRebateConfig'
+  | 'promoSettleAudit'
+  | 'promoStats'
   | 'otherRequirements'
   | 'changelog'
 
@@ -102,6 +119,17 @@ const FULL_MENU: MenuItem[] = [
       { key: 'modelGroups', label: '模型分组' },
       { key: 'resourcePack', label: '资源包管理' },
       { key: 'tokenPlan', label: 'Token Plan' },
+    ],
+  },
+  {
+    key: 'promoGroup',
+    label: '分销管理',
+    children: [
+      { key: 'promoRebateConfig', label: '分销活动' },
+      { key: 'promoCommissionDetail', label: '分佣明细' },
+      { key: 'promoPartnerManage', label: '分销合伙人' },
+      { key: 'promoSettleAudit', label: '提现审核与兑券' },
+      { key: 'promoStats', label: '分销统计' },
     ],
   },
   {
@@ -148,6 +176,7 @@ const MENU_ICON: Record<string, React.ReactNode> = {
   channelGroup: <ApiOutlined />,
   statGroup: <BarChartOutlined />,
   billGroup: <WalletOutlined />,
+  promoGroup: <GiftOutlined />,
   otherRequirements: <MoreOutlined />,
 }
 
@@ -160,6 +189,11 @@ function countLeaves(items: MenuItem[]): number {
   }
   return c
 }
+
+/** 菜单里所有叶子路由 key，用于校验 URL 上的 route 参数 */
+const MENU_LEAF_KEYS: Set<string> = new Set(
+  FULL_MENU.flatMap((it) => (it.children && it.children.length ? it.children.map((c) => c.key) : [it.key])),
+)
 
 /** 按 routeKeys 过滤菜单；组内没有可见子项时整个组隐藏 */
 function filterMenu(items: MenuItem[], allowed: Set<string> | 'all'): MenuItem[] {
@@ -203,13 +237,25 @@ function _exitReviewMode() {
 }
 
 export default function App() {
-  const [active, setActive] = useState<RouteKey>('channels')
+  /** 初始路由支持从 URL 的 route 参数回跳（仅接受菜单里存在的合法 key），刷新后可回到当前页 */
+  const [active, setActive] = useState<RouteKey>(() => {
+    try {
+      const route = new URLSearchParams(window.location.search).get('route')
+      if (route && MENU_LEAF_KEYS.has(route)) return route as RouteKey
+    } catch {
+      /** 忽略非法 URL 参数 */
+    }
+    return 'promoRebateConfig'
+  })
+  /** 每次菜单点击 +1，作为内容区 key 的一部分强制重挂载 */
+  const [navSeq, setNavSeq] = useState(0)
   /** 后台内容区是各页面共用的滚动容器，切页时需要它回到顶部，否则新页面会停在上一页的滚动位置 */
   const contentRef = useRef<HTMLElement>(null)
   /** 从「查看性能」弹窗点「查看全部」带过来的渠道与该渠道模型名称，用于明细页自动搜索 */
   const [perfDetailFilter, setPerfDetailFilter] = useState<PerfDetailFilter | undefined>(undefined)
+  /** 从「分销合伙人 › 分佣明细」跳转带过来的分销员，用于分佣明细页自动搜索 */
+  const [commissionDetailFilter, setCommissionDetailFilter] = useState<CommissionDetailFilter | undefined>(undefined)
   const [viewMode, setViewMode] = useState<'admin' | 'console' | 'website'>('admin')
-  const [webNav, setWebNav] = useState<'tokenPlan'>('tokenPlan')
   /** 控制台默认落在费用管理，顶部导航点击「控制台」时也回到费用管理 */
   const [consoleSubPage, setConsoleSubPage] = useState<string>('billing')
   const [tokenPlanSub, setTokenPlanSub] = useState<
@@ -390,6 +436,10 @@ export default function App() {
   /** 控制台顶部导航：本次范围里没有对应入口时隐藏 */
   const showConsoleFactory = !consoleScope || !!allowedFactoryMenus
   const showConsoleBilling = !consoleScope || !!allowedBillingSubs
+  const showConsolePromo = !consoleScope || consoleScope.promo
+  const showConsoleLogin = !reviewRelease || !consoleScope || consoleScope.login
+  /** 官方网站导航：评审模式下只放行本次 websiteKeys 声明的页面（当前官网仅「推广合伙人」一项） */
+  const showWebPromo = !reviewRelease?.websiteKeys || reviewRelease.websiteKeys.includes('promo')
   const defaultConsoleSub = showConsoleFactory
     ? 'tokenFactory'
     : showConsoleBilling
@@ -397,17 +447,18 @@ export default function App() {
       : 'tokenFactory'
   /** 费用管理默认子页：评审模式取本次放行项的第一项，否则落在菜单首项「账户概览」 */
   const defaultBillingSub: BillingSubPage = allowedBillingSubs?.[0] ?? 'accountOverview'
-  /** 点击「控制台」时的落地子页：默认费用管理；评审版本未放行费用时回落 Token工厂 */
-  const consoleLandingSub = showConsoleBilling ? 'billing' : defaultConsoleSub
+  /** 点击「控制台」时的落地子页：完整版与本次放行推广合伙人的评审版直达该页，其次费用管理，最后 Token工厂 */
+  const consoleLandingSub = showConsolePromo ? 'promo' : showConsoleBilling ? 'billing' : defaultConsoleSub
 
   /** 评审模式：控制台子页回落到本次范围内的入口 */
   useEffect(() => {
     if (!consoleScope) return
-    if (!showConsoleFactory && !showConsoleBilling) return
-    if (consoleSubPage === 'tokenFactory' && !showConsoleFactory) setConsoleSubPage('billing')
-    if (consoleSubPage === 'billing' && !showConsoleBilling) setConsoleSubPage('tokenFactory')
+    if (!showConsoleFactory && !showConsoleBilling && !showConsolePromo) return
+    if (consoleSubPage === 'tokenFactory' && !showConsoleFactory) setConsoleSubPage(showConsolePromo ? 'promo' : 'billing')
+    if (consoleSubPage === 'billing' && !showConsoleBilling) setConsoleSubPage(showConsolePromo ? 'promo' : 'tokenFactory')
     if (['appPlaza', 'opc', 'tokenPlan'].includes(consoleSubPage)) setConsoleSubPage(defaultConsoleSub)
-  }, [consoleScope, consoleSubPage, showConsoleFactory, showConsoleBilling, defaultConsoleSub])
+    if (consoleSubPage === 'promo' && !showConsolePromo) setConsoleSubPage(defaultConsoleSub)
+  }, [consoleScope, consoleSubPage, showConsoleFactory, showConsoleBilling, showConsolePromo, defaultConsoleSub])
 
   /** 评审模式：费用二级菜单回落到本次范围内的第一项 */
   useEffect(() => {
@@ -415,6 +466,103 @@ export default function App() {
     if (allowedBillingSubs.includes(billingSub)) return
     setBillingSub(allowedBillingSubs[0])
   }, [allowedBillingSubs, billingSub])
+
+  /** 分销商活动落地页：?share=<活动id> 命中时整屏渲染，不叠加后台/控制台/官网的任何外壳；
+   * 用 state 承载是为了「进入控制台」时能清掉它、让 App 正常渲染控制台 */
+  const [shareCampaignId, setShareCampaignId] = useState<string | null>(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('share')
+    } catch {
+      /** 忽略非法 URL 参数 */
+    }
+    return null
+  })
+
+  /** 分销员邀请码：?code=<邀请码> 与 ?share 同时出现时，说明链接是分销员的专属推广链接，
+   * 打开的人是「最终用户」，因此渲染面向 C 端的使用引导承接页而非分销商落地页 */
+  const [shareInviteCode, setShareInviteCode] = useState<string | null>(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('code')
+    } catch {
+      /** 忽略非法 URL 参数 */
+    }
+    return null
+  })
+
+  /** 原型内置登录页：?login=1 命中时整屏渲染（优先于落地页），登录成功直落控制台 */
+  const [loginMode, setLoginMode] = useState<boolean>(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('login') === '1'
+    } catch {
+      /** 忽略非法 URL 参数 */
+    }
+    return false
+  })
+
+  /** 从地址栏移除指定查询参数（replaceState 不触发刷新，避免返回/登录后重复进入登录页） */
+  const dropQueryParams = (...keys: string[]) => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      keys.forEach((k) => params.delete(k))
+      const qs = params.toString()
+      window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
+    } catch {
+      /** 忽略 URL 清理异常 */
+    }
+  }
+
+  if (loginMode) {
+    return (
+      <PromoLoginPage
+        share={shareCampaignId}
+        inviteCode={shareInviteCode}
+        onBack={() => {
+          dropQueryParams('login')
+          setLoginMode(false)
+        }}
+        onSuccess={(invitee) => {
+          dropQueryParams('login', 'share', 'code')
+          setLoginMode(false)
+          setShareCampaignId(null)
+          setShareInviteCode(null)
+          /** 登录成功统一进入控制台：被邀请用户直达「Token工厂 › 概览」（Token工厂默认首页即概览），分销商直达推广合伙人 */
+          setViewMode('console')
+          if (invitee) {
+            setConsoleSubPage('tokenFactory')
+          } else {
+            setConsoleSubPage('promo')
+          }
+        }}
+      />
+    )
+  }
+
+  if (shareCampaignId && shareInviteCode) {
+    return (
+      <PromoInviteeLandingPageV2 campaignId={shareCampaignId} inviteCode={shareInviteCode} />
+    )
+  }
+
+  if (shareCampaignId) {
+    return (
+      <PromoShareLandingPage
+        campaignId={shareCampaignId}
+        onEnterConsole={() => {
+          try {
+            const params = new URLSearchParams(window.location.search)
+            params.delete('share')
+            const qs = params.toString()
+            window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
+          } catch {
+            /** 忽略 URL 清理异常 */
+          }
+          setShareCampaignId(null)
+          setViewMode('console')
+          setConsoleSubPage('promo')
+        }}
+      />
+    )
+  }
 
   const renderPage = () => {
     switch (active) {
@@ -467,6 +615,23 @@ export default function App() {
         return <PlanStats />
       case 'voucherStats':
         return <VoucherStats />
+      case 'promoPartnerManage':
+        return (
+          <PromoPartnerManage
+            onOpenCommissionDetail={(p) => {
+              setCommissionDetailFilter({ partnerId: p.id, partnerName: p.nickname })
+              setActive('promoCommissionDetail')
+            }}
+          />
+        )
+      case 'promoCommissionDetail':
+        return <PromoCommissionDetail initialFilter={commissionDetailFilter} />
+      case 'promoRebateConfig':
+        return <PromoRebateConfig />
+      case 'promoSettleAudit':
+        return <PromoSettleAudit />
+      case 'promoStats':
+        return <PromoStats />
       case 'otherRequirements':
         return <OtherRequirements />
       case 'changelog':
@@ -496,6 +661,12 @@ export default function App() {
           onChange={(v) => {
             const next = v as 'admin' | 'console' | 'website'
             setViewMode(next)
+            /** 点击「管理后台」默认回到分销管理 › 分销活动（默认落地页），并清掉 URL 上的旧路由 */
+            if (next === 'admin') {
+              setActive('promoRebateConfig')
+              setNavSeq((s) => s + 1)
+              dropQueryParams('route', 'campaign')
+            }
             /** 点击「控制台」默认直接进入费用管理，并退出可能残留的套餐结算 / 支付流程 */
             if (next === 'console') {
               setConsoleSubPage(consoleLandingSub)
@@ -534,26 +705,43 @@ export default function App() {
             },
           ]}
         />
-        <a
-          onClick={() => {
-            setViewMode('admin')
-            setActive('changelog')
-          }}
-          style={{
-            position: 'absolute',
-            right: 24,
-            color: '#2f6bff',
-            cursor: 'pointer',
-            fontWeight: 500,
-            fontSize: 13,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-          }}
-        >
-          <UnorderedListOutlined />
-          功能列表
-        </a>
+        <Space size={16} style={{ position: 'absolute', right: 24 }}>
+          {showConsoleLogin && (
+            <a
+              onClick={() => setLoginMode(true)}
+              style={{
+                color: '#2f6bff',
+                cursor: 'pointer',
+                fontWeight: 500,
+                fontSize: 13,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              <LoginOutlined />
+              登录页
+            </a>
+          )}
+          <a
+            onClick={() => {
+              setViewMode('admin')
+              setActive('changelog')
+            }}
+            style={{
+              color: '#2f6bff',
+              cursor: 'pointer',
+              fontWeight: 500,
+              fontSize: 13,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            <UnorderedListOutlined />
+            功能列表
+          </a>
+        </Space>
       </div>
 
       {/* 管理后台视图：智算多多 Header + 评审条 + Sider + 内容 */}
@@ -590,7 +778,12 @@ export default function App() {
               智算多多后台管理系统
             </Space>
             <Space size={24} style={{ color: '#5a6474' }}>
-              <span>官方网站</span>
+              <span
+                style={{ cursor: 'pointer' }}
+                onClick={() => { setViewMode('website') }}
+              >
+                官方网站
+              </span>
               <span>Token工厂</span>
             </Space>
             <div style={{ flex: 1 }} />
@@ -616,17 +809,34 @@ export default function App() {
                 theme="light"
                 mode="inline"
                 selectedKeys={[active]}
-                defaultOpenKeys={['userTeamGroup', 'accountGroup', 'channelGroup', 'modelGroup', 'statGroup', 'billGroup']}
+                defaultOpenKeys={['userTeamGroup', 'accountGroup', 'modelGroup', 'promoGroup', 'channelGroup', 'statGroup', 'billGroup']}
                 style={{ borderRight: 0, paddingTop: 8 }}
                 onClick={({ key }) => {
                   setPerfDetailFilter(undefined)
+                  setCommissionDetailFilter(undefined)
                   setActive(key as RouteKey)
+                  /** 每次点击菜单都重挂载内容区：即使点的是当前菜单，也能从内嵌子页（如配置返佣模型）退回列表 */
+                  setNavSeq((s) => s + 1)
+                  /** 把路由同步到 URL（默认落地页分销活动不写参数），刷新可回跳；切页时清掉子页残留参数 */
+                  try {
+                    const params = new URLSearchParams(window.location.search)
+                    if (key === 'promoRebateConfig') params.delete('route')
+                    else params.set('route', key)
+                    params.delete('campaign')
+                    const qs = params.toString()
+                    const next = window.location.pathname + (qs ? `?${qs}` : '')
+                    if (next !== window.location.pathname + window.location.search) {
+                      window.history.pushState(null, '', next)
+                    }
+                  } catch {
+                    /** URL 同步失败不影响页面切换 */
+                  }
                 }}
                 items={menuItems}
               />
             </Sider>
             <Content ref={contentRef} style={{ padding: 16, overflow: 'auto', background: '#f0f2f5' }}>
-              {renderPage()}
+              <div key={`${active}-${navSeq}`}>{renderPage()}</div>
             </Content>
           </Layout>
         </>
@@ -733,6 +943,31 @@ export default function App() {
                   NEW
                 </span>
               </span>
+              )}
+              {showConsolePromo && (
+                <span
+                  style={{
+                    color: consoleSubPage === 'promo' ? '#2f6bff' : '#5a6474',
+                    fontWeight: consoleSubPage === 'promo' ? 600 : 400,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                  onClick={() => { setConsoleSubPage('promo'); setCheckoutPlan(null); setPaymentData(null) }}
+                >
+                  <MoneyCollectOutlined style={{ color: '#fa8c16' }} />
+                  推广合伙人
+                  <RequirementDot
+                    title="推广合伙人菜单 · 需求说明"
+                    sections={[
+                      {
+                        label: '需求内容',
+                        items: ['1.新增推广合伙人页面。具体如下图；'],
+                      },
+                    ]}
+                  />
+                </span>
               )}
             </Space>
             <Space size={20}>
@@ -939,13 +1174,25 @@ export default function App() {
               onOpenAgreement={setAgreementView}
             />
           ) : consoleSubPage === 'tokenFactory' ? (
-            <TokenFactoryPage allowedMenus={allowedFactoryMenus} />
+            <TokenFactoryPage
+              allowedMenus={allowedFactoryMenus}
+              onGoRecharge={
+                showConsoleBilling
+                  ? () => {
+                      setConsoleSubPage('billing')
+                      setBillingSub(allowedBillingSubs && !allowedBillingSubs.includes('accountOverview') ? allowedBillingSubs[0] : 'accountOverview')
+                    }
+                  : undefined
+              }
+            />
           ) : consoleSubPage === 'billing' ? (
             <BillingPage
               subPage={billingSub}
               onSubChange={setBillingSub}
               allowedSubs={allowedBillingSubs}
             />
+          ) : consoleSubPage === 'promo' ? (
+            <ConsolePromo />
           ) : (
             <div style={{ padding: 80, textAlign: 'center', color: '#999' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🚧</div>
@@ -955,7 +1202,7 @@ export default function App() {
         </Content>
       )}
 
-      {/* 官方网站视图：独立顶部导航 + OfficialWebPage */}
+      {/* 官方网站视图：独立顶部导航（仅「推广合伙人」）+ 推广合伙人落地页 */}
       {viewMode === 'website' && (
         <Content style={{ overflow: 'auto', background: '#fff' }}>
           <div
@@ -989,27 +1236,32 @@ export default function App() {
                 <span style={{ color: '#5a6474', fontWeight: 400, fontSize: 12 }}>国联股份</span>
                 <span style={{ fontWeight: 600 }}>智算多多</span>
               </Space>
-              <span style={{ color: '#1a1a1a', fontWeight: 600, cursor: 'pointer' }}>首页</span>
-              <span style={{ color: '#5a6474', cursor: 'pointer' }}>产品服务</span>
-              <span style={{ color: '#5a6474', cursor: 'pointer' }}>模型广场</span>
-              <span style={{ color: '#5a6474', cursor: 'pointer' }}>Token工厂</span>
-              <span
-                style={{
-                  color: webNav === 'tokenPlan' ? '#1a1a1a' : '#5a6474',
-                  fontWeight: webNav === 'tokenPlan' ? 600 : 400,
-                  cursor: 'pointer',
-                }}
-                onClick={() => {
-                  setViewMode('website')
-                  setWebNav('tokenPlan')
-                }}
-              >
-                Token Plan
-              </span>
-              <span style={{ color: '#5a6474', cursor: 'pointer' }}>算力市场</span>
-              <span style={{ color: '#5a6474', cursor: 'pointer' }}>算力商情</span>
-              <span style={{ color: '#5a6474', cursor: 'pointer' }}>行业资讯</span>
-              <span style={{ color: '#5a6474', cursor: 'pointer' }}>解决方案</span>
+              {showWebPromo && (
+                <span
+                  style={{
+                    color: '#1a1a1a',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <MoneyCollectOutlined style={{ color: '#fa8c16' }} />
+                  推广合伙人
+                  <RequirementDot
+                    title="推广合伙人 · 需求说明"
+                    sections={[
+                      {
+                        label: '需求内容',
+                        items: [
+                          '1.页面展示如图；',
+                          '2.部分信息根据分销活动动态展示，具体见页面需求提示。',
+                        ],
+                      },
+                    ]}
+                  />
+                </span>
+              )}
             </Space>
             <Space size={16}>
               <span style={{ color: '#5a6474', cursor: 'pointer' }}>控制台</span>
@@ -1047,22 +1299,22 @@ export default function App() {
               </span>
             </Space>
           </div>
-          {webNav === 'tokenPlan' && (
-            <OfficialWebPage
-              onNavigateTokenPlan={() => {
+          {showWebPromo && (
+            <PromoLandingPage
+              onGoConsole={() => {
+                /** 未登录先过登录页，登录成功后由 onSuccess 落到控制台 · 推广合伙人；已登录直接进 */
+                if (!getPromoSession()) {
+                  setLoginMode(true)
+                  return
+                }
                 setViewMode('console')
-                setConsoleSubPage('tokenPlan')
-                setTokenPlanSub('overview')
+                setConsoleSubPage('promo')
                 setCheckoutPlan(null)
                 setPaymentData(null)
-                setShowEnterprisePage(false)
-                setEnterpriseCheckoutPlan(null)
-                setShowUsageGuide(false)
-                setShowUsageStats(false)
-                setAgreementView(null)
               }}
             />
           )}
+          <SiteFooter />
         </Content>
       )}
     </Layout>

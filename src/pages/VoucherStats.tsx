@@ -263,10 +263,6 @@ export default function VoucherStats() {
   const pct = (n: number) =>
     stats.totalCount > 0 ? `${((n / stats.totalCount) * 100).toFixed(1)}%` : '—'
 
-  /** 一次都没用过 / 完全用完的「有效占比」分母：未作废的券总数 */
-  const pctValid = (n: number) =>
-    stats.validCount > 0 ? `${((n / stats.validCount) * 100).toFixed(1)}%` : '—'
-
   const rows = useMemo(
     () => summarizeByTemplate(filtered, createdAtById),
     [filtered, createdAtById],
@@ -417,9 +413,8 @@ export default function VoucherStats() {
                 label="面额合计"
                 value={money(stats.faceTotal)}
                 unit=""
-                sub="所有券面额之和（含作废）"
+                sub="所有状态的代金券面值总和"
                 icon={<AccountBookOutlined />}
-                tooltip="所有券的面额总和，包括作废的。"
               />
             </Col>
             <Col xs={24} sm={12} xl={4}>
@@ -427,9 +422,8 @@ export default function VoucherStats() {
                 label="已使用金额"
                 value={money(stats.usedAmount)}
                 unit=""
-                sub="已实际消费的面额之和"
+                sub="面额总和-余额总和"
                 icon={<ThunderboltOutlined />}
-                tooltip="已实际消费的面额之和 = Σ（券面额 − 剩余余额）；已作废的券是被回收而非实际消费，不计入。"
               />
             </Col>
             <Col xs={24} sm={12} xl={4}>
@@ -437,9 +431,8 @@ export default function VoucherStats() {
                 label="待使用金额"
                 value={money(stats.pendingAmount)}
                 unit=""
-                sub="（待生效）+（生效中券余额）"
+                sub="待使用余额+生效状态券余额"
                 icon={<WalletOutlined />}
-                tooltip="待使用金额 =【（待生效的）+（已生效的券的余额）】总和。"
               />
             </Col>
             <Col xs={24} sm={12} xl={4}>
@@ -447,19 +440,17 @@ export default function VoucherStats() {
                 label="失效金额"
                 value={money(stats.invalidAmount)}
                 unit=""
-                sub="已过期金额 + 已作废金额"
+                sub="已作废的余额总和+已过期的余额总和"
                 icon={<CloseCircleOutlined />}
-                tooltip="失效金额 = 已过期的金额总和 + 已作废金额总和。"
               />
             </Col>
             <Col xs={24} sm={12} xl={4}>
               <StatCard
-                label="一次都没用过"
-                value={String(stats.neverUsedCount)}
-                unit="张"
-                sub={`有效占比 ${pctValid(stats.neverUsedCount)}`}
+                label="失效金额占比"
+                value={stats.faceTotal > 0 ? `${((stats.invalidAmount / stats.faceTotal) * 100).toFixed(1)}%` : '—'}
+                unit=""
+                sub="失效金额/面额合计"
                 icon={<HistoryOutlined />}
-                tooltip="券金额 = 余额的未作废券总和（发放后一次都没消费过）；有效占比 = 一次都没用过 ÷ 未作废的券总数。"
               />
             </Col>
             <Col xs={24} sm={12} xl={4}>
@@ -467,9 +458,8 @@ export default function VoucherStats() {
                 label="完全用完"
                 value={String(stats.usedUpCount)}
                 unit="张"
-                sub={`有效占比 ${pctValid(stats.usedUpCount)}`}
+                sub={`完全用完的券占发放总数的${pct(stats.usedUpCount)}`}
                 icon={<TrophyOutlined />}
-                tooltip="券余额为 0 的未作废券总和；有效占比 = 完全用完 ÷ 未作废的券总数。"
               />
             </Col>
           </Row>

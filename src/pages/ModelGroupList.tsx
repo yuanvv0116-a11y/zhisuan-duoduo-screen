@@ -5,6 +5,7 @@ import ModelPickerModal from '../components/ModelPickerModal'
 import PageShell from '../components/PageShell'
 import RequirementDot from '../components/RequirementDot'
 import SearchField from '../components/SearchField'
+import { maskName } from '../components/SecretCell'
 import { DEFAULT_MODEL_GROUP_ID, useChannels, useModelGroups, useModels } from '../store'
 import type { ModelGroup, ModelGroupType, ModelItem } from '../types'
 
@@ -225,7 +226,7 @@ export default function ModelGroupList() {
           render: (_, group) =>
             group.owner ? (
               <Space direction="vertical" size={2}>
-                <Text strong>{group.owner.nickname}</Text>
+                <Text strong>{maskName(group.owner.nickname)}</Text>
                 <Text type="secondary">{maskPhone(group.owner.phone)}</Text>
                 <Text type="secondary">{group.owner.accountId}</Text>
               </Space>

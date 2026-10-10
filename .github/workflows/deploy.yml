@@ -1,0 +1,61 @@
+name: Deploy to Aliyun
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check & Build
+        run: npm run build
+
+      - name: Install sshpass (for password auth)
+        run: sudo apt-get update -y && sudo apt-get install -y sshpass
+
+      - name: Deploy dist to server
+        env:
+          HOST: ${{ secrets.ALIYUN_HOST }}
+          USER: ${{ secrets.ALIYUN_USER }}
+          PASS: ${{ secrets.ALIYUN_PASSWORD }}
+          PORT: ${{ secrets.ALIYUN_PORT || 22 }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          export SSHPASS="$PASS"
+          # 1. 远端：创建部署目录 + 备份上一次版本（保留最近 5 份）
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$PORT" "$USER@$HOST" "
+            set -euo pipefail
+            mkdir -p '$DEPLOY_PATH'
+            if [ -d '$DEPLOY_PATH/dist' ]; then
+              TS=\$(date +%Y%m%d_%H%M%S)
+              cp -a '$DEPLOY_PATH/dist' '$DEPLOY_PATH/dist_bak_\$TS'
+              # 只保留最近 5 份备份
+              ls -1dt '$DEPLOY_PATH'/dist_bak_* 2>/dev/null | tail -n +6 | xargs -r rm -rf
+            fi
+            mkdir -p '$DEPLOY_PATH/dist_new'
+          "
+          # 2. 上传构建产物到临时目录 dist_new
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P "$PORT" -r ./dist/* "$USER@$HOST:$DEPLOY_PATH/dist_new/"
+          # 3. 原子替换：删掉旧 dist，把 dist_new 改名成 dist
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$PORT" "$USER@$HOST" "
+            set -euo pipefail
+            rm -rf '$DEPLOY_PATH/dist'
+            mv '$DEPLOY_PATH/dist_new' '$DEPLOY_PATH/dist'
+            echo 'deploy ok:' \$(ls '$DEPLOY_PATH/dist' | head -5)
+          "

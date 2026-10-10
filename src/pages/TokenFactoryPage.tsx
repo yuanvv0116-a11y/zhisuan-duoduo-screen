@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { Alert, Button, Cascader, DatePicker, Empty, Form, Input, Modal, Popconfirm, Popover, Segmented, Select, Space, Table, Tabs, Tag, Tooltip, Typography, theme, message } from 'antd'
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Alert, Button, Card, Cascader, DatePicker, Empty, Form, Input, Modal, Popconfirm, Popover, Segmented, Select, Space, Table, Tabs, Tag, Tooltip, Typography, theme, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
 import {
@@ -7,7 +7,10 @@ import {
   AreaChartOutlined,
   ArrowLeftOutlined,
   ArrowUpOutlined,
+  BellOutlined,
+  CheckCircleFilled,
   CheckOutlined,
+  ClockCircleOutlined,
   CloseOutlined,
   CodeOutlined,
   CopyOutlined,
@@ -20,12 +23,15 @@ import {
   FileTextOutlined,
   FireFilled,
   FolderOpenOutlined,
+  FundProjectionScreenOutlined,
+  GiftOutlined,
   KeyOutlined,
   LoadingOutlined,
   PictureOutlined,
   PlayCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
+  RightOutlined,
   RobotOutlined,
   SearchOutlined,
   SlidersOutlined,
@@ -33,6 +39,7 @@ import {
   SwapOutlined,
   ThunderboltOutlined,
   UpOutlined,
+  WalletOutlined,
 } from '@ant-design/icons'
 import { ModelLogo } from './ModelList'
 import SecretCell, { maskSecret } from '../components/SecretCell'
@@ -40,24 +47,37 @@ import ModelPerformanceModal from '../components/ModelPerformanceModal'
 import RequirementDot from '../components/RequirementDot'
 import { buildModelPerformance, channelModelPerf, PERF_NORMAL_RATE_THRESHOLD, PERF_WARN_RATE_THRESHOLD } from '../perf'
 import type { ChannelModelItem, ModelApiConfig, ModelGroup, ModelItem, ModelPerfStatus } from '../types'
+import { roundAmount } from '../types'
 import {
   CURRENT_CONSOLE_USER,
   DEFAULT_MODEL_GROUP_ID,
+  findNewcomerVoucher,
   findTierConflict,
   MODEL_GROUP_LIMIT_PER_USER,
   type TierConflict,
   useChannels,
   useModelGroups,
   useModels,
+  useVoucherTemplates,
 } from '../store'
 
 const { Text } = Typography
 
 /* ---------------- 左侧二级菜单 ---------------- */
 
-export type FactoryMenu = 'plaza' | 'experience' | 'usage' | 'apiKey' | 'myGroups' | 'quota' | 'pricing'
+export type FactoryMenu = 'overview' | 'plaza' | 'experience' | 'usage' | 'apiKey' | 'myGroups' | 'quota' | 'pricing'
 
-const MENU_GROUPS: { title: string; items: { key: FactoryMenu; label: string; icon: ReactNode }[] }[] = [
+const MENU_GROUPS: { title: string; items: { key: FactoryMenu; label: string; icon: ReactNode; dot?: ReactNode }[] }[] = [
+  {
+    title: '',
+    items: [
+      {
+        key: 'overview',
+        label: '概览',
+        icon: <FundProjectionScreenOutlined />,
+      },
+    ],
+  },
   {
     title: '模型服务',
     items: [{ key: 'plaza', label: '模型广场', icon: <AppstoreOutlined /> }],
@@ -82,6 +102,7 @@ const MENU_GROUPS: { title: string; items: { key: FactoryMenu; label: string; ic
 ]
 
 const MENU_LABELS: Record<FactoryMenu, string> = {
+  overview: '概览',
   plaza: '模型广场',
   experience: '体验语言模型',
   usage: '用量统计',
@@ -4231,14 +4252,762 @@ function ExperiencePlayground({
   )
 }
 
+/* ---------------- 概览 ---------------- */
+
+type NoticeItem = { title: string; type: string; time: string }
+
+const OVERVIEW_NOTICES: NoticeItem[] = [
+  { title: 'DODO-AC-Ultra-5上线通知', type: '系统公告', time: '2026-08-03 09:46:29' },
+  { title: '模型维护通知', type: '系统公告', time: '2026-07-29 16:46:09' },
+  { title: 'Token Plan 团队版上线', type: '产品动态', time: '2026-07-21 10:12:06' },
+  { title: 'API Key 安全策略升级', type: '系统公告', time: '2026-07-14 14:30:55' },
+]
+
+/** 概览四项指标：原型演示数据 */
+const OVERVIEW_METRICS: { value: string; label: string }[] = [
+  { value: '227', label: 'API调用次数' },
+  { value: '¥299.37', label: '本月消耗' },
+  { value: '29', label: '可用模型' },
+  { value: '1', label: 'API密钥' },
+]
+
+interface OverviewProps {
+  onGoMyGroups: () => void
+  onGoApiKey: () => void
+  onGoRecharge: () => void
+  onGoUsage: () => void
+  onGoPlaza: () => void
+}
+
+interface OverviewStepItem {
+  no: number
+  icon: ReactNode
+  title: string
+  desc: string
+  onClick: () => void
+  /** 卡内小额度入口（如第三步的代金券），自渲染点击，需阻止冒泡避免触发整卡跳转 */
+  extra?: ReactNode
+}
+
+function OverviewStepCard({ step }: { step: OverviewStepItem }) {
+  const [hover, setHover] = useState(false)
+  return (
+    <div
+      onClick={step.onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        cursor: 'pointer',
+        height: '100%',
+        boxSizing: 'border-box',
+        position: 'relative',
+        borderRadius: 8,
+        background: hover ? '#f2f6ff' : '#f7f8fa',
+        border: `1px solid ${hover ? '#adc6ff' : '#eef0f4'}`,
+        boxShadow: hover ? '0 2px 8px rgba(47, 107, 255, 0.12)' : 'none',
+        padding: '16px 34px 16px 16px',
+        transition: 'background .2s, border-color .2s, box-shadow .2s',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <span style={{ color: '#2f6bff', fontSize: 15, flex: 'none' }}>{step.icon}</span>
+        <span style={{ fontSize: 15, fontWeight: 600, color: '#1d2129', flex: 'none' }}>
+          第{['一', '二', '三'][step.no - 1]}步
+        </span>
+        <span
+          style={{ fontSize: 15, fontWeight: 600, color: '#1d2129', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {step.title}
+        </span>
+      </div>
+      <div style={{ marginTop: 10, fontSize: 13, color: '#86909c', lineHeight: 1.6 }}>
+        {step.desc}
+      </div>
+      {step.extra && <div style={{ marginTop: 10 }}>{step.extra}</div>}
+      <RightOutlined
+        style={{
+          position: 'absolute',
+          right: 14,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          fontSize: 12,
+          color: hover ? '#2f6bff' : '#c9cdd4',
+          transition: 'color .2s',
+        }}
+      />
+    </div>
+  )
+}
+
+/** 第三步卡内体验代金券的面额（原型演示：立即领取，无需充值）；是否展示该入口由后台新人券决定 */
+const FREE_VOUCHER_AMOUNT = 20
+
+function OverviewSection({ onGoMyGroups, onGoApiKey, onGoRecharge, onGoUsage, onGoPlaza }: OverviewProps) {
+  const [noticeOpen, setNoticeOpen] = useState(false)
+  /** 体验代金券弹窗：null 关闭 / claim 待领取 / claimed 已领取 */
+  const [freeVoucher, setFreeVoucher] = useState<'claim' | 'claimed' | null>(null)
+  /**
+   * 新人券来自后台券模板：后台配置好这张券、且处于启用状态时，概览第三步才展示赠送入口；
+   * 后台删掉或停用这张券，前台入口自动消失。新人身份关系暂不处理，只由页面控制是否展示。
+   */
+  const newcomerVoucher = findNewcomerVoucher(useVoucherTemplates())
+
+  const steps: OverviewStepItem[] = [
+    {
+      no: 1,
+      icon: <AppstoreOutlined />,
+      title: '创建分组，选择模型',
+      desc: '按场景灵活创建模型分组，如高效代码组、低价省钱组。',
+      onClick: onGoMyGroups,
+    },
+    {
+      no: 2,
+      icon: <KeyOutlined />,
+      title: '创建 API Key，关联分组',
+      desc: '关联不同分组，方便控费，保障安全。',
+      onClick: onGoApiKey,
+    },
+    {
+      no: 3,
+      icon: <WalletOutlined />,
+      title: '账户充值，立即使用',
+      desc: '充值即可开启大模型之旅，主流模型任你选。',
+      onClick: onGoRecharge,
+      /** 充值不是唯一路径：卡内给一个小额度入口，免费领取体验代金券后先去模型广场体验；入口仅在后台配置了新人券时出现 */
+      extra: newcomerVoucher ? (
+        <span
+          className="overview-step-voucher"
+          onClick={(e) => {
+            e.stopPropagation()
+            setFreeVoucher('claim')
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: 12,
+            color: '#2f6bff',
+            background: '#e2edff',
+            borderRadius: 6,
+            padding: '3px 10px',
+            cursor: 'pointer',
+          }}
+        >
+          <GiftOutlined />
+          立即领取，新用户{FREE_VOUCHER_AMOUNT}元体验券
+        </span>
+      ) : undefined,
+    },
+  ]
+
+  return (
+    <div style={{ padding: 16 }}>
+      <div style={{ fontSize: 20, fontWeight: 600, color: '#1d2129' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          概览
+          <RequirementDot
+            title="Token工厂 · 概览 · 需求说明"
+            sections={[
+              {
+                label: '需求内容',
+                items: [
+                  '1.页面展示如图；',
+                  '2.点击三个步骤可以跳转到不同页面。鼠标悬浮有交互；',
+                  '3.如为首次注册用户，则第三步展示赠送20元代金券。这个券后台配置好，不要删除即可。（如果没有这个券了，前台要判断不要展示这个赠送按钮了）；点击立即领取，弹窗如图，领取成功，为用户发放20元代金券，有效期1个月，点击去模型广场，跳转到模型广场。点击关闭，页面刷新，领取代金券按钮消失（未成功领取的，依然展示）。',
+                  '4.点击数据概览的，查看详情，跳转到用量统计页面。',
+                  '5.去掉左上角控制台的点击跳转页面。',
+                ],
+              },
+            ]}
+          />
+        </span>
+      </div>
+      <div style={{ marginTop: 6, fontSize: 13, color: '#86909c' }}>欢迎查看您的服务概览</div>
+
+      <Card
+        variant="borderless"
+        style={{ marginTop: 16, borderRadius: 8, border: '1px solid #eef0f4' }}
+        styles={{ body: { padding: 20 } }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 8,
+              background: '#eaf1ff',
+              color: '#2f6bff',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 18,
+              flexShrink: 0,
+            }}
+          >
+            <StarFilled />
+          </span>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2129' }}>
+              欢迎，{CURRENT_CONSOLE_USER.nickname}
+            </div>
+            <div style={{ marginTop: 4, fontSize: 13, color: '#86909c' }}>
+              仅需3步，主流模型随您选用
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: 16,
+            position: 'relative',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: 16,
+          }}
+        >
+          <style>{'@media (max-width: 999px) { .overview-step-arrow { opacity: 0 !important; } }'}</style>
+          {steps.map((step, idx) => (
+            <Fragment key={step.no}>
+              <OverviewStepCard step={step} />
+              {idx < steps.length - 1 && (
+                <svg
+                  className="overview-step-arrow"
+                  width="16"
+                  height="12"
+                  viewBox="0 0 16 12"
+                  style={{
+                    position: 'absolute',
+                    left: `calc(${((idx + 1) / steps.length) * 100}% + ${16 * idx + 8 - ((idx + 1) * (steps.length - 1) * 16) / steps.length}px)`,
+                    top: 22,
+                    transform: 'translateX(-50%)',
+                    pointerEvents: 'none',
+                    transition: 'opacity .2s',
+                  }}
+                >
+                  <path d="M0 6 H9" fill="none" stroke="#2f6bff" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 3" />
+                  <path d="M8 1.5 L13.5 6 L8 10.5" fill="none" stroke="#2f6bff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </Fragment>
+          ))}
+        </div>
+      </Card>
+
+      <Card
+        variant="borderless"
+        style={{ marginTop: 16, borderRadius: 8, border: '1px solid #eef0f4' }}
+        styles={{ body: { padding: 20 } }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: '#1d2129' }}>数据概览</span>
+          <Typography.Link className="overview-usage-link" style={{ fontSize: 13 }} onClick={onGoUsage}>
+            查看详情 <RightOutlined style={{ fontSize: 10 }} />
+          </Typography.Link>
+        </div>
+        <div
+          style={{
+            marginTop: 16,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+          }}
+        >
+          {OVERVIEW_METRICS.map((metric, idx) => (
+            <div
+              key={metric.label}
+              style={{
+                textAlign: 'center',
+                padding: '8px 12px',
+                borderLeft: idx === 0 ? 'none' : '1px solid #eef0f4',
+              }}
+            >
+              <div style={{ fontSize: 24, fontWeight: 600, color: '#1f2937', lineHeight: 1.3 }}>{metric.value}</div>
+              <div style={{ marginTop: 6, fontSize: 13, color: '#86909c' }}>{metric.label}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card
+        variant="borderless"
+        style={{ marginTop: 16, marginBottom: 16, borderRadius: 8, border: '1px solid #eef0f4' }}
+        styles={{ body: { padding: 20 } }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: '#1d2129' }}>公告</span>
+          <Typography.Link style={{ fontSize: 13 }} onClick={() => setNoticeOpen(true)}>
+            查看更多 <RightOutlined style={{ fontSize: 10 }} />
+          </Typography.Link>
+        </div>
+        {OVERVIEW_NOTICES.slice(0, 2).map((notice, idx) => (
+          <div
+            key={notice.title}
+            style={{
+              padding: '14px 0',
+              borderBottom: idx === 0 ? '1px solid #eef0f4' : 'none',
+            }}
+          >
+            <div style={{ fontSize: 14, color: '#1d2129' }}>{notice.title}</div>
+            <Space size={6} style={{ marginTop: 6 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {notice.type}
+              </Text>
+              <ClockCircleOutlined style={{ fontSize: 12, color: '#86909c' }} />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {notice.time}
+              </Text>
+            </Space>
+          </div>
+        ))}
+      </Card>
+
+      <Modal
+        title="公告"
+        open={noticeOpen}
+        onCancel={() => setNoticeOpen(false)}
+        footer={null}
+        width={520}
+        centered
+        destroyOnHidden
+      >
+        {OVERVIEW_NOTICES.map((notice, idx) => (
+          <div
+            key={notice.title}
+            style={{
+              padding: '12px 0',
+              borderBottom: idx === OVERVIEW_NOTICES.length - 1 ? 'none' : '1px solid #eef0f4',
+            }}
+          >
+            <div style={{ fontSize: 14, color: '#1d2129' }}>{notice.title}</div>
+            <Space size={6} style={{ marginTop: 6 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {notice.type}
+              </Text>
+              <BellOutlined style={{ fontSize: 12, color: '#86909c' }} />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {notice.time}
+              </Text>
+            </Space>
+          </div>
+        ))}
+      </Modal>
+
+      <Modal
+        title="体验代金券"
+        open={freeVoucher !== null}
+        centered
+        width={400}
+        destroyOnClose
+        onCancel={() => setFreeVoucher(null)}
+        footer={
+          freeVoucher === 'claimed' ? (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button onClick={() => setFreeVoucher(null)}>关闭</Button>
+              <Button
+                type="primary"
+                onClick={() => {
+                  setFreeVoucher(null)
+                  onGoPlaza()
+                }}
+              >
+                去模型广场体验
+              </Button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button onClick={() => setFreeVoucher(null)}>取消</Button>
+              <Button type="primary" onClick={() => setFreeVoucher('claimed')}>
+                立即领取
+              </Button>
+            </div>
+          )
+        }
+      >
+        {freeVoucher === 'claimed' ? (
+          <div style={{ padding: '12px 0 4px', textAlign: 'center' }}>
+            <CheckCircleFilled style={{ fontSize: 44, color: '#52c41a' }} />
+            <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600, color: '#1d2129' }}>
+              领取成功！¥{FREE_VOUCHER_AMOUNT} 代金券已到账
+            </div>
+            <div style={{ marginTop: 6, fontSize: 13, color: '#86909c' }}>
+              您已可以抵扣调用费用，立即体验模型了
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: '12px 0 4px', textAlign: 'center' }}>
+            <GiftOutlined style={{ fontSize: 44, color: '#2f6bff' }} />
+            <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600, color: '#1d2129' }}>
+              新用户体验代金券 ¥{FREE_VOUCHER_AMOUNT}
+            </div>
+            <div style={{ marginTop: 6, fontSize: 13, color: '#86909c' }}>
+              领取后即可抵扣模型调用费用，主流模型任您选择！
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  )
+}
+
+/* ---------------- 用量统计（统计分析 › 用量统计，概览页「查看详情」落地页） ---------------- */
+
+/** 概览页四项指标同源：本月的调用、消耗、模型、密钥口径在下方统计卡直接复用 */
+type UsageRange = 'today' | 'week' | 'month' | 'quarter'
+
+const defaultUsageRange = (r: UsageRange): [Dayjs, Dayjs] => {
+  const end = dayjs()
+  if (r === 'today') return [end, end]
+  if (r === 'week') return [end.subtract(6, 'day'), end]
+  if (r === 'month') return [end.subtract(29, 'day'), end]
+  return [end.subtract(89, 'day'), end]
+}
+
+/** 确定性伪随机序列：把总量按周期权重拆到每一天，末位补齐尾差，保证合计与统计卡一致 */
+const spreadSeries = (total: number, days: number, seed: number, decimals: number) => {
+  const weights = Array.from({ length: days }, (_, i) => 0.6 + ((i * 37 + seed * 13) % 10) / 10)
+  const weightSum = weights.reduce((a, b) => a + b, 0)
+  const p = 10 ** decimals
+  const out = weights.map((w) => Math.round((w / weightSum) * total * p) / p)
+  const diff = Math.round((total - out.reduce((a, b) => a + b, 0)) * p) / p
+  out[out.length - 1] = Math.round((out[out.length - 1] + diff) * p) / p
+  return out
+}
+
+interface ModelUsageRow {
+  model: string
+  group: string
+  calls: number
+  tokens: number
+  cost: number
+}
+
+/** 当月按模型维度的用量明细：调用合计 227、消耗合计 ¥299.37，与概览指标严格一致 */
+const MONTH_MODEL_USAGE: ModelUsageRow[] = [
+  { model: 'DeepSeek-V4-Flash', group: '低价省钱组', calls: 138, tokens: 1286400, cost: 91.24 },
+  { model: 'DeepSeek-V4', group: '默认分组', calls: 41, tokens: 742800, cost: 63.18 },
+  { model: 'Kimi-K3', group: '默认分组', calls: 24, tokens: 518600, cost: 58.9 },
+  { model: 'GLM-5.2', group: '默认分组', calls: 12, tokens: 208500, cost: 42.36 },
+  { model: 'Qwen3.8-Max', group: '高效代码组', calls: 8, tokens: 152300, cost: 28.42 },
+  { model: 'Doubao-Seed-2.0', group: '默认分组', calls: 4, tokens: 61200, cost: 15.27 },
+]
+
+function UsageStatCard({ icon, iconBg, label, value, sub }: { icon: ReactNode; iconBg: string; label: string; value: string; sub: ReactNode }) {
+  return (
+    <div style={{ border: '1px solid #eef0f4', borderRadius: 8, padding: '16px 16px 14px', background: '#fff' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 6,
+            background: iconBg,
+            color: '#2f6bff',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 14,
+            flexShrink: 0,
+          }}
+        >
+          {icon}
+        </span>
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          {label}
+        </Text>
+      </div>
+      <div style={{ marginTop: 10, fontSize: 24, fontWeight: 600, color: '#1d2129', lineHeight: '32px' }}>{value}</div>
+      <div style={{ marginTop: 4, fontSize: 12, color: '#86909c' }}>{sub}</div>
+    </div>
+  )
+}
+
+function UsageStats() {
+  const [period, setPeriod] = useState<UsageRange>('month')
+  const [range, setRange] = useState<[Dayjs, Dayjs]>(() => defaultUsageRange('month'))
+  const [metric, setMetric] = useState<'calls' | 'cost'>('calls')
+  const [hover, setHover] = useState<number | null>(null)
+
+  const today = dayjs()
+  const monthStart = today.startOf('month')
+  /** 原型演示数据仅覆盖当月已过去的天数（1 号 ~ 今天） */
+  const elapsedDays = today.date()
+  const overlapStart = range[0].isBefore(monthStart) ? monthStart : range[0]
+  const overlapEnd = range[1].isAfter(today) ? today : range[1]
+  const overlapDays = overlapEnd.isBefore(overlapStart) ? 0 : overlapEnd.diff(overlapStart, 'day') + 1
+
+  /** 明细表按「区间与当月的交集天数 ÷ 当月已过天数」等比折算 */
+  const ratio = elapsedDays > 0 ? overlapDays / elapsedDays : 0
+  const rows: ModelUsageRow[] = useMemo(
+    () =>
+      MONTH_MODEL_USAGE.map((row) => ({
+        ...row,
+        calls: Math.max(1, Math.round(row.calls * ratio)),
+        tokens: Math.round(row.tokens * ratio),
+        cost: Math.round(row.cost * ratio * 100) / 100,
+      })),
+    [ratio],
+  )
+  const totalCalls = rows.reduce((sum, r) => sum + r.calls, 0)
+  const totalTokens = rows.reduce((sum, r) => sum + r.tokens, 0)
+  const totalCost = Math.round(rows.reduce((sum, r) => sum + r.cost, 0) * 100) / 100
+
+  /** 趋势取所选区间与当月的交集；区间完全落在往月时演示数据为空 */
+  const trend = useMemo(() => {
+    if (overlapDays === 0) return null
+    return {
+      days: overlapDays,
+      labels: Array.from({ length: overlapDays }, (_, i) => overlapStart.add(i, 'day').format('M/D')),
+      calls: spreadSeries(totalCalls, overlapDays, 7, 0),
+      cost: spreadSeries(totalCost, overlapDays, 3, 2),
+    }
+  }, [overlapDays, overlapStart, totalCalls, totalCost])
+
+  const chartValues = trend ? (metric === 'calls' ? trend.calls : trend.cost) : []
+  const chartMax = chartValues.length > 0 ? Math.max(...chartValues) : 0
+  const W = 720
+  const H = 208
+  const PAD = { top: 16, bottom: 26, left: 8, right: 8 }
+  const plotW = W - PAD.left - PAD.right
+  const plotH = H - PAD.top - PAD.bottom
+  const n = chartValues.length
+  const barW = n > 0 ? Math.min(26, plotW / n - 6) : 0
+  const valueAt = (i: number) => (plotH > 0 && chartMax > 0 ? (chartValues[i] / chartMax) * plotH : 0)
+  const points = chartValues.map((v, i) => `${PAD.left + ((i + 0.5) / n) * plotW},${PAD.top + plotH - valueAt(i)}`).join(' ')
+  const areaPoints = n > 0 ? `${PAD.left + plotW / (2 * n)},${PAD.top + plotH} ${points} ${PAD.left + plotW - plotW / (2 * n)},${PAD.top + plotH}` : ''
+
+  const columns: ColumnsType<ModelUsageRow> = [
+    { title: '模型', dataIndex: 'model', key: 'model', render: (v: string) => <Text strong>{v}</Text> },
+    { title: '所属分组', dataIndex: 'group', key: 'group' },
+    { title: '调用次数', dataIndex: 'calls', key: 'calls', align: 'right', render: (v: number) => v.toLocaleString() },
+    {
+      title: 'Token 消耗',
+      dataIndex: 'tokens',
+      key: 'tokens',
+      align: 'right',
+      render: (v: number) => `${(v / 10000).toFixed(1)} 万`,
+    },
+    {
+      title: '消耗金额',
+      dataIndex: 'cost',
+      key: 'cost',
+      align: 'right',
+      render: (v: number) => `¥${v.toFixed(2)}`,
+    },
+  ]
+
+  return (
+    <div style={{ padding: 16 }}>
+      <div style={{ fontSize: 20, fontWeight: 600, color: '#1d2129' }}>用量统计</div>
+      <div style={{ marginTop: 6, fontSize: 13, color: '#86909c' }}>查看当前账号的 API 调用与消耗情况</div>
+
+      <Card variant="borderless" style={{ marginTop: 16, borderRadius: 8, border: '1px solid #eef0f4' }} styles={{ body: { padding: 16 } }}>
+        <Space size={12} wrap>
+          <Space size={8}>
+            <Text>统计时间</Text>
+            <DatePicker.RangePicker
+              allowClear={false}
+              value={range}
+              onChange={(v) => {
+                if (v && v[0] && v[1]) setRange([v[0], v[1]])
+              }}
+              disabledDate={(d) => d.isAfter(dayjs(), 'day')}
+              style={{ width: 260 }}
+            />
+          </Space>
+          <Segmented<UsageRange>
+            value={period}
+            onChange={(v) => {
+              setPeriod(v)
+              setRange(defaultUsageRange(v))
+            }}
+            options={[
+              { label: '今日', value: 'today' },
+              { label: '近7天', value: 'week' },
+              { label: '近30天', value: 'month' },
+              { label: '近90天', value: 'quarter' },
+            ]}
+          />
+          <Button
+            onClick={() => {
+              setPeriod('month')
+              setRange(defaultUsageRange('month'))
+            }}
+          >
+            重置
+          </Button>
+        </Space>
+      </Card>
+
+      <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+        <UsageStatCard
+          icon={<FundProjectionScreenOutlined />}
+          iconBg="#eaf1ff"
+          label="API调用次数"
+          value={totalCalls.toLocaleString()}
+          sub="区间调用合计，与趋势图一致"
+        />
+        <UsageStatCard
+          icon={<WalletOutlined />}
+          iconBg="#fff4e8"
+          label="消耗金额"
+          value={`¥${totalCost.toFixed(2)}`}
+          sub="含代金券抵扣部分"
+        />
+        <UsageStatCard
+          icon={<ThunderboltOutlined />}
+          iconBg="#eaf9f0"
+          label="Token 消耗"
+          value={`${(totalTokens / 10000).toFixed(1)} 万`}
+          sub="输入与输出合计"
+        />
+        <UsageStatCard icon={<AppstoreOutlined />} iconBg="#f3eeff" label="活跃模型" value={String(rows.length)} sub="共 29 个可用模型" />
+      </div>
+
+      <SectionTitle top={24}>用量趋势</SectionTitle>
+      <Card variant="borderless" style={{ borderRadius: 8, border: '1px solid #eef0f4' }} styles={{ body: { padding: 16 } }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            按天统计（演示数据）
+          </Text>
+          <Segmented
+            size="small"
+            value={metric}
+            onChange={(v) => setMetric(v as 'calls' | 'cost')}
+            options={[
+              { label: 'API调用次数', value: 'calls' },
+              { label: '消耗金额', value: 'cost' },
+            ]}
+          />
+        </div>
+        {trend === null ? (
+          <div style={{ padding: '56px 0', textAlign: 'center' }}>
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="所选区间不在本月内，原型演示数据仅覆盖当月" />
+          </div>
+        ) : (
+          <div style={{ position: 'relative' }}>
+            <svg
+              viewBox={`0 0 ${W} ${H}`}
+              style={{ display: 'block', width: '100%', height: 208 }}
+              onMouseLeave={() => setHover(null)}
+            >
+              <defs>
+                <linearGradient id="usageAreaFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="rgba(47,107,255,0.22)" />
+                  <stop offset="100%" stopColor="rgba(47,107,255,0.02)" />
+                </linearGradient>
+              </defs>
+              {[0, 1, 2, 3, 4].map((i) => {
+                const y = PAD.top + (plotH * i) / 4
+                return <line key={i} x1={PAD.left} y1={y} x2={W - PAD.right} y2={y} stroke="#eef0f4" strokeWidth="1" />
+              })}
+              {chartValues.map((v, i) => {
+                const h = valueAt(i)
+                const x = PAD.left + ((i + 0.5) / n) * plotW - barW / 2
+                return (
+                  <rect
+                    key={i}
+                    x={x}
+                    y={PAD.top + plotH - h}
+                    width={barW}
+                    height={h}
+                    rx={2}
+                    fill={hover === i ? '#2f6bff' : 'rgba(47,107,255,0.3)'}
+                  />
+                )
+              })}
+              <polyline points={points} fill="none" stroke="#2f6bff" strokeWidth="2" strokeLinejoin="round" />
+              <polygon points={areaPoints} fill="url(#usageAreaFill)" />
+              {chartValues.map((_, i) => {
+                const step = Math.max(1, Math.ceil(n / 12))
+                if (i % step !== 0 && i !== n - 1) return null
+                const x = PAD.left + ((i + 0.5) / n) * plotW
+                return (
+                  <text key={i} x={x} y={H - 8} textAnchor="middle" fontSize="11" fill="#86909c">
+                    {trend.labels[i]}
+                  </text>
+                )
+              })}
+              {chartValues.map((_, i) => {
+                const x = PAD.left + ((i + 0.5) / n) * plotW - plotW / (2 * n)
+                return (
+                  <rect
+                    key={i}
+                    x={x}
+                    y={PAD.top}
+                    width={plotW / n}
+                    height={plotH}
+                    fill="transparent"
+                    onMouseEnter={() => setHover(i)}
+                  />
+                )
+              })}
+            </svg>
+            {hover !== null && hover < n && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: `${((hover + 0.5) / n) * 100}%`,
+                  top: 0,
+                  transform: 'translateX(-50%)',
+                  pointerEvents: 'none',
+                  background: 'rgba(29,33,41,0.9)',
+                  color: '#fff',
+                  borderRadius: 6,
+                  padding: '4px 10px',
+                  fontSize: 12,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {trend.labels[hover]} · {metric === 'calls' ? `${chartValues[hover]} 次` : `¥${chartValues[hover].toFixed(2)}`}
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+
+      <SectionTitle top={24}>模型用量明细</SectionTitle>
+      <Card variant="borderless" style={{ borderRadius: 8, border: '1px solid #eef0f4' }} styles={{ body: { padding: 16 } }}>
+        <Table<ModelUsageRow>
+          rowKey="model"
+          size="middle"
+          columns={columns}
+          dataSource={rows}
+          pagination={false}
+          scroll={{ x: 'max-content' }}
+          summary={() => (
+            <Table.Summary.Row>
+              <Table.Summary.Cell index={0}>
+                <Text strong>合计</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={1}>
+                <Text type="secondary">—</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={2} align="right">
+                <Text strong>{totalCalls.toLocaleString()}</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={3} align="right">
+                <Text strong>{(totalTokens / 10000).toFixed(1)} 万</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={4} align="right">
+                <Text strong>¥{totalCost.toFixed(2)}</Text>
+              </Table.Summary.Cell>
+            </Table.Summary.Row>
+          )}
+        />
+      </Card>
+    </div>
+  )
+}
+
 /* ---------------- Token 工厂 ---------------- */
 
 interface TokenFactoryPageProps {
   /** 评审模式放行的二级菜单；不传表示全部展示 */
   allowedMenus?: FactoryMenu[]
+  /** 概览页「充值余额」跳转到费用管理，未传时回落到 Token 工厂内部提示 */
+  onGoRecharge?: () => void
 }
 
-export default function TokenFactoryPage({ allowedMenus }: TokenFactoryPageProps) {
+export default function TokenFactoryPage({ allowedMenus, onGoRecharge }: TokenFactoryPageProps) {
   /** 评审范围裁剪后的菜单组：组内无可见项时整组隐藏 */
   const groups = useMemo(() => {
     if (!allowedMenus || allowedMenus.length === 0) return MENU_GROUPS
@@ -4247,7 +5016,7 @@ export default function TokenFactoryPage({ allowedMenus }: TokenFactoryPageProps
       items: g.items.filter((i) => allowedMenus.includes(i.key)),
     })).filter((g) => g.items.length > 0)
   }, [allowedMenus])
-  /** 不在评审范围内的菜单（含页面内跳转）统一回落到第一个可见项 */
+  /** 不在评审范围内的菜单（含页面内跳转）统一回落到第一个可见项；「概览」是菜单首项，进入 Token 工厂默认即概览页 */
   const fallbackMenu = groups[0]?.items[0]?.key ?? 'plaza'
 
   const [menu, setMenu] = useState<FactoryMenu>(fallbackMenu)
@@ -4257,6 +5026,11 @@ export default function TokenFactoryPage({ allowedMenus }: TokenFactoryPageProps
   const [accountKeys, setAccountKeys] = useState<ApiKeyRow[]>(INITIAL_ACCOUNT_KEYS)
 
   const onMenuClick = (key: FactoryMenu) => {
+    /** 评审范围内的页面才会切换：概览页内的跳转指向未放行菜单时给出提示，避免点了没反应 */
+    if (allowedMenus && allowedMenus.length && !allowedMenus.includes(key)) {
+      message.info('该页面不在本次评审范围内')
+      return
+    }
     setMenu(key)
     setDetailId(null)
   }
@@ -4276,8 +5050,8 @@ export default function TokenFactoryPage({ allowedMenus }: TokenFactoryPageProps
         }}
       >
         {groups.map((group) => (
-          <div key={group.title}>
-            <div style={{ padding: '10px 20px 6px', fontSize: 12, color: '#86909c' }}>{group.title}</div>
+          <div key={group.title || 'top'}>
+            {group.title && <div style={{ padding: '10px 20px 6px', fontSize: 12, color: '#86909c' }}>{group.title}</div>}
             {group.items.map((item) => {
               const active = activeMenu === item.key
               return (
@@ -4285,7 +5059,7 @@ export default function TokenFactoryPage({ allowedMenus }: TokenFactoryPageProps
                   key={item.key}
                   onClick={() => onMenuClick(item.key)}
                   style={{
-                    margin: '2px 8px',
+                    margin: group.title ? '2px 8px' : '8px 8px 2px',
                     padding: '9px 12px',
                     borderRadius: 8,
                     fontSize: 14,
@@ -4300,14 +5074,26 @@ export default function TokenFactoryPage({ allowedMenus }: TokenFactoryPageProps
                 >
                   {item.icon}
                   {item.label}
+                  {item.dot}
                 </div>
               )
             })}
           </div>
         ))}
       </div>
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        {activeMenu === 'plaza' ? (
+      <div style={{ flex: 1, overflow: 'auto', background: '#fff' }}>
+        {activeMenu === 'overview' ? (
+          <OverviewSection
+            onGoMyGroups={() => onMenuClick('myGroups')}
+            onGoApiKey={() => onMenuClick('apiKey')}
+            onGoRecharge={
+              onGoRecharge ??
+              (() => message.info('请从顶部「费用」进入账户概览完成充值'))
+            }
+            onGoUsage={() => onMenuClick('usage')}
+            onGoPlaza={() => onMenuClick('plaza')}
+          />
+        ) : activeMenu === 'plaza' ? (
           <ModelPlaza
             detailId={detailId}
             onDetailChange={setDetailId}
@@ -4330,6 +5116,8 @@ export default function TokenFactoryPage({ allowedMenus }: TokenFactoryPageProps
               setDetailId(model.id)
             }}
           />
+        ) : activeMenu === 'usage' ? (
+          <UsageStats />
         ) : (
           <div style={{ padding: '120px 24px', textAlign: 'center' }}>
             <Empty description={`「${MENU_LABELS[activeMenu]}」不在本次原型范围内，当前仅演示模型广场、API Key 管理与模型分组`} />

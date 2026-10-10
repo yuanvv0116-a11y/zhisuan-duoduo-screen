@@ -53,12 +53,12 @@ export default function RequirementDot({ title, sections }: Props) {
               <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
                 {sec.items.map((it, i) => (
                   <li key={i} style={{ marginBottom: 4, lineHeight: 1.7 }}>
-                    <Text>{it}</Text>
+                    <Text style={{ whiteSpace: 'pre-line' }}>{it}</Text>
                   </li>
                 ))}
               </ul>
             ) : (
-              <Paragraph style={{ margin: 0, lineHeight: 1.7 }}>{sec.items}</Paragraph>
+              <Paragraph style={{ margin: 0, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{sec.items}</Paragraph>
             )}
           </div>
         ))}

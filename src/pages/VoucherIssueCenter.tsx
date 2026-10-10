@@ -28,6 +28,7 @@ import type { Dayjs } from 'dayjs'
 import PageShell from '../components/PageShell'
 import RequirementDot, { type RequirementSection } from '../components/RequirementDot'
 import SearchField from '../components/SearchField'
+import { maskName } from '../components/SecretCell'
 import {
   VOUCHER_ACCOUNT_TYPE_LABEL,
   VOUCHER_ACCOUNT_TAGS,
@@ -52,6 +53,7 @@ import type { VoucherIssueAccount } from '../store'
 import {
   VOUCHER_MULTI_DEDUCT_HINT,
   VOUCHER_PERIOD_UNIT_LABEL,
+  VOUCHER_SOURCE_LABEL,
   VOUCHER_STATUS_COLOR,
   VOUCHER_STATUS_LABEL,
   VOUCHER_TASK_SCHEDULE_LABEL,
@@ -64,6 +66,7 @@ import type {
   Voucher,
   VoucherIssueTask,
   VoucherPeriodUnit,
+  VoucherSource,
   VoucherStatus,
   VoucherTaskAccountScope,
   VoucherTaskFiring,
@@ -86,11 +89,10 @@ const TAB_REQUIREMENTS: Record<TabKey, { title: string; sections: RequirementSec
       {
         label: '需求内容',
         items: [
-          '1.列表展示如图，按照创建时间倒序展示。',
-          '2.支持根据模板名称模糊搜索，支持根据状态搜索。',
-          '3.点击删除，需要二次确认后删除；',
-          '4.关闭券状态，需要二次确认。',
-          '5.所有的发券动作，均要要正券模板是否启用。',
+          '1.如新增时开启兑券专用，则列表需要标记且展示兑换金额；',
+          '2.新增和编辑中增加“兑换专用”开关。开启兑换专用的，需要填写兑换金额。支持2位小数。',
+          '3.开启兑换专用的代金券，不支持手动发放、不支持创建发放任务。 列表中功能置灰。 新建发放任务中，不展示这些代金券。',
+          '4.另外概览页面需要一张新人券，可以暂不处理新人逻辑关系。仅在页面控制是否展示该券即可。',
         ],
       },
     ],
@@ -146,6 +148,8 @@ interface Filters {
   /** 代金券列表：归属账户的用户标签（多选，命中任一即保留） */
   vTags: string[]
   vStatus: 'any' | VoucherStatus
+  /** 代金券列表：券来源（佣金兑换的券在此区分） */
+  vSource: 'any' | VoucherSource
   /** 代金券列表：发放时间范围 */
   vIssued: DateRange
   /** 代金券列表：生效时间范围 */
@@ -164,6 +168,7 @@ const EMPTY_FILTERS: Filters = {
   vAccount: '',
   vTags: [],
   vStatus: 'any',
+  vSource: 'any',
   vIssued: null,
   vEffective: null,
   vExpired: null,
@@ -284,7 +289,7 @@ const accountPickerColumns: ColumnsType<VoucherIssueAccount> = [
     title: '账户名',
     dataIndex: 'accountName',
     ellipsis: true,
-    render: (_: string | undefined, a) => <>{a.accountName ?? a.accountId}</>,
+    render: (_: string | undefined, a) => <>{a.accountName ? maskName(a.accountName) : a.accountId}</>,
   },
   {
     title: '账户 ID',
@@ -398,7 +403,7 @@ function AccountPicker({ value = [], onChange }: { value?: string[]; onChange?: 
                 }}
                 style={{ marginInlineEnd: 0 }}
               >
-                {a.accountName ?? a.accountId}
+                {a.accountName ? maskName(a.accountName) : a.accountId}
               </Tag>
             ))}
           </Space>
@@ -495,6 +500,10 @@ interface TplFormValues {
   longTermValid?: boolean
   periodUnit?: VoucherPeriodUnit
   applicableTo?: string
+  /** 兑换专用券：仅用于推广合伙人「兑换代金券」档位，不参与手动发放 */
+  exchangeOnly?: boolean
+  /** 兑换金额：兑换 1 张该券要消耗的佣金，仅兑换专用时配置 */
+  exchangeCost?: number
   status: boolean
 }
 
@@ -563,6 +572,7 @@ export default function VoucherIssueCenter() {
   const tplPeriodUnit: VoucherPeriodUnit = Form.useWatch('periodUnit', tplForm) ?? 'month'
   const tplEffectiveDelayDays: number | undefined = Form.useWatch('effectiveDelayDays', tplForm)
   const tplValidDays: number | undefined = Form.useWatch('validDays', tplForm)
+  const tplExchangeOnly: boolean = Form.useWatch('exchangeOnly', tplForm) ?? false
 
   /** 有效期示例（红色动态文案）：以当前日期为例，按上方设置实时算出具体起止日期；自然周期额外给出下一周期示例 */
   const validityExamples: string[] = (() => {
@@ -585,7 +595,8 @@ export default function VoucherIssueCenter() {
     return [`${head}${cnDate(start)}～${cnDate(end)}。`]
   })()
 
-  const enabledTemplates = useMemo(() => templates.filter((t) => t.status === 'enabled'), [templates])
+  /** 发放可选模板：启用中且非兑换专用（兑换专用券只出现在推广合伙人兑换档位，不参与手动发放） */
+  const enabledTemplates = useMemo(() => templates.filter((t) => t.status === 'enabled' && !t.exchangeOnly), [templates])
   const templateOptions = useMemo(
     () => enabledTemplates.map((t) => ({ value: t.id, label: `${t.name}（面额 ${money(t.faceValue)}）` })),
     [enabledTemplates],
@@ -655,6 +666,7 @@ export default function VoucherIssueCenter() {
           if (!query.vTags.some((tag) => tagNames.includes(tag))) return false
         }
         if (query.vStatus !== 'any' && liveVoucherStatus(v) !== query.vStatus) return false
+        if (query.vSource !== 'any' && v.source !== query.vSource) return false
         if (!inTimeRange(v.claimedAt ?? v.createdAt, query.vIssued)) return false
         if (!inTimeRange(v.effectiveAt, query.vEffective)) return false
         if (!inTimeRange(v.expireAt, query.vExpired)) return false
@@ -746,6 +758,9 @@ export default function VoucherIssueCenter() {
         /** 自然周期只配周期单位，生效=所在周期第一天 00:00:00、到期=周期最后一天 23:59:59，不落其他字段 */
         periodUnit: natural ? periodUnit : undefined,
         applicableTo: v.applicableTo?.trim() || undefined,
+        exchangeOnly: v.exchangeOnly || undefined,
+        /** 兑换金额只在兑换专用券上有意义，关闭兑换专用时不落值 */
+        exchangeCost: v.exchangeOnly ? roundAmount(v.exchangeCost ?? 0, 2) : undefined,
         status: v.status ? 'enabled' : 'disabled',
         remark: editingTpl?.remark,
       }
@@ -868,13 +883,22 @@ export default function VoucherIssueCenter() {
       width: 160,
       fixed: 'left',
       ellipsis: true,
-      render: (name: string) => (
-        <Tooltip title={name}>
-          <Text strong>{name}</Text>
-        </Tooltip>
+      render: (name: string, t) => (
+        <Space size={4}>
+          <Tooltip title={name}>
+            <Text strong>{name}</Text>
+          </Tooltip>
+          {t.exchangeOnly ? <Tag color="blue">兑换专用</Tag> : null}
+        </Space>
       ),
     },
     { title: '面额', dataIndex: 'faceValue', width: 100, render: (n: number) => money(n) },
+    {
+      title: '兑换金额',
+      dataIndex: 'exchangeCost',
+      width: 110,
+      render: (value?: number) => (value == null ? EMPTY_CELL : money(value)),
+    },
     {
       title: '有效期',
       width: 240,
@@ -926,10 +950,10 @@ export default function VoucherIssueCenter() {
       fixed: 'right',
       render: (_: unknown, t) => (
         <Space size={0}>
-          <Button type="link" disabled={t.status !== 'enabled'} onClick={() => openIssueModal(t.id)}>
+          <Button type="link" disabled={t.status !== 'enabled' || t.exchangeOnly} onClick={() => openIssueModal(t.id)}>
             立即发放
           </Button>
-          <Button type="link" disabled={t.status !== 'enabled'} onClick={() => openTaskModal(t.id)}>
+          <Button type="link" disabled={t.status !== 'enabled' || t.exchangeOnly} onClick={() => openTaskModal(t.id)}>
             创建发放任务
           </Button>
           <Button type="link" onClick={() => openTplModal(t)}>
@@ -978,7 +1002,7 @@ export default function VoucherIssueCenter() {
       render: (_: unknown, v) =>
         v.accountId ? (
           <Space direction="vertical" size={0}>
-            <Text>{v.accountName ?? v.accountId}</Text>
+            <Text>{v.accountName ? maskName(v.accountName) : v.accountId}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
               {v.accountId}
               {v.phone ? `｜${v.phone}` : ''}
@@ -1015,6 +1039,13 @@ export default function VoucherIssueCenter() {
         const live = liveVoucherStatus(v)
         return <Tag color={VOUCHER_STATUS_COLOR[live]}>{VOUCHER_STATUS_LABEL[live]}</Tag>
       },
+    },
+    {
+      title: '来源',
+      dataIndex: 'source',
+      width: 100,
+      render: (source: VoucherSource) =>
+        source === 'exchange' ? <Tag color="gold">佣金兑换</Tag> : VOUCHER_SOURCE_LABEL[source],
     },
     {
       title: '生效时间',
@@ -1252,6 +1283,20 @@ export default function VoucherIssueCenter() {
             ]}
           />
         </SearchField>
+        <SearchField label="来源">
+          <Select
+            style={{ width: 130 }}
+            value={filters.vSource}
+            onChange={(value) => setFilters({ ...filters, vSource: value })}
+            options={[
+              { value: 'any', label: '全部' },
+              { value: 'targeted', label: VOUCHER_SOURCE_LABEL.targeted },
+              { value: 'batch', label: VOUCHER_SOURCE_LABEL.batch },
+              { value: 'manual', label: VOUCHER_SOURCE_LABEL.manual },
+              { value: 'exchange', label: VOUCHER_SOURCE_LABEL.exchange },
+            ]}
+          />
+        </SearchField>
         {voucherSearchExpanded && (
           <>
             <SearchField label="发放时间">
@@ -1392,30 +1437,7 @@ export default function VoucherIssueCenter() {
 
       {/* 新增 / 编辑券模板 */}
       <Modal
-        title={
-          <Space size={8}>
-            {editingTpl ? '编辑券模板' : '新增券模板'}
-            <RequirementDot
-              title="新增券模板 · 需求说明"
-              sections={[
-                {
-                  label: '需求内容',
-                  items: [
-                    '1.模板名称，必填，限12字，不限输入类型，不可重名；',
-                    '2.面额，必填，数字，支持2位小数；0.01～9999999之间；',
-                    '3.发放后N天生效，必填，整数，0-365；',
-                    '生效后N天有效，必填，整数，0-3650；',
-                    '选择长期有效后，不限制失效日期，直到卡券用完；',
-                    '自然周期，支持选择周、月、季度。发放时，按照发放时间计算有效期。',
-                    '固定日期：生效时间应大于当前，支持选择到年月日时分，失效时间应大于生效时间；选择长期有效时，不限制失效日期，直到卡券用完；',
-                    '4.使用说明限500字，选填。',
-                    '5.状态默认开启。',
-                  ],
-                },
-              ]}
-            />
-          </Space>
-        }
+        title={editingTpl ? '编辑券模板' : '新增券模板'}
         open={tplModalOpen}
         centered
         width={680}
@@ -1449,6 +1471,8 @@ export default function VoucherIssueCenter() {
                   longTermValid: editingTpl.validityType === 'daysAfterIssue' && editingTpl.validDays == null,
                   periodUnit: editingTpl.periodUnit ?? 'month',
                   applicableTo: editingTpl.applicableTo,
+                  exchangeOnly: editingTpl.exchangeOnly ?? false,
+                  exchangeCost: editingTpl.exchangeCost,
                   status: editingTpl.status === 'enabled',
                 }
               : {
@@ -1458,6 +1482,7 @@ export default function VoucherIssueCenter() {
                   longTermValid: false,
                   fixedLongTerm: false,
                   periodUnit: 'month',
+                  exchangeOnly: false,
                   status: true,
                 }
           }
@@ -1665,6 +1690,36 @@ export default function VoucherIssueCenter() {
               rows={3}
             />
           </Form.Item>
+          <Form.Item
+            name="exchangeOnly"
+            label="兑换专用"
+            valuePropName="checked"
+            extra="打开后该券仅供推广合伙人「兑换代金券」使用，不可手动发放"
+          >
+            <Switch
+              checkedChildren="是"
+              unCheckedChildren="否"
+              onChange={(on) => {
+                if (!on) tplForm.setFieldValue('exchangeCost', undefined)
+              }}
+            />
+          </Form.Item>
+          {tplExchangeOnly ? (
+            <Form.Item
+              name="exchangeCost"
+              label="兑换金额（元）"
+              extra="推广合伙人兑换 1 张该券需消耗的佣金金额"
+              rules={[{ required: true, message: '请输入兑换金额' }]}
+            >
+              <InputNumber
+                min={0.01}
+                max={9999999}
+                precision={2}
+                style={{ width: '100%' }}
+                placeholder="如：100"
+              />
+            </Form.Item>
+          ) : null}
           <Form.Item
             name="status"
             label="状态"

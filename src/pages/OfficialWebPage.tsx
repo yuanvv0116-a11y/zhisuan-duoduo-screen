@@ -475,19 +475,6 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
             ))}
           </div>
         </section>
-
-        {/* Footer */}
-        <footer
-          style={{
-            padding: '32px 24px',
-            borderTop: '1px solid #eef0f4',
-            textAlign: 'center',
-            color: '#999',
-            fontSize: 13,
-          }}
-        >
-          © 2026 智算多多 · 让 AI 更简单
-        </footer>
       </div>
     </div>
   )

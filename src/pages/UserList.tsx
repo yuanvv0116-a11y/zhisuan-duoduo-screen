@@ -14,6 +14,7 @@ import {
   PlusOutlined,
 } from '@ant-design/icons'
 import RequirementDot from '../components/RequirementDot'
+import { maskName, maskNameInText } from '../components/SecretCell'
 
 const { Text } = Typography
 
@@ -198,7 +199,7 @@ export default function UserList({ onNavigateToTagPage }: UserListProps = {}) {
                   style={{ fontSize: 12, color: '#8c8c8c', cursor: 'pointer' }}
                   onClick={() => openRemarkModal(r)}
                 >
-                  {r.remark}
+                  {maskNameInText(r.remark)}
                 </Text>
                 <EditOutlined
                   style={{ fontSize: 12, color: '#2f6bff', cursor: 'pointer' }}
@@ -271,7 +272,7 @@ export default function UserList({ onNavigateToTagPage }: UserListProps = {}) {
       key: 'authInfo',
       align: 'center',
       width: 130,
-      render: (v: string) => (v ? v : <Text type="secondary">—</Text>),
+      render: (v: string) => (v ? maskName(v) : <Text type="secondary">—</Text>),
     },
     {
       title: '关联账户',

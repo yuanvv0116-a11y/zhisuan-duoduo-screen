@@ -2,10 +2,21 @@ import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import type {
   Channel,
   ChannelModelItem,
+  CommissionRecord,
+  ExchangeRecord,
   GroupOwner,
   ModelApiConfig,
   ModelItem,
   ModelGroup,
+  ModelRebateRule,
+  PromoActivityPage,
+  PromoCampaign,
+  PromoCampaignModel,
+  PromoCampaignScope,
+  PromoModelCategory,
+  PromoInvitee,
+  PromoPartner,
+  PromoPartnerStatus,
   ResourcePack,
   TokenPlan,
   AccountLedger,
@@ -20,6 +31,7 @@ import type {
   VoucherTaskAccountScope,
   VoucherTaskFiring,
   VoucherTaskSchedule,
+  WithdrawRequest,
 } from './types'
 import { calcPlanDiscountedPrice, roundAmount, VOUCHER_STATUS_LABEL } from './types'
 
@@ -1277,6 +1289,8 @@ const modelListListeners = new Set<() => void>()
 function emitModelList() {
   localStorage.setItem(MODEL_LIST_STORAGE_KEY, JSON.stringify(modelListState))
   modelListListeners.forEach((l) => l())
+  /** 新增/编辑模型后，「全平台模型」适用范围的活动需按默认返佣比例自动补齐新档位 */
+  syncAllScopeCampaignModels()
 }
 
 function subscribeModelList(cb: () => void) {
@@ -2863,6 +2877,74 @@ const VOUCHER_TEMPLATE_SEED: VoucherTemplate[] = [
     operator: CURRENT_OPERATOR,
     createdAt: '2026-09-22 11:00:00',
   },
+  {
+    id: 'vt_ex_120',
+    name: '佣金兑换券 120 元',
+    faceValue: 120,
+    deductOrder: 'voucherFirst',
+    scope: 'all',
+    validityType: 'daysAfterIssue',
+    effectiveDelayDays: 0,
+    validDays: 365,
+    applicableTo: '适用于全平台模型按量计费',
+    exchangeOnly: true,
+    exchangeCost: 100,
+    status: 'enabled',
+    remark: '推广合伙人佣金兑换专用：消耗佣金 100.00 元兑换 1 张',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-25 10:00:00',
+  },
+  {
+    id: 'vt_ex_240',
+    name: '佣金兑换券 240 元',
+    faceValue: 240,
+    deductOrder: 'voucherFirst',
+    scope: 'all',
+    validityType: 'daysAfterIssue',
+    effectiveDelayDays: 0,
+    validDays: 365,
+    applicableTo: '适用于全平台模型按量计费',
+    exchangeOnly: true,
+    exchangeCost: 200,
+    status: 'enabled',
+    remark: '推广合伙人佣金兑换专用：消耗佣金 200.00 元兑换 1 张',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-25 10:00:00',
+  },
+  {
+    id: 'vt_ex_500',
+    name: '佣金兑换券 500 元',
+    faceValue: 500,
+    deductOrder: 'voucherFirst',
+    scope: 'all',
+    validityType: 'daysAfterIssue',
+    effectiveDelayDays: 0,
+    validDays: 365,
+    applicableTo: '适用于全平台模型按量计费',
+    exchangeOnly: true,
+    exchangeCost: 416.67,
+    status: 'enabled',
+    remark: '推广合伙人佣金兑换专用：消耗佣金 416.67 元兑换 1 张',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-25 10:00:00',
+  },
+  {
+    id: 'vt_ex_1000',
+    name: '佣金兑换券 1000 元',
+    faceValue: 1000,
+    deductOrder: 'voucherFirst',
+    scope: 'all',
+    validityType: 'daysAfterIssue',
+    effectiveDelayDays: 0,
+    validDays: 365,
+    applicableTo: '适用于全平台模型按量计费',
+    exchangeOnly: true,
+    exchangeCost: 833.33,
+    status: 'enabled',
+    remark: '推广合伙人佣金兑换专用：消耗佣金 833.33 元兑换 1 张',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-25 10:00:00',
+  },
 ]
 
 /* ---------------- seed：券实例（五种状态各一条演示数据） ---------------- */
@@ -2978,6 +3060,73 @@ const VOUCHER_SEED: Voucher[] = [
     remark: '国庆预热：批量提前发放，10 月 1 日 00:00 起生效',
     operator: CURRENT_OPERATOR,
     createdAt: demoVoucherStamp(60),
+  },
+  /**
+   * 佣金兑换历史券：券码 / 面额 / 归属账户与兑券记录种子（promoExchangeSeed）一一对齐，
+   * 兑换发生时点早于固定面额档位，故挂在历史模板快照「佣金兑换券」下。
+   */
+  {
+    id: 'vou_ex_001',
+    code: 'DQ-202608-000081',
+    templateId: 'vt_ex_500',
+    templateName: '佣金兑换券',
+    faceValue: 360,
+    balance: 360,
+    scope: 'all',
+    accountId: 'ACC20260810PVPbI3MgE',
+    accountName: '张明',
+    phone: '138****5182',
+    accountType: 'personal',
+    source: 'exchange',
+    status: 'active',
+    effectiveAt: '2026-08-18 14:26:35',
+    expireAt: '2026-11-16 14:26:35',
+    claimedAt: '2026-08-18 14:26:35',
+    remark: '推广合伙人佣金兑换：消耗 300 元佣金兑换 360 元券',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-08-18 14:26:35',
+  },
+  {
+    id: 'vou_ex_002',
+    code: 'DQ-202609-000093',
+    templateId: 'vt_ex_500',
+    templateName: '佣金兑换券',
+    faceValue: 480,
+    balance: 480,
+    scope: 'all',
+    accountId: 'ACC20260810PVPbI3MgE',
+    accountName: '张明',
+    phone: '138****5182',
+    accountType: 'personal',
+    source: 'exchange',
+    status: 'active',
+    effectiveAt: '2026-09-16 11:08:52',
+    expireAt: '2026-12-15 11:08:52',
+    claimedAt: '2026-09-16 11:08:52',
+    remark: '推广合伙人佣金兑换：消耗 400 元佣金兑换 480 元券',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-16 11:08:52',
+  },
+  {
+    id: 'vou_ex_003',
+    code: 'DQ-202608-000078',
+    templateId: 'vt_ex_240',
+    templateName: '佣金兑换券',
+    faceValue: 288,
+    balance: 288,
+    scope: 'all',
+    accountId: 'ACC20260718LThn4Kd2',
+    accountName: '李虎',
+    phone: '139****8843',
+    accountType: 'personal',
+    source: 'exchange',
+    status: 'active',
+    effectiveAt: '2026-08-08 16:42:19',
+    expireAt: '2026-11-06 16:42:19',
+    claimedAt: '2026-08-08 16:42:19',
+    remark: '推广合伙人佣金兑换：消耗 240 元佣金兑换 288 元券',
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-08-08 16:42:19',
   },
 ]
 
@@ -3225,19 +3374,36 @@ const VOUCHER_LEDGER_SEED: AccountLedger[] = [
 
 /* ---------------- 通用实体存储（localStorage + 订阅） ---------------- */
 
-function makeVoucherStore<T>(key: string, seedRows: T[]) {
+function makeVoucherStore<T>(key: string, seedRows: T[], revive?: (rows: T[]) => T[]) {
   let state: T[] = (() => {
     try {
       const raw = localStorage.getItem(key)
       if (raw) {
         const parsed = JSON.parse(raw) as T[]
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const rows = revive ? revive(parsed) : parsed
+          if (rows !== parsed) localStorage.setItem(key, JSON.stringify(rows))
+          return rows
+        }
       }
     } catch {}
     localStorage.setItem(key, JSON.stringify(seedRows))
     return seedRows
   })()
   const listeners = new Set<() => void>()
+  const notify = () => listeners.forEach((l) => l())
+  /** 跨标签页同步：后台与控制台常在不同标签页打开，localStorage 写入后需通知其他标签页重渲染 */
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (e) => {
+      if (e.key !== key || e.newValue == null || e.newValue === JSON.stringify(state)) return
+      try {
+        const parsed = JSON.parse(e.newValue) as T[]
+        if (!Array.isArray(parsed)) return
+        state = revive ? revive(parsed) : parsed
+        notify()
+      } catch {}
+    })
+  }
   return {
     subscribe: (cb: () => void) => {
       listeners.add(cb)
@@ -3249,7 +3415,7 @@ function makeVoucherStore<T>(key: string, seedRows: T[]) {
     set: (next: T[] | ((prev: T[]) => T[])) => {
       state = typeof next === 'function' ? (next as (prev: T[]) => T[])(state) : next
       localStorage.setItem(key, JSON.stringify(state))
-      listeners.forEach((l) => l())
+      notify()
     },
   }
 }
@@ -3359,6 +3525,7 @@ const normalizeTaskRow = (row: Record<string, unknown>) => {
  * - 当前键有数据 → 就地归一化；为空 → 回捞历史键的自建数据（历史键保留不动，便于回滚）；两者皆空则交给种子
  * - 回捞时按 id 追加缺失的种子行（只补不删）：模板 v5→v6 补「国庆限定模型券」，任务 v5→v6 补三种新演示任务
  * - 固定日期模板旧的「只到日」配置换算为整点时刻串（生效 00:00、失效 23:00），已发出的券不回溯
+ * - 兑换专用档位补齐后续新增的「兑换金额」字段：仅缺失时按种子补值，已配置过的保留原值
  * - 券实例与券池流水不回捞：演示数据裁剪为「五种状态各一条」属于删除类变更，回捞无法删掉存量多余行，直接按新种子重建
  * - 券池流水另做同键 remark 就地刷新：旧「券 + 现金混付」口径备注一次性改为全额券抵扣口径
  * - 五种状态的代表券与其券池流水按演示锚点对齐：存量同 id 行只刷新时间轴字段（券的时刻与批次、流水的时刻与流水号），
@@ -3367,9 +3534,22 @@ const normalizeTaskRow = (row: Record<string, unknown>) => {
 function migrateVoucherData() {
   const storedTemplates = readStoredRows(VOUCHER_TEMPLATE_STORAGE_KEY)
   if (storedTemplates) {
-    const normalized = storedTemplates.map(normalizeTemplateRow)
-    if (JSON.stringify(normalized) !== JSON.stringify(storedTemplates)) {
-      localStorage.setItem(VOUCHER_TEMPLATE_STORAGE_KEY, JSON.stringify(normalized))
+    /** 存量模板按 id 回捞缺失的种子模板（只补不删），保证新增的兑换专用券档位能出现在老浏览器 */
+    const storedIds = new Set(storedTemplates.map((r) => String(r.id)))
+    const missingSeeds = VOUCHER_TEMPLATE_SEED.filter((tpl) => !storedIds.has(tpl.id)).map(
+      (tpl) => ({ ...tpl }) as unknown as Record<string, unknown>,
+    )
+    const normalized = [...storedTemplates, ...missingSeeds].map(normalizeTemplateRow)
+    /** 兑换专用券有效期统一为 1 年：存量模板按种子口径定向回刷（只动这 4 个档位） */
+    const exchangeSeedIds = new Set(VOUCHER_TEMPLATE_SEED.filter((t) => t.exchangeOnly).map((t) => t.id))
+    const seeded = normalized.map((row) => {
+      const seed = exchangeSeedIds.has(String(row.id)) ? VOUCHER_TEMPLATE_SEED.find((t) => t.id === String(row.id)) : undefined
+      if (!seed) return row
+      /** 「兑换金额」为后续新增字段：存量兑换档位缺失时按种子补值，已配置过的（含手工改过的）不动 */
+      return { ...row, validDays: seed.validDays, exchangeCost: row.exchangeCost ?? seed.exchangeCost }
+    })
+    if (JSON.stringify(seeded) !== JSON.stringify(storedTemplates)) {
+      localStorage.setItem(VOUCHER_TEMPLATE_STORAGE_KEY, JSON.stringify(seeded))
     }
   } else {
     for (const legacyKey of LEGACY_VOUCHER_TEMPLATE_KEYS) {
@@ -3470,9 +3650,16 @@ function migrateVoucherData() {
 
   const storedVouchers = readStoredRows(VOUCHER_STORAGE_KEY)
   if (storedVouchers) {
-    const nextVouchers = storedVouchers.map((row) => {
+    /** 佣金兑换历史券（只补不删）：保证老浏览器的代金券列表也能按「佣金兑换」来源筛出种子兑券 */
+    const voucherIds = new Set(storedVouchers.map((row) => String(row.id)))
+    const missingExchangeVouchers = VOUCHER_SEED.filter(
+      (v) => v.source === 'exchange' && !voucherIds.has(v.id),
+    ).map((v) => ({ ...v }) as unknown as Record<string, unknown>)
+    const nextVouchers = [...storedVouchers, ...missingExchangeVouchers].map((row) => {
       const demo = demoVoucherById.get(String(row.id))
       const aligned = demo ? { ...row, ...pickFields(demo, DEMO_VOUCHER_FIELDS) } : row
+      /** 早期版本兑换生成的券来源记为后台发放，按备注口径回刷为「佣金兑换」 */
+      if (String(aligned.remark ?? '').startsWith('推广合伙人佣金兑换')) return { ...aligned, source: 'exchange' }
       if (String(aligned.code) === 'DQ-202609-000101') return { ...aligned, balance: 0, status: 'usedUp' }
       if (String(aligned.code) === 'DQ-202609-000102') return { ...aligned, balance: 20, status: 'active' }
       return aligned
@@ -3977,4 +4164,1931 @@ export function setVoucherTaskPaused(id: string, paused: boolean): VoucherIssueT
     }),
   )
   return result
+}
+
+/* ==================== 推广合伙人（分销）：store + 种子数据 + 动作 ==================== */
+
+/** 官网域名：推广邀请链接与落地页共用 */
+export const PROMO_SITE = 'https://zsdodo.com'
+/** 提现门槛（元）：单笔最低可提金额 */
+export const PROMO_WITHDRAW_MIN = 100
+/** 佣金兑换代金券加兑比例：1 元佣金兑 1.2 元面额券 */
+export const PROMO_VOUCHER_RATE = 1.2
+/** 兑换所得代金券有效期（天） */
+export const PROMO_VOUCHER_VALID_DAYS = 365
+/** 见面礼金额（元）：被邀人实名 + 首笔现金消耗后，双方各得一张等额无门槛券 */
+export const PROMO_GIFT_AMOUNT = 20
+
+/** v4：邀请/实名/首耗计数与「被邀请人名单 + 分佣明细」对齐（12/8/5、8/5/3） */
+const PROMO_PARTNER_STORAGE_KEY = 'zsdd_promo_partners_v4'
+const PROMO_REBATE_STORAGE_KEY = 'zsdd_promo_rebate_v3'
+const PROMO_COMMISSION_STORAGE_KEY = 'zsdd_promo_commissions_v9'
+const PROMO_WITHDRAW_STORAGE_KEY = 'zsdd_promo_withdraws_v4'
+const PROMO_EXCHANGE_STORAGE_KEY = 'zsdd_promo_exchanges_v1'
+/** v3：名单种子补齐「邀请归属活动 id」（按 id 只补不删的迁移无法回填旧行，故升版让旧缓存失效） */
+const PROMO_INVITEE_STORAGE_KEY = 'zsdd_promo_invitees_v3'
+
+const promoRebateSeed: ModelRebateRule[] = [
+  {
+    id: 'pr_001',
+    modelName: 'DODO-OG-G-6-Astra',
+    category: 'self',
+    multiplierName: '标准倍率',
+    modelMultiplier: 1,
+    rate: 20,
+    campaign: true,
+    boostRate: 40,
+    campaignStartAt: '2026-09-01',
+    campaignEndAt: '2026-09-30',
+    page: 'official',
+    effectiveAt: '2026-08-01',
+    status: 'on',
+    operator: CURRENT_OPERATOR,
+    updatedAt: '2026-08-25 14:20:00',
+  },
+  {
+    id: 'pr_002',
+    modelName: 'DODO-OG-G-5-6-Sol',
+    category: 'self',
+    multiplierName: '标准倍率',
+    modelMultiplier: 1,
+    rate: 15,
+    campaign: false,
+    page: 'official',
+    effectiveAt: '2026-08-01',
+    status: 'on',
+    operator: CURRENT_OPERATOR,
+    updatedAt: '2026-08-25 14:21:00',
+  },
+  {
+    id: 'pr_003',
+    modelName: 'DODO-Vision-4',
+    category: 'self',
+    multiplierName: '标准倍率',
+    modelMultiplier: 1,
+    rate: 18,
+    campaign: false,
+    page: 'official',
+    effectiveAt: '2026-08-01',
+    status: 'on',
+    operator: CURRENT_OPERATOR,
+    updatedAt: '2026-08-25 14:22:00',
+  },
+  {
+    id: 'pr_004',
+    modelName: 'DODO-Veo-Fast',
+    category: 'self',
+    multiplierName: '标准倍率',
+    modelMultiplier: 1,
+    rate: 18,
+    campaign: true,
+    boostRate: 30,
+    campaignStartAt: '2026-08-01',
+    campaignEndAt: '2026-09-20',
+    page: 'official',
+    effectiveAt: '2026-08-01',
+    status: 'on',
+    operator: CURRENT_OPERATOR,
+    updatedAt: '2026-09-21 10:00:00',
+  },
+  {
+    id: 'pr_005',
+    modelName: 'DeepSeek-V4',
+    category: 'third',
+    multiplierName: '标准倍率',
+    modelMultiplier: 1,
+    rate: 10,
+    campaign: false,
+    page: 'official',
+    effectiveAt: '2026-08-01',
+    status: 'on',
+    operator: CURRENT_OPERATOR,
+    updatedAt: '2026-08-25 14:24:00',
+  },
+  {
+    id: 'pr_006',
+    modelName: 'GLM-5.3',
+    category: 'third',
+    multiplierName: '标准倍率',
+    modelMultiplier: 1,
+    rate: 10,
+    campaign: false,
+    page: 'official',
+    effectiveAt: '2026-08-01',
+    status: 'on',
+    operator: CURRENT_OPERATOR,
+    updatedAt: '2026-08-25 14:25:00',
+  },
+  {
+    id: 'pr_007',
+    modelName: 'Kimi-K3',
+    category: 'third',
+    multiplierName: '标准倍率',
+    modelMultiplier: 1,
+    rate: 8,
+    campaign: false,
+    page: 'official',
+    effectiveAt: '2026-08-01',
+    status: 'on',
+    operator: CURRENT_OPERATOR,
+    updatedAt: '2026-08-25 14:26:00',
+  },
+  {
+    id: 'pr_008',
+    modelName: 'Qwen3.8-Max',
+    category: 'third',
+    multiplierName: '标准倍率',
+    modelMultiplier: 1,
+    rate: 8,
+    campaign: false,
+    page: 'official',
+    effectiveAt: '2026-08-01',
+    status: 'on',
+    operator: CURRENT_OPERATOR,
+    updatedAt: '2026-08-25 14:27:00',
+  },
+  {
+    id: 'pr_009',
+    modelName: 'Doubao-Seed-2.0',
+    category: 'third',
+    multiplierName: '标准倍率',
+    modelMultiplier: 1,
+    rate: 8,
+    campaign: false,
+    page: 'official',
+    effectiveAt: '2026-08-01',
+    status: 'off',
+    operator: CURRENT_OPERATOR,
+    updatedAt: '2026-09-10 09:30:00',
+  },
+  {
+    id: 'pr_010',
+    modelName: 'DeepSeek-V4',
+    category: 'third',
+    multiplierName: '尊享加速倍率',
+    modelMultiplier: 2,
+    rate: 10,
+    campaign: true,
+    boostRate: 25,
+    campaignStartAt: '2026-09-15',
+    campaignEndAt: '2026-10-15',
+    page: 'external',
+    activityUrl: 'https://partner.example.com/deepseek-v4-boost',
+    effectiveAt: '2026-09-15',
+    status: 'on',
+    operator: CURRENT_OPERATOR,
+    updatedAt: '2026-09-14 16:40:00',
+  },
+]
+
+const promoPartnerSeed: PromoPartner[] = [
+  {
+    id: 'pp_001',
+    accountId: CURRENT_CONSOLE_USER.accountId,
+    nickname: CURRENT_CONSOLE_USER.nickname,
+    phone: CURRENT_CONSOLE_USER.phone,
+    inviteCode: 'ZM8K2P7Q',
+    inviteUrl: `${PROMO_SITE}/promo?code=ZM8K2P7Q`,
+    status: 'active',
+    inviteCount: 12,
+    verifiedCount: 8,
+    firstConsumeCount: 5,
+    totalCommission: 1286.4,
+    availableCommission: 386.4,
+    exchangedCommission: 700,
+    withdrawnCommission: 200,
+    enrolledAt: '2026-07-12 10:23:41',
+  },
+  {
+    id: 'pp_002',
+    accountId: 'ACC20260718LThn4Kd2',
+    nickname: '李虎',
+    phone: '13922618843',
+    inviteCode: 'LH3F9W2X',
+    inviteUrl: `${PROMO_SITE}/promo?code=LH3F9W2X`,
+    status: 'active',
+    inviteCount: 8,
+    verifiedCount: 5,
+    firstConsumeCount: 3,
+    totalCommission: 620.5,
+    availableCommission: 180.5,
+    exchangedCommission: 240,
+    withdrawnCommission: 200,
+    enrolledAt: '2026-07-25 16:02:18',
+  },
+  {
+    id: 'pp_003',
+    accountId: 'ACC20260802WYs7Pn5c',
+    nickname: '刘思远',
+    phone: '15801237765',
+    inviteCode: 'LY6Q4T8M',
+    inviteUrl: `${PROMO_SITE}/promo?code=LY6Q4T8M`,
+    status: 'active',
+    inviteCount: 5,
+    verifiedCount: 3,
+    firstConsumeCount: 3,
+    totalCommission: 158.2,
+    availableCommission: 158.2,
+    exchangedCommission: 0,
+    withdrawnCommission: 0,
+    enrolledAt: '2026-08-06 11:47:53',
+  },
+  {
+    id: 'pp_004',
+    accountId: 'ACC20260815CJv2Rk9e',
+    nickname: '陈静',
+    phone: '13755620931',
+    inviteCode: 'CJ2N7B5V',
+    inviteUrl: `${PROMO_SITE}/promo?code=CJ2N7B5V`,
+    status: 'frozen',
+    inviteCount: 23,
+    verifiedCount: 4,
+    firstConsumeCount: 1,
+    totalCommission: 40,
+    availableCommission: 40,
+    exchangedCommission: 0,
+    withdrawnCommission: 0,
+    enrolledAt: '2026-08-20 20:15:07',
+  },
+  {
+    id: 'pp_005',
+    accountId: 'ACC20260828SYw8Gh3j',
+    nickname: '孙悦',
+    phone: '18611094527',
+    inviteCode: 'SY9D3K6P',
+    inviteUrl: `${PROMO_SITE}/promo?code=SY9D3K6P`,
+    status: 'active',
+    inviteCount: 3,
+    verifiedCount: 2,
+    firstConsumeCount: 2,
+    totalCommission: 96.8,
+    availableCommission: 96.8,
+    exchangedCommission: 0,
+    withdrawnCommission: 0,
+    enrolledAt: '2026-09-02 09:36:12',
+  },
+]
+
+const promoCommissionSeed: CommissionRecord[] = [
+  {
+    id: 'pc_001',
+    partnerId: 'pp_001',
+    partnerName: '张明',
+    kind: 'gift',
+    inviteeName: '王晓军',
+    inviteeAccountId: 'ACC20260718WXj3Tq8s',
+    amount: 20,
+    note: '被邀人完成实名认证并产生首笔现金消耗，双方各得 20 元无门槛券',
+    at: '2026-07-20 15:12:03',
+  },
+  {
+    id: 'pc_002',
+    partnerId: 'pp_001',
+    partnerName: '张明',
+    kind: 'consume',
+    inviteeName: '王晓军',
+    inviteeAccountId: 'ACC20260718WXj3Tq8s',
+    modelName: 'DeepSeek-V4',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 1200,
+    rate: 10,
+    amount: 120,
+    campaignId: 'pc_007',
+    at: '2026-08-03 11:26:47',
+  },
+  {
+    id: 'pc_003',
+    partnerId: 'pp_001',
+    partnerName: '张明',
+    kind: 'consume',
+    inviteeName: '周涛',
+    inviteeAccountId: 'ACC20260805ZT6mKp2d',
+    modelName: 'DODO-OG-G-6-Astra',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 500,
+    rate: 40,
+    amount: 200,
+    note: '限时推广活动期间计佣：标准 20% × 2',
+    campaignId: 'pc_001',
+    at: '2026-09-08 20:41:15',
+  },
+  {
+    id: 'pc_004',
+    partnerId: 'pp_001',
+    partnerName: '张明',
+    kind: 'consume',
+    inviteeName: '陈婧',
+    inviteeAccountId: 'ACC20260812CJ9wLn4h',
+    modelName: 'GLM-5.3',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 800,
+    rate: 10,
+    amount: 80,
+    campaignId: 'pc_007',
+    at: '2026-08-21 09:05:32',
+  },
+  {
+    id: 'pc_005',
+    partnerId: 'pp_001',
+    partnerName: '张明',
+    kind: 'consume',
+    inviteeName: '吴桐',
+    inviteeAccountId: 'ACC20260904WT2xRv7k',
+    modelName: 'Kimi-K3',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 350,
+    rate: 8,
+    amount: 28,
+    campaignId: 'pc_007',
+    at: '2026-09-12 17:38:56',
+  },
+  {
+    id: 'pc_007',
+    partnerId: 'pp_001',
+    partnerName: '张明',
+    kind: 'consume',
+    inviteeName: '郑好',
+    inviteeAccountId: 'ACC20260918ZH5yBc3m',
+    modelName: 'Qwen3.8-Max',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 200,
+    rate: 8,
+    amount: 16,
+    campaignId: 'pc_007',
+    at: '2026-09-26 14:55:09',
+  },
+  {
+    id: 'pc_008',
+    partnerId: 'pp_002',
+    partnerName: '李虎',
+    kind: 'gift',
+    inviteeName: '高翔',
+    inviteeAccountId: 'ACC20260729GX8dFp6t',
+    amount: 20,
+    note: '被邀人完成实名认证并产生首笔现金消耗，双方各得 20 元无门槛券',
+    at: '2026-08-02 13:44:29',
+  },
+  {
+    id: 'pc_009',
+    partnerId: 'pp_002',
+    partnerName: '李虎',
+    kind: 'consume',
+    inviteeName: '高翔',
+    inviteeAccountId: 'ACC20260729GX8dFp6t',
+    modelName: 'DODO-OG-G-5-6-Sol',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 900,
+    rate: 15,
+    amount: 135,
+    campaignId: 'pc_007',
+    at: '2026-08-25 19:20:41',
+  },
+  {
+    id: 'pc_010',
+    partnerId: 'pp_003',
+    partnerName: '刘思远',
+    kind: 'consume',
+    inviteeName: '赵倩',
+    inviteeAccountId: 'ACC20260901ZQ4hNs9r',
+    modelName: 'DODO-Vision-4',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 420,
+    rate: 18,
+    amount: 75.6,
+    campaignId: 'pc_007',
+    at: '2026-09-10 16:08:23',
+  },
+  {
+    id: 'pc_012',
+    partnerId: 'pp_004',
+    partnerName: '陈静',
+    kind: 'gift',
+    inviteeName: '徐磊',
+    inviteeAccountId: 'ACC20260820XL7kQw2v',
+    amount: 20,
+    note: '被邀人完成实名认证并产生首笔现金消耗，双方各得 20 元无门槛券',
+    at: '2026-08-28 19:24:52',
+  },
+  {
+    id: 'pc_013',
+    partnerId: 'pp_004',
+    partnerName: '陈静',
+    kind: 'consume',
+    inviteeName: '徐磊',
+    inviteeAccountId: 'ACC20260820XL7kQw2v',
+    modelName: 'Kimi-K3',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 250,
+    rate: 8,
+    amount: 20,
+    campaignId: 'pc_007',
+    at: '2026-09-02 08:49:16',
+  },
+  {
+    id: 'pc_014',
+    partnerId: 'pp_005',
+    partnerName: '孙悦',
+    kind: 'gift',
+    inviteeName: '马骏',
+    inviteeAccountId: 'ACC20260902MJ3pVt8x',
+    amount: 20,
+    note: '被邀人完成实名认证并产生首笔现金消耗，双方各得 20 元无门槛券',
+    at: '2026-09-06 10:22:35',
+  },
+  {
+    id: 'pc_015',
+    partnerId: 'pp_005',
+    partnerName: '孙悦',
+    kind: 'consume',
+    inviteeName: '马骏',
+    inviteeAccountId: 'ACC20260902MJ3pVt8x',
+    modelName: 'DeepSeek-V4',
+    modelMultiplierName: '尊享加速倍率',
+    consumeAmount: 768,
+    rate: 10,
+    amount: 76.8,
+    campaignId: 'pc_002',
+    at: '2026-09-15 21:07:48',
+  },
+  {
+    id: 'pc_016',
+    partnerId: 'pp_005',
+    partnerName: '孙悦',
+    kind: 'consume',
+    inviteeName: '冯雪',
+    inviteeAccountId: 'ACC20260917FX6rHy5w',
+    modelName: 'Qwen3.8-Max',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 105,
+    rate: 8,
+    amount: 8.4,
+    campaignId: 'pc_007',
+    at: '2026-09-24 15:41:07',
+  },
+  {
+    id: 'pc_017',
+    partnerId: 'pp_002',
+    partnerName: '李虎',
+    kind: 'consume',
+    inviteeName: '高翔',
+    inviteeAccountId: 'ACC20260729GX8dFp6t',
+    modelName: 'DeepSeek-V4',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 1500,
+    rate: 10,
+    amount: 150,
+    campaignId: 'pc_007',
+    at: '2026-08-11 10:23:08',
+  },
+  {
+    id: 'pc_018',
+    partnerId: 'pp_002',
+    partnerName: '李虎',
+    kind: 'consume',
+    inviteeName: '林晓东',
+    inviteeAccountId: 'ACC20260810Lxd2Km7q',
+    modelName: 'GLM-5.3',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 1200,
+    rate: 10,
+    amount: 120,
+    campaignId: 'pc_007',
+    at: '2026-08-30 14:07:52',
+  },
+  {
+    id: 'pc_019',
+    partnerId: 'pp_002',
+    partnerName: '李虎',
+    kind: 'consume',
+    inviteeName: '高翔',
+    inviteeAccountId: 'ACC20260729GX8dFp6t',
+    modelName: 'DODO-OG-G-6-Astra',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 260,
+    rate: 40,
+    amount: 104,
+    note: '限时推广活动期间计佣：标准 20% × 2',
+    campaignId: 'pc_001',
+    at: '2026-09-09 21:16:33',
+  },
+  {
+    id: 'pc_020',
+    partnerId: 'pp_002',
+    partnerName: '李虎',
+    kind: 'consume',
+    inviteeName: '王裕民',
+    inviteeAccountId: 'ACC20260908Wym5Tc3e',
+    modelName: 'Qwen3.8-Max',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 960,
+    rate: 8,
+    amount: 76.8,
+    campaignId: 'pc_007',
+    at: '2026-09-17 11:42:26',
+  },
+  {
+    id: 'pc_021',
+    partnerId: 'pp_002',
+    partnerName: '李虎',
+    kind: 'consume',
+    inviteeName: '林晓东',
+    inviteeAccountId: 'ACC20260810Lxd2Km7q',
+    modelName: 'GLM-5.3',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 147,
+    rate: 10,
+    amount: 14.7,
+    campaignId: 'pc_003',
+    at: '2026-09-27 19:54:03',
+  },
+  {
+    id: 'pc_022',
+    partnerId: 'pp_003',
+    partnerName: '刘思远',
+    kind: 'consume',
+    inviteeName: '周逸群',
+    inviteeAccountId: 'ACC20260905Zyq7Hn2f',
+    modelName: 'DODO-OG-G-6-Astra',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 100,
+    rate: 40,
+    amount: 40,
+    note: '限时推广活动期间计佣：标准 20% × 2',
+    campaignId: 'pc_001',
+    at: '2026-09-12 20:05:44',
+  },
+  {
+    id: 'pc_023',
+    partnerId: 'pp_003',
+    partnerName: '刘思远',
+    kind: 'consume',
+    inviteeName: '赵倩',
+    inviteeAccountId: 'ACC20260901ZQ4hNs9r',
+    modelName: 'Kimi-K3',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 75,
+    rate: 8,
+    amount: 6,
+    campaignId: 'pc_007',
+    at: '2026-09-16 09:31:12',
+  },
+  {
+    id: 'pc_024',
+    partnerId: 'pp_003',
+    partnerName: '刘思远',
+    kind: 'consume',
+    inviteeName: '钱峰',
+    inviteeAccountId: 'ACC20260910Qf4Rw8jd',
+    modelName: 'DeepSeek-V4',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 200,
+    rate: 10,
+    amount: 20,
+    campaignId: 'pc_003',
+    at: '2026-09-21 15:26:39',
+  },
+  {
+    id: 'pc_025',
+    partnerId: 'pp_003',
+    partnerName: '刘思远',
+    kind: 'consume',
+    inviteeName: '赵倩',
+    inviteeAccountId: 'ACC20260901ZQ4hNs9r',
+    modelName: 'GLM-5.3',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 166,
+    rate: 10,
+    amount: 16.6,
+    campaignId: 'pc_003',
+    at: '2026-09-29 22:13:57',
+  },
+  {
+    id: 'pc_027',
+    partnerId: 'pp_005',
+    partnerName: '孙悦',
+    kind: 'consume',
+    inviteeName: '马骏',
+    inviteeAccountId: 'ACC20260902MJ3pVt8x',
+    modelName: 'DODO-OG-G-6-Astra',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 15,
+    rate: 40,
+    amount: 6,
+    note: '限时推广活动期间计佣：标准 20% × 2',
+    campaignId: 'pc_001',
+    at: '2026-09-19 12:08:45',
+  },
+  {
+    id: 'pc_028',
+    partnerId: 'pp_005',
+    partnerName: '孙悦',
+    kind: 'consume',
+    inviteeName: '冯雪',
+    inviteeAccountId: 'ACC20260917FX6rHy5w',
+    modelName: 'GLM-5.3',
+    modelMultiplierName: '标准倍率',
+    consumeAmount: 35,
+    rate: 10,
+    amount: 3.5,
+    campaignId: 'pc_003',
+    at: '2026-09-28 17:35:21',
+  },
+  {
+    id: 'pc_029',
+    partnerId: 'pp_002',
+    partnerName: '李虎',
+    kind: 'gift',
+    inviteeName: '林晓东',
+    inviteeAccountId: 'ACC20260810Lxd2Km7q',
+    amount: 20,
+    note: '被邀人完成实名认证并产生首笔现金消耗，双方各得 20 元无门槛券',
+    at: '2026-08-18 09:47:15',
+  },
+  {
+    id: 'pc_030',
+    partnerId: 'pp_002',
+    partnerName: '李虎',
+    kind: 'gift',
+    inviteeName: '王裕民',
+    inviteeAccountId: 'ACC20260908Wym5Tc3e',
+    amount: 20,
+    note: '被邀人完成实名认证并产生首笔现金消耗，双方各得 20 元无门槛券',
+    at: '2026-09-14 10:26:48',
+  },
+  {
+    id: 'pc_031',
+    partnerId: 'pp_003',
+    partnerName: '刘思远',
+    kind: 'gift',
+    inviteeName: '赵倩',
+    inviteeAccountId: 'ACC20260901ZQ4hNs9r',
+    amount: 20,
+    note: '被邀人完成实名认证并产生首笔现金消耗，双方各得 20 元无门槛券',
+    at: '2026-09-08 11:32:07',
+  },
+  {
+    id: 'pc_032',
+    partnerId: 'pp_003',
+    partnerName: '刘思远',
+    kind: 'gift',
+    inviteeName: '周逸群',
+    inviteeAccountId: 'ACC20260905Zyq7Hn2f',
+    amount: 20,
+    note: '被邀人完成实名认证并产生首笔现金消耗，双方各得 20 元无门槛券',
+    at: '2026-09-12 19:58:36',
+  },
+  {
+    id: 'pc_033',
+    partnerId: 'pp_003',
+    partnerName: '刘思远',
+    kind: 'gift',
+    inviteeName: '钱峰',
+    inviteeAccountId: 'ACC20260910Qf4Rw8jd',
+    amount: 20,
+    note: '被邀人完成实名认证并产生首笔现金消耗，双方各得 20 元无门槛券',
+    at: '2026-09-18 14:05:52',
+  },
+  {
+    id: 'pc_034',
+    partnerId: 'pp_005',
+    partnerName: '孙悦',
+    kind: 'gift',
+    inviteeName: '冯雪',
+    inviteeAccountId: 'ACC20260917FX6rHy5w',
+    amount: 20,
+    note: '被邀人完成实名认证并产生首笔现金消耗，双方各得 20 元无门槛券',
+    at: '2026-09-22 09:53:26',
+  }
+]
+
+/** 被邀请人名单：合伙人「分销数据」的邀请漏斗明细，是否产生消费由分佣明细派生；campaignId 为该次邀请归属的分销活动 */
+const promoInviteeSeed: PromoInvitee[] = [
+  { id: 'pi_001', partnerId: 'pp_001', nickname: '王晓军', phone: '13920013771', accountId: 'ACC20260718WXj3Tq8s', registeredAt: '2026-07-18 15:13:29' },
+  { id: 'pi_002', partnerId: 'pp_001', nickname: '陆一鸣', phone: '13520027542', accountId: 'ACC20260718jHj64cx4', registeredAt: '2026-07-18 09:26:58' },
+  { id: 'pi_003', partnerId: 'pp_001', nickname: '范晓东', phone: '13620041313', accountId: 'ACC20260729ThTECM7C', registeredAt: '2026-07-29 16:39:27' },
+  { id: 'pi_004', partnerId: 'pp_001', nickname: '周涛', phone: '13720055084', accountId: 'ACC20260805ZT6mKp2d', registeredAt: '2026-08-05 10:52:56' },
+  { id: 'pi_005', partnerId: 'pp_001', nickname: '柯振宇', phone: '15020068855', accountId: 'ACC202608093s3PMVfM', registeredAt: '2026-08-09 17:05:25' },
+  { id: 'pi_006', partnerId: 'pp_001', nickname: '陈婧', phone: '15120082626', accountId: 'ACC20260812CJ9wLn4h', registeredAt: '2026-08-12 11:18:54' },
+  { id: 'pi_007', partnerId: 'pp_001', nickname: '沈亦然', phone: '15820096397', accountId: 'ACC20260817bAbXV5qV', registeredAt: '2026-08-17 18:31:23' },
+  { id: 'pi_008', partnerId: 'pp_001', nickname: '袁小满', phone: '15920110168', accountId: 'ACC20260827KaKxvDYv', registeredAt: '2026-08-27 12:44:52', campaignId: 'pc_004' },
+  { id: 'pi_009', partnerId: 'pp_001', nickname: '吴桐', phone: '18620123939', accountId: 'ACC20260904WT2xRv7k', registeredAt: '2026-09-04 19:57:21', campaignId: 'pc_001' },
+  { id: 'pi_010', partnerId: 'pp_001', nickname: '邓佳宁', phone: '18820137710', accountId: 'ACC20260907UjUFDN8D', registeredAt: '2026-09-07 13:10:50', campaignId: 'pc_001' },
+  { id: 'pi_011', partnerId: 'pp_001', nickname: '崔浩然', phone: '13320151481', accountId: 'ACC20260915uTufdnGd', registeredAt: '2026-09-15 20:23:19', campaignId: 'pc_002' },
+  { id: 'pi_012', partnerId: 'pp_001', nickname: '郑好', phone: '13020165252', accountId: 'ACC20260918ZH5yBc3m', registeredAt: '2026-09-18 14:36:48', campaignId: 'pc_002' },
+  { id: 'pi_013', partnerId: 'pp_002', nickname: '高翔', phone: '13120179023', accountId: 'ACC20260729GX8dFp6t', registeredAt: '2026-07-29 08:49:17' },
+  { id: 'pi_014', partnerId: 'pp_002', nickname: '潘越', phone: '15220192794', accountId: 'ACC20260801cBcYW6rW', registeredAt: '2026-08-01 15:02:46' },
+  { id: 'pi_015', partnerId: 'pp_002', nickname: '林晓东', phone: '13820206565', accountId: 'ACC20260810Lxd2Km7q', registeredAt: '2026-08-10 09:15:15', campaignId: 'pc_003' },
+  { id: 'pi_016', partnerId: 'pp_002', nickname: '汪思聪', phone: '13920220336', accountId: 'ACC20260812mKm86ez6', registeredAt: '2026-08-12 16:28:44' },
+  { id: 'pi_017', partnerId: 'pp_002', nickname: '龚子墨', phone: '13520234107', accountId: 'ACC20260824VkVGEP9E', registeredAt: '2026-08-24 10:41:13' },
+  { id: 'pi_018', partnerId: 'pp_002', nickname: '白宇辰', phone: '13620247878', accountId: 'ACC20260901vUvgepHe', registeredAt: '2026-09-01 17:54:42', campaignId: 'pc_001' },
+  { id: 'pi_019', partnerId: 'pp_002', nickname: '王裕民', phone: '13720261649', accountId: 'ACC20260908Wym5Tc3e', registeredAt: '2026-09-08 11:07:11', campaignId: 'pc_001' },
+  { id: 'pi_020', partnerId: 'pp_002', nickname: '秦朗', phone: '15020275420', accountId: 'ACC20260913D4DrpxSp', registeredAt: '2026-09-13 18:20:40' },
+  { id: 'pi_021', partnerId: 'pp_003', nickname: '尹佳怡', phone: '15120289191', accountId: 'ACC20260816dCdZX7sX', registeredAt: '2026-08-16 12:33:09' },
+  { id: 'pi_022', partnerId: 'pp_003', nickname: '赵倩', phone: '15820302962', accountId: 'ACC20260901ZQ4hNs9r', registeredAt: '2026-09-01 19:46:38', campaignId: 'pc_003' },
+  { id: 'pi_023', partnerId: 'pp_003', nickname: '易承轩', phone: '15920316733', accountId: 'ACC20260904nMn97fA7', registeredAt: '2026-09-04 13:59:07', campaignId: 'pc_001' },
+  { id: 'pi_024', partnerId: 'pp_003', nickname: '周逸群', phone: '18620330504', accountId: 'ACC20260905Zyq7Hn2f', registeredAt: '2026-09-05 20:12:36', campaignId: 'pc_001' },
+  { id: 'pi_025', partnerId: 'pp_003', nickname: '钱峰', phone: '18820344275', accountId: 'ACC20260910Qf4Rw8jd', registeredAt: '2026-09-10 14:25:05', campaignId: 'pc_003' },
+  { id: 'pi_026', partnerId: 'pp_004', nickname: '徐磊', phone: '13320358046', accountId: 'ACC20260820XL7kQw2v', registeredAt: '2026-08-20 08:38:34' },
+  { id: 'pi_027', partnerId: 'pp_004', nickname: '常若溪', phone: '13020371817', accountId: 'ACC20260821E5EsqyTq', registeredAt: '2026-08-21 15:51:03' },
+  { id: 'pi_028', partnerId: 'pp_004', nickname: '武天翊', phone: '13120385588', accountId: 'ACC20260824eDe2Y8tY', registeredAt: '2026-08-24 09:04:32' },
+  { id: 'pi_029', partnerId: 'pp_004', nickname: '瞿颖', phone: '15220399359', accountId: 'ACC20260826PdPAyG3y', registeredAt: '2026-08-26 16:17:01' },
+  { id: 'pi_030', partnerId: 'pp_004', nickname: '夏梓涵', phone: '13820413130', accountId: 'ACC20260827pNpa8gB8', registeredAt: '2026-08-27 10:30:30' },
+  { id: 'pi_031', partnerId: 'pp_004', nickname: '鲍启航', phone: '13920426901', accountId: 'ACC20260829XnXJGRbG', registeredAt: '2026-08-29 17:43:59', campaignId: 'pc_004' },
+  { id: 'pi_032', partnerId: 'pp_004', nickname: '樊书豪', phone: '13520440672', accountId: 'ACC20260901xWxjgrKg', registeredAt: '2026-09-01 11:56:28', campaignId: 'pc_001' },
+  { id: 'pi_033', partnerId: 'pp_004', nickname: '茉莉', phone: '13620454443', accountId: 'ACC202609017w7TRZkR', registeredAt: '2026-09-01 18:09:57' },
+  { id: 'pi_034', partnerId: 'pp_004', nickname: '盛晓月', phone: '13720468214', accountId: 'ACC20260903F6FtrzUr', registeredAt: '2026-09-03 12:22:26' },
+  { id: 'pi_035', partnerId: 'pp_004', nickname: '米晓东', phone: '15020481985', accountId: 'ACC20260906fEf3Z9uZ', registeredAt: '2026-09-06 19:35:55', campaignId: 'pc_001' },
+  { id: 'pi_036', partnerId: 'pp_004', nickname: '屈嘉树', phone: '15120495756', accountId: 'ACC20260906QeQBzH4z', registeredAt: '2026-09-06 13:48:24' },
+  { id: 'pi_037', partnerId: 'pp_004', nickname: '游承志', phone: '15820509527', accountId: 'ACC20260908qPqb9hC9', registeredAt: '2026-09-08 20:01:53' },
+  { id: 'pi_038', partnerId: 'pp_004', nickname: '来牧之', phone: '15920523298', accountId: 'ACC20260911YpYKHScH', registeredAt: '2026-09-11 14:14:22' },
+  { id: 'pi_039', partnerId: 'pp_004', nickname: '时宁', phone: '18620537069', accountId: 'ACC20260911yXykhsMh', registeredAt: '2026-09-11 08:27:51', campaignId: 'pc_004' },
+  { id: 'pi_040', partnerId: 'pp_004', nickname: '慕青', phone: '18820550840', accountId: 'ACC202609138x8US2mS', registeredAt: '2026-09-13 15:40:20' },
+  { id: 'pi_041', partnerId: 'pp_004', nickname: '纪修远', phone: '13320564611', accountId: 'ACC20260916G7GusAVs', registeredAt: '2026-09-16 09:53:49' },
+  { id: 'pi_042', partnerId: 'pp_004', nickname: '舒明轩', phone: '13020578382', accountId: 'ACC20260916gFg42av2', registeredAt: '2026-09-16 16:06:18' },
+  { id: 'pi_043', partnerId: 'pp_004', nickname: '路遥', phone: '13120592153', accountId: 'ACC20260918RfRCAJ5A', registeredAt: '2026-09-18 10:19:47' },
+  { id: 'pi_044', partnerId: 'pp_004', nickname: '郜锦程', phone: '15220605924', accountId: 'ACC20260921rQrcajDa', registeredAt: '2026-09-21 17:32:16' },
+  { id: 'pi_045', partnerId: 'pp_004', nickname: '郗云帆', phone: '13820619695', accountId: 'ACC20260921ZqZMJTdJ', registeredAt: '2026-09-21 11:45:45' },
+  { id: 'pi_046', partnerId: 'pp_004', nickname: '仝振国', phone: '13920633466', accountId: 'ACC20260924zYzmjtNj', registeredAt: '2026-09-24 18:58:14' },
+  { id: 'pi_047', partnerId: 'pp_004', nickname: '訾明辉', phone: '13520647237', accountId: 'ACC202609269y9VT3nT', registeredAt: '2026-09-26 12:11:43' },
+  { id: 'pi_048', partnerId: 'pp_004', nickname: '宿雨桐', phone: '13620661008', accountId: 'ACC20260926H8HvtBWt', registeredAt: '2026-09-26 19:24:12' },
+  { id: 'pi_049', partnerId: 'pp_005', nickname: '马骏', phone: '13720674779', accountId: 'ACC20260902MJ3pVt8x', registeredAt: '2026-09-02 13:37:41', campaignId: 'pc_001' },
+  { id: 'pi_050', partnerId: 'pp_005', nickname: '房思远', phone: '15020688550', accountId: 'ACC20260909SgSDBK6B', registeredAt: '2026-09-09 20:50:10' },
+  { id: 'pi_051', partnerId: 'pp_005', nickname: '冯雪', phone: '15120702321', accountId: 'ACC20260917FX6rHy5w', registeredAt: '2026-09-17 14:03:39', campaignId: 'pc_003' }
+]
+
+const promoWithdrawSeed: WithdrawRequest[] = [
+  {
+    id: 'pw_001',
+    partnerId: 'pp_001',
+    partnerName: '张明',
+    accountName: '张明',
+    accountNo: '6222021234567890123',
+    bankName: '中国工商银行',
+    amount: 300,
+    tax: 24,
+    period: '2026-09',
+    status: 'pending',
+    appliedAt: '2026-09-25 18:31:22',
+  },
+  {
+    id: 'pw_002',
+    partnerId: 'pp_002',
+    partnerName: '李虎',
+    accountName: '李虎',
+    accountNo: '6217001234567891234',
+    bankName: '中国建设银行',
+    amount: 200,
+    tax: 16,
+    period: '2026-08',
+    status: 'approved',
+    appliedAt: '2026-08-27 10:12:05',
+    reviewedAt: '2026-08-31 15:00:00',
+    reviewer: CURRENT_OPERATOR,
+  },
+  {
+    id: 'pw_003',
+    partnerId: 'pp_003',
+    partnerName: '刘思远',
+    accountName: '刘思远',
+    accountNo: '6228481234567892345',
+    bankName: '中国农业银行',
+    amount: 150,
+    tax: 12,
+    period: '2026-09',
+    status: 'rejected',
+    appliedAt: '2026-09-20 09:47:56',
+    reviewedAt: '2026-09-23 11:20:00',
+    reviewer: CURRENT_OPERATOR,
+    rejectReason: '收款人姓名与账户实名认证信息不一致，请修改后重新提交',
+  },
+  {
+    id: 'pw_005',
+    partnerId: 'pp_001',
+    partnerName: '张明',
+    accountName: '张明',
+    accountNo: '6222021234567890123',
+    bankName: '中国工商银行',
+    amount: 150,
+    tax: 12,
+    period: '2026-08',
+    status: 'rejected',
+    appliedAt: '2026-08-15 10:26:48',
+    reviewedAt: '2026-08-18 09:40:00',
+    reviewer: CURRENT_OPERATOR,
+    rejectReason: '收款银行账号有误，已退回可用佣金，请核对后重新提交',
+  },
+  {
+    id: 'pw_004',
+    partnerId: 'pp_001',
+    partnerName: '张明',
+    accountName: '张明',
+    accountNo: '6222021234567890123',
+    bankName: '中国工商银行',
+    amount: 200,
+    tax: 16,
+    period: '2026-08',
+    status: 'approved',
+    appliedAt: '2026-08-26 20:05:31',
+    reviewedAt: '2026-08-31 15:02:00',
+    reviewer: CURRENT_OPERATOR,
+  },
+  {
+    id: 'pw_006',
+    partnerId: 'pp_002',
+    partnerName: '李虎',
+    accountName: '李虎',
+    accountNo: '6217001234567891234',
+    bankName: '中国建设银行',
+    amount: 160,
+    tax: 12.8,
+    period: '2026-10',
+    status: 'pending',
+    appliedAt: '2026-10-03 09:12:40',
+  },
+  {
+    id: 'pw_007',
+    partnerId: 'pp_003',
+    partnerName: '刘思远',
+    accountName: '刘思远',
+    accountNo: '6228481234567892345',
+    bankName: '中国农业银行',
+    amount: 120,
+    tax: 9.6,
+    period: '2026-10',
+    status: 'pending',
+    appliedAt: '2026-10-02 17:45:08',
+  },
+]
+
+/** 兑券记录种子：兑换即时到账，佣金合计与合伙人 exchangedCommission 严格对齐 */
+const promoExchangeSeed: ExchangeRecord[] = [
+  {
+    id: 'pe_001',
+    partnerId: 'pp_001',
+    partnerName: '张明',
+    commission: 300,
+    rate: PROMO_VOUCHER_RATE,
+    faceValue: 360,
+    status: 'issued',
+    voucherCode: 'DQ-202608-000081',
+    at: '2026-08-18 14:26:35',
+    expireAt: '2026-11-16 14:26:35',
+  },
+  {
+    id: 'pe_002',
+    partnerId: 'pp_001',
+    partnerName: '张明',
+    commission: 400,
+    rate: PROMO_VOUCHER_RATE,
+    faceValue: 480,
+    status: 'issued',
+    voucherCode: 'DQ-202609-000093',
+    at: '2026-09-16 11:08:52',
+    expireAt: '2026-12-15 11:08:52',
+  },
+  {
+    id: 'pe_003',
+    partnerId: 'pp_002',
+    partnerName: '李虎',
+    commission: 240,
+    rate: PROMO_VOUCHER_RATE,
+    faceValue: 288,
+    status: 'issued',
+    voucherCode: 'DQ-202608-000078',
+    at: '2026-08-08 16:42:19',
+    expireAt: '2026-11-06 16:42:19',
+  },
+]
+
+/**
+ * 提现记录历史键：v2 新增演示账号张明的「已驳回」样例（pw_005），v3 起统一为自愈迁移，
+ * v4 为提现申请新增「开户行」字段；
+ * 浏览器可能在种子更新前就用旧数据初始化过存储，导致新增的演示记录永远补不进去，
+ * 因此不按版本号重置，而是按 id「只补不删」回捞缺失的种子行，用户自建的提现申请原样保留。
+ */
+const LEGACY_PROMO_WITHDRAW_KEYS = ['zsdd_promo_withdraws_v3', 'zsdd_promo_withdraws_v2', 'zsdd_promo_withdraws_v1']
+
+function migratePromoWithdrawData() {
+  const backfillMissingSeeds = (rows: Record<string, unknown>[]) => {
+    const existingIds = new Set(rows.map((r) => String(r.id)))
+    const missing = promoWithdrawSeed.filter((seedRow) => !existingIds.has(seedRow.id))
+    /** 旧版本存量行没有开户行，按 id 回填种子演示值，用户自建行保持原样 */
+    const bankNameById = new Map(promoWithdrawSeed.map((seedRow) => [seedRow.id, seedRow.bankName]))
+    return rows.map((r) =>
+      r.bankName || !bankNameById.has(String(r.id)) ? r : { ...r, bankName: bankNameById.get(String(r.id)) },
+    ).concat(missing as unknown as Record<string, unknown>[])
+  }
+
+  const current = readStoredRows(PROMO_WITHDRAW_STORAGE_KEY)
+  if (current) {
+    const merged = backfillMissingSeeds(current)
+    if (merged.length !== current.length) {
+      localStorage.setItem(PROMO_WITHDRAW_STORAGE_KEY, JSON.stringify(merged))
+    }
+    return
+  }
+
+  for (const legacyKey of LEGACY_PROMO_WITHDRAW_KEYS) {
+    const legacy = readStoredRows(legacyKey)
+    if (!legacy) continue
+    localStorage.setItem(PROMO_WITHDRAW_STORAGE_KEY, JSON.stringify(backfillMissingSeeds(legacy)))
+    break
+  }
+}
+
+migratePromoWithdrawData()
+
+/**
+ * 被邀请人名单是新增数据源：浏览器可能在种子更新前就初始化过存储，
+ * 因此同样按 id「只补不删」回捞缺失的种子行，用户在推广落地页自助绑定的记录原样保留。
+ */
+function migratePromoInviteeData() {
+  const current = readStoredRows(PROMO_INVITEE_STORAGE_KEY)
+  if (!current) return
+  const existingIds = new Set(current.map((r) => String(r.id)))
+  const missing = promoInviteeSeed.filter((seedRow) => !existingIds.has(seedRow.id))
+  if (missing.length > 0) {
+    localStorage.setItem(PROMO_INVITEE_STORAGE_KEY, JSON.stringify([...current, ...missing]))
+  }
+}
+
+migratePromoInviteeData()
+
+const promoPartnerStore = makeVoucherStore<PromoPartner>(PROMO_PARTNER_STORAGE_KEY, promoPartnerSeed)
+const promoRebateStore = makeVoucherStore<ModelRebateRule>(PROMO_REBATE_STORAGE_KEY, promoRebateSeed)
+const promoCommissionStore = makeVoucherStore<CommissionRecord>(PROMO_COMMISSION_STORAGE_KEY, promoCommissionSeed)
+const promoWithdrawStore = makeVoucherStore<WithdrawRequest>(PROMO_WITHDRAW_STORAGE_KEY, promoWithdrawSeed)
+const promoExchangeStore = makeVoucherStore<ExchangeRecord>(PROMO_EXCHANGE_STORAGE_KEY, promoExchangeSeed)
+const promoInviteeStore = makeVoucherStore<PromoInvitee>(PROMO_INVITEE_STORAGE_KEY, promoInviteeSeed)
+
+export function usePromoPartners(): PromoPartner[] {
+  return useSyncExternalStore(promoPartnerStore.subscribe, promoPartnerStore.get)
+}
+
+export function usePromoRebateRules(): ModelRebateRule[] {
+  return useSyncExternalStore(promoRebateStore.subscribe, promoRebateStore.get)
+}
+
+export function usePromoCommissions(): CommissionRecord[] {
+  return useSyncExternalStore(promoCommissionStore.subscribe, promoCommissionStore.get)
+}
+
+export function usePromoWithdraws(): WithdrawRequest[] {
+  return useSyncExternalStore(promoWithdrawStore.subscribe, promoWithdrawStore.get)
+}
+
+export function usePromoExchanges(): ExchangeRecord[] {
+  return useSyncExternalStore(promoExchangeStore.subscribe, promoExchangeStore.get)
+}
+
+export function usePromoInvitees(): PromoInvitee[] {
+  return useSyncExternalStore(promoInviteeStore.subscribe, promoInviteeStore.get)
+}
+
+/** 限时推广活动是否处于活动期（按日期比较，活动结束日当天 23:59:59 前仍算活动期） */
+export function isPromoCampaignActive(rule: ModelRebateRule): boolean {
+  if (!rule.campaign || !rule.campaignStartAt || !rule.campaignEndAt) return false
+  const today = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
+  return rule.campaignStartAt <= todayStr && todayStr <= rule.campaignEndAt
+}
+
+/** 当前实际计佣比例：活动期内取加倍返佣比例，未配置加倍比例时兜底为标准比例 */
+export function promoEffectiveRate(rule: ModelRebateRule): number {
+  return isPromoCampaignActive(rule) ? rule.boostRate ?? rule.rate : rule.rate
+}
+
+/** 生成新邀请码：大写字母 + 数字混合，剔除易混淆的 I/O/0/1 */
+const genInviteCode = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let code = ''
+  for (let i = 0; i < 8; i += 1) code += chars[Math.floor(Math.random() * chars.length)]
+  return code
+}
+
+/**
+ * 推广合伙人建档（静默）：同一账户重复建档时直接返回已有记录；
+ * 新记录带专属邀请码与邀请链接，佣金余额全部从 0 开始。
+ */
+export function enrollPromoPartner(user: GroupOwner): { ok: boolean; msg: string; partner?: PromoPartner } {
+  const existing = promoPartnerStore.get().find((p) => p.accountId === user.accountId)
+  if (existing) return { ok: true, msg: '您已是推广合伙人', partner: existing }
+  const code = genInviteCode()
+  const partner: PromoPartner = {
+    id: `pp_${uid()}`,
+    accountId: user.accountId,
+    nickname: user.nickname,
+    phone: user.phone,
+    inviteCode: code,
+    inviteUrl: `${PROMO_SITE}/promo?code=${code}`,
+    status: 'active',
+    inviteCount: 0,
+    verifiedCount: 0,
+    firstConsumeCount: 0,
+    totalCommission: 0,
+    availableCommission: 0,
+    exchangedCommission: 0,
+    withdrawnCommission: 0,
+    enrolledAt: nowStamp(),
+  }
+  promoPartnerStore.set((prev) => [partner, ...prev])
+  return { ok: true, msg: '专属推广链接已生成', partner }
+}
+
+/**
+ * 活动分享链接：指向与当前站点同源的通用活动落地页（?share=<活动id>）。
+ * 后台分享时不带邀请码；带 inviteCode 时为分销商专属链接，客户经此链接注册可按活动 + 邀请人归因计佣。
+ */
+export function buildCampaignInviteUrl(campaignId: string, inviteCode?: string): string {
+  const qs = `share=${campaignId}${inviteCode ? `&code=${inviteCode}` : ''}`
+  try {
+    const { origin, pathname } = window.location
+    return `${origin}${pathname}?${qs}`
+  } catch {
+    return `?${qs}`
+  }
+}
+
+/** 落地页登录态：分销商领取专属链接后，把身份持久化在本地，下次打开直接可见（原型用 localStorage 模拟登录） */
+const PROMO_SESSION_KEY = 'zsdd_promo_session_v1'
+export interface PromoSession {
+  phone: string
+  partnerId: string
+}
+
+export function getPromoSession(): PromoSession | null {
+  try {
+    const raw = localStorage.getItem(PROMO_SESSION_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as PromoSession
+    return parsed && parsed.phone && parsed.partnerId ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+export function clearPromoSession(): void {
+  try {
+    localStorage.removeItem(PROMO_SESSION_KEY)
+  } catch {
+    /** 忽略隐私模式下的存储异常 */
+  }
+}
+
+/**
+ * 分销商以手机号领取专属推广链接：命中已有合伙人档案则复用其邀请码，否则新建并生成邀请码，
+ * 领取成功后写入本地登录态。落地页据此展示「属于当前登录人」的专属码，不同分销商互不串号。
+ */
+export function claimPromoPartnerByPhone(phone: string): { ok: boolean; msg: string; partner?: PromoPartner } {
+  const clean = phone.trim()
+  if (!/^1\d{10}$/.test(clean)) return { ok: false, msg: '请输入正确的手机号' }
+  const existing = promoPartnerStore.get().find((p) => p.phone === clean)
+  if (existing) {
+    try {
+      localStorage.setItem(PROMO_SESSION_KEY, JSON.stringify({ phone: clean, partnerId: existing.id }))
+    } catch {
+      /** 忽略隐私模式下的存储异常 */
+    }
+    return { ok: true, msg: '欢迎回来，已为你找回专属链接', partner: existing }
+  }
+  const code = genInviteCode()
+  const partner: PromoPartner = {
+    id: `pp_${uid()}`,
+    accountId: `ACC${clean}`,
+    nickname: `分销商${clean.slice(-4)}`,
+    phone: clean,
+    inviteCode: code,
+    inviteUrl: `${PROMO_SITE}/promo?code=${code}`,
+    status: 'active',
+    inviteCount: 0,
+    verifiedCount: 0,
+    firstConsumeCount: 0,
+    totalCommission: 0,
+    availableCommission: 0,
+    exchangedCommission: 0,
+    withdrawnCommission: 0,
+    enrolledAt: nowStamp(),
+  }
+  promoPartnerStore.set((prev) => [partner, ...prev])
+  try {
+    localStorage.setItem(PROMO_SESSION_KEY, JSON.stringify({ phone: clean, partnerId: partner.id }))
+  } catch {
+    /** 忽略隐私模式下的存储异常 */
+  }
+  return { ok: true, msg: '专属推广链接已生成', partner }
+}
+
+/** 后台冻结 / 解冻合伙人 */
+export function setPromoPartnerStatus(id: string, status: PromoPartnerStatus): void {
+  promoPartnerStore.set((prev) => prev.map((p) => (p.id === id ? { ...p, status } : p)))
+}
+
+/**
+ * 邀请关系绑定：最终用户通过带邀请码的专属链接（?share=<活动id>&code=<邀请码>）注册登录后，
+ * 与该分销员建立绑定关系。同一手机号只绑定一次（先到先得），首次绑定使分销员邀请人数 +1。
+ */
+const PROMO_INVITEE_BINDING_KEY = 'zsdd_promo_invitee_bindings_v1'
+
+export interface InviteeBinding {
+  /** 被邀请用户手机号 */
+  phone: string
+  /** 绑定的分销员邀请码 */
+  inviteCode: string
+  /** 绑定的分销员 id */
+  partnerId: string
+  /** 绑定来源活动 id */
+  campaignId: string
+  boundAt: string
+}
+
+function readInviteeBindings(): InviteeBinding[] {
+  try {
+    const raw = localStorage.getItem(PROMO_INVITEE_BINDING_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as InviteeBinding[]
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+export function getInviteeBindingByPhone(phone: string): InviteeBinding | null {
+  return readInviteeBindings().find((b) => b.phone === phone) ?? null
+}
+
+export function saveInviteeBinding(
+  inviteCode: string,
+  phone: string,
+  campaignId: string,
+): { ok: boolean; msg: string; partner?: PromoPartner } {
+  const clean = phone.trim()
+  if (!/^1\d{10}$/.test(clean)) return { ok: false, msg: '请输入正确的手机号' }
+  const partner = promoPartnerStore.get().find((p) => p.inviteCode === inviteCode.trim().toUpperCase())
+  if (!partner) return { ok: false, msg: '邀请码无效，请通过有效的推广链接进入' }
+  const bindings = readInviteeBindings()
+  const self = bindings.find((b) => b.phone === clean)
+  if (self) {
+    if (self.partnerId === partner.id) return { ok: true, msg: '您已绑定该邀请人', partner }
+    return { ok: false, msg: '该账号已绑定其他邀请人', partner }
+  }
+  if (clean === partner.phone) return { ok: false, msg: '不能通过自己的推广链接注册', partner }
+  const binding: InviteeBinding = {
+    phone: clean,
+    inviteCode: partner.inviteCode,
+    partnerId: partner.id,
+    campaignId,
+    boundAt: nowStamp(),
+  }
+  try {
+    localStorage.setItem(PROMO_INVITEE_BINDING_KEY, JSON.stringify([...bindings, binding]))
+  } catch {
+    /** 忽略隐私模式下的存储异常 */
+  }
+  promoPartnerStore.set((prev) =>
+    prev.map((p) => (p.id === partner.id ? { ...p, inviteCount: p.inviteCount + 1 } : p)),
+  )
+  /** 同步写入被邀请人名单，保证合伙人「分销数据」的邀请人数与名单明细一致；活动链接注册时带上活动归属 */
+  promoInviteeStore.set((prev) => [
+    ...prev,
+    {
+      id: `pi_${Date.now()}`,
+      partnerId: partner.id,
+      phone: clean,
+      registeredAt: binding.boundAt,
+      campaignId: campaignId || undefined,
+    },
+  ])
+  return { ok: true, msg: '邀请关系绑定成功', partner }
+}
+
+/**
+ * 兑换档位消耗佣金：直接取券模板配置的「兑换金额」，保留 2 位；
+ * 存量兑换专用模板尚无该字段时，按旧的加兑比例兜底换算，避免出现 0 佣金档位。
+ */
+export const voucherExchangeCost = (tpl: Pick<VoucherTemplate, 'faceValue' | 'exchangeCost'>): number =>
+  tpl.exchangeCost != null ? roundAmount(tpl.exchangeCost, 2) : roundAmount(tpl.faceValue / PROMO_VOUCHER_RATE, 2)
+
+/** 兑换档位列表：取启用中的兑换专用券模板，按面额由小到大排列 */
+export function getExchangeTiers(): VoucherTemplate[] {
+  return voucherTemplateStore
+    .get()
+    .filter((t) => t.exchangeOnly && t.status === 'enabled')
+    .slice()
+    .sort((a, b) => a.faceValue - b.faceValue)
+}
+
+/** 后台预置的「新人券」模板 id：控制台概览第三步的领取入口以此券是否存在为准 */
+export const NEWCOMER_VOUCHER_TEMPLATE_ID = 'vt_001'
+
+/**
+ * 新人券解析：优先按预置 id 命中，其次按券名含「新人 / 新用户」兜底（后台改名后仍能命中）。
+ * 只有「存在且启用中」才算有券——后台删掉或停用这张券，前台概览就不再展示赠送入口。
+ * 新人身份逻辑暂不处理，只由页面控制这张券是否展示。
+ */
+export function findNewcomerVoucher(templates: VoucherTemplate[]): VoucherTemplate | undefined {
+  const hit =
+    templates.find((t) => t.id === NEWCOMER_VOUCHER_TEMPLATE_ID) ??
+    templates.find((t) => t.name.includes('新人') || t.name.includes('新用户'))
+  return hit && hit.status === 'enabled' ? hit : undefined
+}
+
+/**
+ * 佣金兑换代金券：只能兑换已存在的兑换专用券模板（固定面额档位），
+ * 消耗佣金 = 券模板配置的兑换金额，余额不足时不可兑换；券按模板有效期规则即时落到账户。
+ * 券写回代金券 store，管理后台代金券页可见。
+ */
+export function exchangeCommissionToVoucher(
+  partnerId: string,
+  templateId: string,
+): { ok: boolean; msg: string; faceValue?: number } {
+  const partner = promoPartnerStore.get().find((p) => p.id === partnerId)
+  if (!partner) return { ok: false, msg: '合伙人不存在' }
+  if (partner.status === 'frozen') return { ok: false, msg: '账号已冻结，暂不可兑换' }
+  const tpl = voucherTemplateStore.get().find((t) => t.id === templateId)
+  if (!tpl || !tpl.exchangeOnly) return { ok: false, msg: '代金券不存在' }
+  if (tpl.status !== 'enabled') return { ok: false, msg: '该代金券已下架，暂不可兑换' }
+  const commission = voucherExchangeCost(tpl)
+  if (roundAmount(commission, 2) > roundAmount(partner.availableCommission, 2)) return { ok: false, msg: '可用佣金余额不足' }
+  const faceValue = tpl.faceValue
+  promoPartnerStore.set((prev) =>
+    prev.map((p) =>
+      p.id === partnerId
+        ? {
+            ...p,
+            availableCommission: roundAmount(p.availableCommission - commission, 2),
+            exchangedCommission: roundAmount(p.exchangedCommission + commission, 2),
+          }
+        : p,
+    ),
+  )
+  const now = new Date()
+  const nowStr = nowStamp()
+  const seq = String(vouchersStore.get().length + 101).padStart(6, '0')
+  const { effectiveAt, expireAt } = resolveValidity(tpl, nowStr)
+  const voucher: Voucher = {
+    id: `vou_${uid()}`,
+    code: `DQ-${fmtStamp(now).slice(0, 7).replace('-', '')}-${seq}`,
+    templateId: tpl.id,
+    templateName: tpl.name,
+    faceValue,
+    balance: faceValue,
+    scope: tpl.scope,
+    scopeModels: tpl.scopeModels ? [...tpl.scopeModels] : undefined,
+    accountId: partner.accountId,
+    accountName: partner.nickname,
+    phone: partner.phone,
+    accountType: 'personal',
+    source: 'exchange',
+    status: 'active',
+    effectiveAt: effectiveAt ?? nowStr,
+    expireAt,
+    claimedAt: nowStr,
+    remark: `推广合伙人佣金兑换：消耗 ${roundAmount(commission, 2)} 元佣金兑换 ${faceValue} 元券`,
+    operator: CURRENT_OPERATOR,
+    createdAt: nowStr,
+  }
+  vouchersStore.set((prev) => [voucher, ...prev])
+  appendVoucherLedgerRow({
+    operationType: 'voucher_issue',
+    prefix: 'DJQFF',
+    amountBefore: voucherPoolBalance(vouchersStore.get().slice(1), partner.accountId),
+    amount: faceValue,
+    operatedAt: nowStr,
+    remark: `推广合伙人佣金兑换发放「${tpl.name}」`,
+    voucherCode: voucher.code,
+    operatorPhone: partner.phone,
+    operatorAccountId: partner.accountId,
+  })
+  const record: ExchangeRecord = {
+    id: `pe_${uid()}`,
+    partnerId,
+    partnerName: partner.nickname,
+    commission: roundAmount(commission, 2),
+    /** 比例快照：按本次实际消耗的兑换金额反算，不再固定取加兑比例 */
+    rate: commission > 0 ? roundAmount(faceValue / commission, 2) : PROMO_VOUCHER_RATE,
+    faceValue,
+    status: 'issued',
+    voucherCode: voucher.code,
+    at: nowStr,
+    expireAt: expireAt ?? fmtStamp(new Date(now.getTime() + PROMO_VOUCHER_VALID_DAYS * 24 * 60 * 60 * 1000)),
+  }
+  promoExchangeStore.set((prev) => [record, ...prev])
+  return { ok: true, msg: '兑换成功', faceValue }
+}
+
+/** 收款开户行 / 银行账号本地记忆：提交提现成功后保存，下次打开弹窗自动回填，免去重复输入 */
+const WITHDRAW_ACCOUNT_STORAGE_KEY = 'zsdd_promo_withdraw_account_v1'
+const WITHDRAW_BANK_STORAGE_KEY = 'zsdd_promo_withdraw_bank_v1'
+
+function loadWithdrawField(key: string): string {
+  try {
+    const raw = localStorage.getItem(key)
+    /** 历史脏数据兜底：旧版本可能把 null/undefined 字面量写进了存储 */
+    if (!raw || raw === 'null' || raw === 'undefined') return ''
+    return raw
+  } catch {
+    return ''
+  }
+}
+
+function saveWithdrawField(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value ?? '')
+  } catch {
+    /** 存储不可用时静默降级，不影响提现流程 */
+  }
+}
+
+export function loadWithdrawAccountNo(): string {
+  return loadWithdrawField(WITHDRAW_ACCOUNT_STORAGE_KEY)
+}
+
+export function saveWithdrawAccountNo(accountNo: string) {
+  saveWithdrawField(WITHDRAW_ACCOUNT_STORAGE_KEY, accountNo)
+}
+
+export function loadWithdrawBankName(): string {
+  return loadWithdrawField(WITHDRAW_BANK_STORAGE_KEY)
+}
+
+export function saveWithdrawBankName(bankName: string) {
+  saveWithdrawField(WITHDRAW_BANK_STORAGE_KEY, bankName)
+}
+
+/**
+ * 提交提现申请：满 100 元起提；提交即冻结对应佣金（可用 → 提现中），月结审核通过后打款。
+ * 预扣个税按 8% 演示口径估算，实际以月结发放时核算为准。
+ */
+export function applyWithdraw(
+  partnerId: string,
+  amount: number,
+  accountName: string,
+  accountNo: string,
+  bankName: string,
+): { ok: boolean; msg: string } {
+  const partner = promoPartnerStore.get().find((p) => p.id === partnerId)
+  if (!partner) return { ok: false, msg: '合伙人不存在' }
+  if (partner.status === 'frozen') return { ok: false, msg: '账号已冻结，暂不可提现' }
+  if (promoWithdrawStore.get().some((w) => w.partnerId === partnerId && w.status === 'pending')) {
+    return { ok: false, msg: '已有提现申请待审核，请等待处理后再申请' }
+  }
+  if (amount < PROMO_WITHDRAW_MIN) return { ok: false, msg: `单笔提现需满 ${PROMO_WITHDRAW_MIN} 元` }
+  if (roundAmount(amount, 2) > roundAmount(partner.availableCommission, 2)) return { ok: false, msg: '可用佣金余额不足' }
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const period = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`
+  const req: WithdrawRequest = {
+    id: `pw_${uid()}`,
+    partnerId,
+    partnerName: partner.nickname,
+    accountName,
+    bankName,
+    accountNo,
+    amount: roundAmount(amount, 2),
+    tax: roundAmount(amount * 0.08, 2),
+    period,
+    status: 'pending',
+    appliedAt: nowStamp(),
+  }
+  promoWithdrawStore.set((prev) => [req, ...prev])
+  saveWithdrawAccountNo(accountNo)
+  saveWithdrawBankName(bankName)
+  promoPartnerStore.set((prev) =>
+    prev.map((p) =>
+      p.id === partnerId
+        ? {
+            ...p,
+            availableCommission: roundAmount(p.availableCommission - amount, 2),
+            withdrawnCommission: roundAmount(p.withdrawnCommission + amount, 2),
+          }
+        : p,
+    ),
+  )
+  return { ok: true, msg: '提现申请已提交，审核通过后 1-3 个工作日打款' }
+}
+
+/** 后台审核提现：驳回时冻结金额退回可用佣金；通过即确认线下打款已完成，并记录打款时录入的实际扣税 */
+export function reviewWithdraw(id: string, approve: boolean, reason?: string, tax?: number): { ok: boolean; msg: string } {
+  const req = promoWithdrawStore.get().find((w) => w.id === id)
+  if (!req) return { ok: false, msg: '提现申请不存在' }
+  if (req.status !== 'pending') return { ok: false, msg: '该申请已处理' }
+  promoWithdrawStore.set((prev) =>
+    prev.map((w) =>
+      w.id === id
+        ? {
+            ...w,
+            status: approve ? 'approved' : 'rejected',
+            reviewedAt: nowStamp(),
+            reviewer: CURRENT_OPERATOR,
+            tax: approve ? roundAmount(tax ?? 0, 2) : w.tax,
+            rejectReason: approve ? undefined : reason || '资料核验不通过',
+          }
+        : w,
+    ),
+  )
+  if (!approve) {
+    promoPartnerStore.set((prev) =>
+      prev.map((p) =>
+        p.id === req.partnerId
+          ? {
+              ...p,
+              availableCommission: roundAmount(p.availableCommission + req.amount, 2),
+              withdrawnCommission: roundAmount(p.withdrawnCommission - req.amount, 2),
+            }
+          : p,
+      ),
+    )
+  }
+  return { ok: true, msg: approve ? '已通过，打款已完成' : '已驳回，金额退回佣金余额' }
+}
+
+/** 推广页面配置校验：「其他」渠道必须填写活动链接 */
+function validatePromoPage(page: PromoActivityPage, activityUrl?: string): string | null {
+  if (page === 'external' && !activityUrl?.trim()) return '推广页面为「其他」时，请填写活动链接'
+  return null
+}
+
+/** 后台调整推广活动：比例 / 加倍返佣 / 限时活动 / 推广页面 / 上下线，保存即更新（计佣按每笔消耗当时生效的规则取比例） */
+export function updateRebateRule(
+  id: string,
+  patch: {
+    rate: number
+    campaign: boolean
+    boostRate?: number
+    campaignStartAt?: string
+    campaignEndAt?: string
+    page: PromoActivityPage
+    activityUrl?: string
+    effectiveAt: string
+    status: 'on' | 'off'
+  },
+): { ok: boolean; msg: string } {
+  if (!(patch.rate > 0) || patch.rate > 50) return { ok: false, msg: '返佣比例需在 0 ~ 50% 之间' }
+  if (patch.campaign) {
+    if (!(patch.boostRate ?? 0) || (patch.boostRate ?? 0) <= patch.rate) return { ok: false, msg: '加倍返佣比例需大于标准返佣比例' }
+    if (!patch.campaignStartAt || !patch.campaignEndAt) return { ok: false, msg: '请填写推广时间区间' }
+    if (patch.campaignStartAt > patch.campaignEndAt) {
+      return { ok: false, msg: '活动结束日期需晚于开始日期' }
+    }
+  }
+  const pageErr = validatePromoPage(patch.page, patch.activityUrl)
+  if (pageErr) return { ok: false, msg: pageErr }
+  promoRebateStore.set((prev) =>
+    prev.map((r) =>
+      r.id === id
+        ? {
+            ...r,
+            rate: patch.rate,
+            campaign: patch.campaign,
+            boostRate: patch.campaign ? patch.boostRate : undefined,
+            campaignStartAt: patch.campaign ? patch.campaignStartAt : undefined,
+            campaignEndAt: patch.campaign ? patch.campaignEndAt : undefined,
+            page: patch.page,
+            activityUrl: patch.page === 'external' ? patch.activityUrl?.trim() : undefined,
+            effectiveAt: patch.effectiveAt,
+            status: patch.status,
+            operator: CURRENT_OPERATOR,
+            updatedAt: nowStamp(),
+          }
+        : r,
+    ),
+  )
+  return { ok: true, msg: '推广活动已保存' }
+}
+
+/** 后台删除推广活动：删除后该模型档位不再参与返佣计佣 */
+export function deleteRebateRule(id: string): { ok: boolean; msg: string } {
+  const exists = promoRebateStore.get().some((r) => r.id === id)
+  if (!exists) return { ok: false, msg: '推广活动不存在或已被删除' }
+  promoRebateStore.set((prev) => prev.filter((r) => r.id !== id))
+  return { ok: true, msg: '已删除' }
+}
+
+/** 后台新增推广活动：从模型库选择模型 + 倍率档位，设置推广返佣比例、加倍返佣、推广时间与推广页面，保存后即参与计佣 */
+export function addRebateRule(input: {
+  modelName: string
+  category: PromoModelCategory
+  multiplierName: string
+  modelMultiplier: number
+  rate: number
+  campaign: boolean
+  boostRate?: number
+  campaignStartAt?: string
+  campaignEndAt?: string
+  page: PromoActivityPage
+  activityUrl?: string
+  effectiveAt: string
+}): { ok: boolean; msg: string } {
+  if (!input.modelName) return { ok: false, msg: '请选择模型' }
+  if (!input.multiplierName) return { ok: false, msg: '请选择倍率档位' }
+  if (!(input.rate > 0) || input.rate > 50) return { ok: false, msg: '返佣比例需在 0 ~ 50% 之间' }
+  if (input.campaign) {
+    if (!(input.boostRate ?? 0) || (input.boostRate ?? 0) <= input.rate) return { ok: false, msg: '加倍返佣比例需大于标准返佣比例' }
+    if (!input.campaignStartAt || !input.campaignEndAt) return { ok: false, msg: '请填写推广时间区间' }
+    if (input.campaignStartAt > input.campaignEndAt) {
+      return { ok: false, msg: '活动结束日期需晚于开始日期' }
+    }
+  }
+  const pageErr = validatePromoPage(input.page, input.activityUrl)
+  if (pageErr) return { ok: false, msg: pageErr }
+  const exists = promoRebateStore.get().some((r) => r.modelName === input.modelName && r.multiplierName === input.multiplierName)
+  if (exists) return { ok: false, msg: '该模型的该档位已配置推广活动，请勿重复添加' }
+  const rule: ModelRebateRule = {
+    id: `pr_${uid()}`,
+    modelName: input.modelName,
+    category: input.category,
+    multiplierName: input.multiplierName,
+    modelMultiplier: input.modelMultiplier,
+    rate: input.rate,
+    campaign: input.campaign,
+    boostRate: input.campaign ? input.boostRate : undefined,
+    campaignStartAt: input.campaign ? input.campaignStartAt : undefined,
+    campaignEndAt: input.campaign ? input.campaignEndAt : undefined,
+    page: input.page,
+    activityUrl: input.page === 'external' ? input.activityUrl?.trim() : undefined,
+    effectiveAt: input.effectiveAt,
+    status: 'on',
+    operator: CURRENT_OPERATOR,
+    updatedAt: nowStamp(),
+  }
+  promoRebateStore.set((prev) => [rule, ...prev])
+  return { ok: true, msg: '推广活动已添加' }
+}
+
+/* ------------------------------ 推广活动（活动主体） ------------------------------ */
+
+const PROMO_CAMPAIGN_STORAGE_KEY = 'zsdd_promo_campaigns_v7'
+
+const promoCampaignSeed: PromoCampaign[] = [
+  {
+    id: 'pc_006',
+    name: '全平台模型通用返佣',
+    startAt: '2026-10-01',
+    endAt: '2026-10-31',
+    scope: 'all',
+    defaultRate: 10,
+    webPromo: true,
+    models: [
+      { modelName: 'Doubao-Seedream-5.0-Pro', category: 'third', multiplierName: '尊享加速倍率', modelMultiplier: 2, rate: 10, boost: true, boostRate: 20 },
+      { modelName: 'DODO-AC-Ultra-5', category: 'self', multiplierName: '尊享加速倍率', modelMultiplier: 2, rate: 10, boost: true, boostRate: 20 },
+    ],
+    status: 'on',
+    stats: { views: 0, visitors: 0, clicks: 0, newUsers: 0, firstConsumeUsers: 0, consumeAmount: 0, commissionAmount: 0 },
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-28 09:30:00',
+    updatedAt: '2026-09-28 09:30:00',
+  },
+  {
+    id: 'pc_001',
+    name: '9月旗舰模型加倍返佣',
+    startAt: '2026-09-01',
+    endAt: '2026-09-30',
+    scope: 'partial',
+    webPromo: false,
+    models: [
+      { modelName: 'DODO-OG-G-6-Astra', category: 'self', multiplierName: '标准倍率', modelMultiplier: 1, rate: 20, boost: true, boostRate: 40 },
+    ],
+    status: 'on',
+    stats: { views: 12860, visitors: 5420, clicks: 2380, newUsers: 486, firstConsumeUsers: 214, consumeAmount: 186400, commissionAmount: 37280 },
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-08-25 14:20:00',
+    updatedAt: '2026-09-28 10:05:00',
+  },
+  {
+    id: 'pc_002',
+    name: 'DeepSeek-V4 尊享加速站外专享',
+    startAt: '2026-09-15',
+    endAt: '2026-10-15',
+    webPromo: false,
+    models: [
+      { modelName: 'DeepSeek-V4', category: 'third', multiplierName: '尊享加速倍率', modelMultiplier: 2, rate: 10, boost: true, boostRate: 25 },
+    ],
+    status: 'on',
+    stats: { views: 4260, visitors: 1980, clicks: 860, newUsers: 152, firstConsumeUsers: 61, consumeAmount: 42600, commissionAmount: 8520 },
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-14 16:40:00',
+    updatedAt: '2026-09-26 15:30:00',
+  },
+  {
+    id: 'pc_003',
+    name: '秋季三方模型分销',
+    startAt: '2026-09-20',
+    endAt: '2026-10-31',
+    webPromo: false,
+    models: [
+      { modelName: 'DeepSeek-V4', category: 'third', multiplierName: '标准倍率', modelMultiplier: 1, rate: 10, boost: false },
+      { modelName: 'GLM-5.3', category: 'third', multiplierName: '标准倍率', modelMultiplier: 1, rate: 10, boost: false },
+      { modelName: 'Kimi-K3', category: 'third', multiplierName: '标准倍率', modelMultiplier: 1, rate: 8, boost: false },
+    ],
+    status: 'on',
+    stats: { views: 3150, visitors: 1420, clicks: 540, newUsers: 96, firstConsumeUsers: 38, consumeAmount: 21800, commissionAmount: 2180 },
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-18 11:00:00',
+    updatedAt: '2026-09-25 09:12:00',
+  },
+  {
+    id: 'pc_004',
+    name: 'Veo 视频模型加倍返佣收官',
+    startAt: '2026-08-01',
+    endAt: '2026-09-20',
+    webPromo: false,
+    models: [
+      { modelName: 'DODO-Veo-Fast', category: 'self', multiplierName: '标准倍率', modelMultiplier: 1, rate: 18, boost: true, boostRate: 30 },
+    ],
+    status: 'on',
+    stats: { views: 9640, visitors: 4120, clicks: 1760, newUsers: 342, firstConsumeUsers: 158, consumeAmount: 128900, commissionAmount: 32225 },
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-07-28 10:30:00',
+    updatedAt: '2026-09-20 23:59:00',
+  },
+  {
+    id: 'pc_005',
+    name: 'Doubao 新模型试分销',
+    startAt: '2026-10-01',
+    endAt: '2026-10-20',
+    webPromo: false,
+    models: [],
+    status: 'off',
+    stats: { views: 0, visitors: 0, clicks: 0, newUsers: 0, firstConsumeUsers: 0, consumeAmount: 0, commissionAmount: 0 },
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-09-22 17:45:00',
+    updatedAt: '2026-09-24 14:10:00',
+  },
+  {
+    /**
+     * 长期常规分销活动：每笔消耗计佣都必须归属一个活动，因此常规返佣也建为一条长周期活动，
+     * 各模型比例与「模型返佣设置」中的标准比例一致（收益明细档位恒为 ×1）；不在控制台活动列表露出。
+     */
+    id: 'pc_007',
+    name: '平台模型常规分销',
+    startAt: '2026-08-01',
+    endAt: '2026-12-31',
+    scope: 'partial',
+    webPromo: false,
+    showInList: false,
+    models: [
+      { modelName: 'DODO-OG-G-5-6-Sol', category: 'self', multiplierName: '标准倍率', modelMultiplier: 1, rate: 15, boost: false },
+      { modelName: 'DODO-Vision-4', category: 'self', multiplierName: '标准倍率', modelMultiplier: 1, rate: 18, boost: false },
+      { modelName: 'DeepSeek-V4', category: 'third', multiplierName: '标准倍率', modelMultiplier: 1, rate: 10, boost: false },
+      { modelName: 'GLM-5.3', category: 'third', multiplierName: '标准倍率', modelMultiplier: 1, rate: 10, boost: false },
+      { modelName: 'Kimi-K3', category: 'third', multiplierName: '标准倍率', modelMultiplier: 1, rate: 8, boost: false },
+      { modelName: 'Qwen3.8-Max', category: 'third', multiplierName: '标准倍率', modelMultiplier: 1, rate: 8, boost: false },
+    ],
+    status: 'on',
+    stats: { views: 0, visitors: 0, clicks: 0, newUsers: 0, firstConsumeUsers: 0, consumeAmount: 0, commissionAmount: 0 },
+    operator: CURRENT_OPERATOR,
+    createdAt: '2026-07-25 10:00:00',
+    updatedAt: '2026-08-01 09:00:00',
+  },
+]
+
+/** 活动档位行唯一键：模型名 + 档位名 */
+export const PROMO_ROW_KEY = (row: { modelName: string; multiplierName: string }) =>
+  `${row.modelName}::${row.multiplierName}`
+
+const promoCampaignStore = makeVoucherStore<PromoCampaign>(PROMO_CAMPAIGN_STORAGE_KEY, promoCampaignSeed)
+
+/**
+ * 全量「模型 × 档位」返佣池：所有已上架模型的全部 API 倍率档位。
+ * 适用范围为「全平台模型」的活动以此为准 —— 后台配置页、官网推广页、控制台活动列表共用同一口径。
+ */
+export function buildModelRatePool(models: ModelItem[]): PromoCampaignModel[] {
+  const seen = new Set<string>()
+  const list: PromoCampaignModel[] = []
+  for (const model of models) {
+    if (!model.online) continue
+    const cfgs = model.apiConfigs ?? []
+    const tiers = cfgs.length
+      ? cfgs.map((cfg) => ({
+          multiplierName: cfg.multiplierName?.trim() || '标准倍率',
+          modelMultiplier: cfg.modelMultiplier ?? 1,
+        }))
+      : [{ multiplierName: '标准倍率', modelMultiplier: 1 }]
+    for (const tier of tiers) {
+      const row: PromoCampaignModel = {
+        modelName: model.name,
+        category: model.vendor === '智算多多' ? 'self' : 'third',
+        multiplierName: tier.multiplierName,
+        modelMultiplier: tier.modelMultiplier,
+        enabled: true,
+        rate: 0,
+        boost: false,
+      }
+      const key = PROMO_ROW_KEY(row)
+      if (seen.has(key)) continue
+      seen.add(key)
+      list.push(row)
+    }
+  }
+  return list
+}
+
+/**
+ * 全平台模型活动自愈：把模型池里尚未落库的档位按活动默认返佣比例补齐并持久化。
+ * 覆盖三种场景：历史活动 models 为空、新建活动、平台新增模型后需自动按默认比例配置。
+ * 只负责「哪些模型参与返佣」，不改动「是否在官网上架」——官网上架始终由人工开关决定。
+ * 返回是否发生写入。
+ */
+export function syncAllScopeCampaignModels(): boolean {
+  const pool = buildModelRatePool(getModelListSnapshot())
+  if (pool.length === 0) return false
+  let changed = false
+  const next = promoCampaignStore.get().map((c) => {
+    if (c.scope !== 'all') return c
+    const saved = c.models ?? []
+    const missing = pool.filter((r) => !saved.some((m) => PROMO_ROW_KEY(m) === PROMO_ROW_KEY(r)))
+    if (missing.length === 0) return c
+    changed = true
+    const rate = c.defaultRate ?? 10
+    return { ...c, models: [...saved, ...missing.map((r) => ({ ...r, rate }))] }
+  })
+  if (changed) promoCampaignStore.set(next)
+  return changed
+}
+
+syncAllScopeCampaignModels()
+
+export function usePromoCampaigns(): PromoCampaign[] {
+  return useSyncExternalStore(promoCampaignStore.subscribe, promoCampaignStore.get)
+}
+
+/** 官网推广活动：全平台仅允许一个活动开启官网推广，官网「推广合伙人」页用其模型返佣比例展示。
+ * 优先取「推广期内」的活动，避免历史活动即便已过期仍长期占用官网展位、把当期活动挤掉。 */
+export function useWebPromoCampaign(): PromoCampaign | null {
+  const campaigns = usePromoCampaigns()
+  return useMemo(() => {
+    const candidates = campaigns.filter((c) => c.webPromo && c.status === 'on')
+    return candidates.find(isCampaignInPeriod) ?? candidates[0] ?? null
+  }, [campaigns])
+}
+
+/** 活动是否处于推广期（仅按日期判断，不含启用/停用状态；结束日当天仍算活动中） */
+export function isCampaignInPeriod(campaign: PromoCampaign): boolean {
+  const today = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
+  return campaign.startAt <= todayStr && todayStr <= campaign.endAt
+}
+
+/** 活动阶段：按活动时间范围自动判断（未开始 / 进行中 / 已结束），不由人工设置 */
+export function getCampaignPhase(campaign: PromoCampaign): 'pending' | 'ongoing' | 'ended' {
+  const today = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
+  if (todayStr < campaign.startAt) return 'pending'
+  if (todayStr > campaign.endAt) return 'ended'
+  return 'ongoing'
+}
+
+/** 校验活动模型的档位倍率：模型必填、比例范围、加倍比例、活动内模型+档位查重 */
+function validateCampaignModels(models: PromoCampaignModel[]): string | null {
+  if (models.length === 0) return '请至少添加一个分销模型'
+  const seen = new Set<string>()
+  for (const m of models) {
+    if (!m.modelName) return '请选择分销模型'
+    if (!m.multiplierName) return `请选择「${m.modelName}」的模型档位`
+    if (!(m.rate > 0) || m.rate > 50) return `「${m.modelName} · ${m.multiplierName}」返佣比例需在 0 ~ 50% 之间`
+    if (m.boost) {
+      if (!(m.boostRate ?? 0) || (m.boostRate ?? 0) <= m.rate) return `「${m.modelName} · ${m.multiplierName}」加倍返佣比例需大于标准返佣比例`
+    }
+    const key = `${m.modelName}::${m.multiplierName}`
+    if (seen.has(key)) return `「${m.modelName} · ${m.multiplierName}」重复添加，请勿重复配置`
+    seen.add(key)
+  }
+  return null
+}
+
+/** 校验活动公共字段：名称必填、推广时间必选且结束不早于开始、全平台范围需配默认返佣比例 */
+function validateCampaignBase(
+  input: { name: string; startAt: string; endAt: string; scope?: PromoCampaignScope; defaultRate?: number },
+): string | null {
+  if (!input.name.trim()) return '请填写活动名称'
+  if (!input.startAt || !input.endAt) return '请选择活动时间范围'
+  if (input.startAt > input.endAt) return '分销结束日期需晚于开始日期'
+  if (input.scope === 'all' && !(input.defaultRate && input.defaultRate > 0 && input.defaultRate <= 50)) {
+    return '全平台模型适用范围需配置 0 ~ 50% 之间的默认返佣比例'
+  }
+  return null
+}
+
+/** 后台新建推广活动：活动名称 + 时间范围 + 适用范围 + 是否官网推广，新建即为计佣中，推广模型在活动创建后配置 */
+export function addPromoCampaign(input: {
+  name: string
+  startAt: string
+  endAt: string
+  scope: PromoCampaignScope
+  defaultRate?: number
+  webPromo: boolean
+  showInList: boolean
+}): { ok: boolean; msg: string } {
+  const baseErr = validateCampaignBase(input)
+  if (baseErr) return { ok: false, msg: baseErr }
+  const stamp = nowStamp()
+  const campaign: PromoCampaign = {
+    id: `pc_${uid()}`,
+    name: input.name.trim(),
+    startAt: input.startAt,
+    endAt: input.endAt,
+    scope: input.scope,
+    defaultRate: input.scope === 'all' ? input.defaultRate : undefined,
+    webPromo: input.webPromo,
+    showInList: input.showInList,
+    models: [],
+    status: 'on',
+    stats: { views: 0, visitors: 0, clicks: 0, newUsers: 0, firstConsumeUsers: 0, consumeAmount: 0, commissionAmount: 0 },
+    operator: CURRENT_OPERATOR,
+    createdAt: stamp,
+    updatedAt: stamp,
+  }
+  promoCampaignStore.set((prev) =>
+    input.webPromo ? [campaign, ...prev.map((c) => ({ ...c, webPromo: false }))] : [campaign, ...prev],
+  )
+  syncAllScopeCampaignModels()
+  return { ok: true, msg: '活动已创建' }
+}
+
+/** 后台编辑推广活动：名称 / 时间范围 / 适用范围 / 是否官网推广，计佣状态经操作列「暂停/恢复」单独维护 */
+export function updatePromoCampaign(
+  id: string,
+  patch: {
+    name: string
+    startAt: string
+    endAt: string
+    scope: PromoCampaignScope
+    defaultRate?: number
+    webPromo: boolean
+    showInList: boolean
+  },
+): { ok: boolean; msg: string } {
+  const exists = promoCampaignStore.get().some((c) => c.id === id)
+  if (!exists) return { ok: false, msg: '活动不存在或已被删除' }
+  const baseErr = validateCampaignBase(patch)
+  if (baseErr) return { ok: false, msg: baseErr }
+  promoCampaignStore.set((prev) =>
+    prev.map((c) => {
+      if (c.id === id) {
+        return {
+          ...c,
+          name: patch.name.trim(),
+          startAt: patch.startAt,
+          endAt: patch.endAt,
+          scope: patch.scope,
+          defaultRate: patch.scope === 'all' ? patch.defaultRate : undefined,
+          webPromo: patch.webPromo,
+          showInList: patch.showInList,
+          operator: CURRENT_OPERATOR,
+          updatedAt: nowStamp(),
+        }
+      }
+      return patch.webPromo && c.webPromo ? { ...c, webPromo: false } : c
+    }),
+  )
+  syncAllScopeCampaignModels()
+  return { ok: true, msg: '活动已更新' }
+}
+
+/** 后台配置活动推广模型：整体替换该活动的模型列表，传空数组表示清空 */
+export function setPromoCampaignModels(id: string, models: PromoCampaignModel[]): { ok: boolean; msg: string } {
+  const exists = promoCampaignStore.get().some((c) => c.id === id)
+  if (!exists) return { ok: false, msg: '活动不存在或已被删除' }
+  if (models.length > 0) {
+    const modelErr = validateCampaignModels(models)
+    if (modelErr) return { ok: false, msg: modelErr }
+  }
+  promoCampaignStore.set((prev) =>
+    prev.map((c) => (c.id === id ? { ...c, models, operator: CURRENT_OPERATOR, updatedAt: nowStamp() } : c)),
+  )
+  return { ok: true, msg: '模型配置已保存' }
+}
+
+/** 后台暂停 / 恢复活动计佣：暂停后该活动不再产生返佣，活动数据保留；已结束的活动不可再暂停 */
+export function setPromoCampaignStatus(id: string, status: 'on' | 'off'): { ok: boolean; msg: string } {
+  const target = promoCampaignStore.get().find((c) => c.id === id)
+  if (!target) return { ok: false, msg: '活动不存在或已被删除' }
+  if (status === 'off' && getCampaignPhase(target) === 'ended') {
+    return { ok: false, msg: '活动已结束，无需暂停' }
+  }
+  promoCampaignStore.set((prev) =>
+    prev.map((c) => (c.id === id ? { ...c, status, operator: CURRENT_OPERATOR, updatedAt: nowStamp() } : c)),
+  )
+  return { ok: true, msg: status === 'on' ? '已恢复计佣' : '已暂停计佣' }
+}
+
+/** 后台切换活动是否在控制台活动列表展示：关闭后列表不再露出，已有推广链接仍可访问 */
+export function setPromoCampaignShowInList(id: string, showInList: boolean): { ok: boolean; msg: string } {
+  const exists = promoCampaignStore.get().some((c) => c.id === id)
+  if (!exists) return { ok: false, msg: '活动不存在或已被删除' }
+  promoCampaignStore.set((prev) =>
+    prev.map((c) => (c.id === id ? { ...c, showInList, operator: CURRENT_OPERATOR, updatedAt: nowStamp() } : c)),
+  )
+  return { ok: true, msg: showInList ? '已在活动列表展示' : '已在活动列表隐藏' }
+}
+
+/** 后台删除推广活动 */
+export function deletePromoCampaign(id: string): { ok: boolean; msg: string } {
+  const exists = promoCampaignStore.get().some((c) => c.id === id)
+  if (!exists) return { ok: false, msg: '活动不存在或已被删除' }
+  promoCampaignStore.set((prev) => prev.filter((c) => c.id !== id))
+  return { ok: true, msg: '已删除' }
 }

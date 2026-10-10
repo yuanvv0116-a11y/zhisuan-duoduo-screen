@@ -119,7 +119,7 @@ export function ModelLogo({ text, size = 40 }: { text: string; size?: number }) 
 }
 
 /* ---------------- 根据模型ID生成稳定的成本价/售价（四项明细） ---------------- */
-function deterministicPrice(id: string, base: number) {
+export function deterministicPrice(id: string, base: number) {
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
   const r = (h % 1000) / 1000
@@ -133,7 +133,7 @@ const PRICE_LABELS: Record<PriceKey, string> = {
   cacheCreate: '缓存创建',
 }
 /** Token 计费：四项成本价（元/千Token）；非 Token：output=统一成本，其余 0 */
-const costBreakdown = (m: ModelItem): TokenPriceBreakdown => {
+export const costBreakdown = (m: ModelItem): TokenPriceBreakdown => {
   if (m.pricingMode === 'token') {
     return {
       input: deterministicPrice(m.id + '_cin', 0.0008),
@@ -146,7 +146,7 @@ const costBreakdown = (m: ModelItem): TokenPriceBreakdown => {
   return { input: 0, output: s, cacheRead: 0, cacheCreate: 0 }
 }
 /** Token 计费：四项对外售价（成本×1.4）；非 Token：output=统一售价 */
-const sellBreakdown = (m: ModelItem): TokenPriceBreakdown => {
+export const sellBreakdown = (m: ModelItem): TokenPriceBreakdown => {
   const c = costBreakdown(m)
   return {
     input: Math.round(c.input * 1.4 * 10000) / 10000,
@@ -156,12 +156,17 @@ const sellBreakdown = (m: ModelItem): TokenPriceBreakdown => {
   }
 }
 /** 统一成本价：token 取输出价（主价）作为整行摘要；非 token 取 output */
-const costOf = (m: ModelItem) => costBreakdown(m).output
+export const costOf = (m: ModelItem) => costBreakdown(m).output
+/** 缓存价（元/千Token）：缓存存储单价，介于缓存读取与输入之间的稳定派生价 */
+export const cacheCostOf = (m: ModelItem) =>
+  m.pricingMode === 'token' ? deterministicPrice(m.id + '_cpool', 0.0005) : 0
+/** 缓存价对外售价：成本 ×1.4 */
+export const cacheSellOf = (m: ModelItem) => Math.round(cacheCostOf(m) * 1.4 * 10000) / 10000
 /** 统一对外售价：同上，兼容已有引用（如市场价摘要显示） */
-const externalSellOf = (m: ModelItem) => sellBreakdown(m).output
+export const externalSellOf = (m: ModelItem) => sellBreakdown(m).output
 
 /** 价格单位（成本/售价列表头用） */
-const priceUnitOf = (m: ModelItem) => {
+export const priceUnitOf = (m: ModelItem) => {
   switch (m.pricingMode) {
     case 'token':
     case 'video_quality_token':
@@ -681,11 +686,6 @@ export default function ModelList() {
             <Text strong style={{ fontSize: 18 }}>
               模型信息
             </Text>
-            <div style={{ marginTop: 4 }}>
-              <Text type="secondary" style={{ fontSize: 13 }}>
-                共 {70} 个模型
-              </Text>
-            </div>
           </div>
           <Space size={8}>
             <Button icon={<FileTextOutlined />} onClick={openQuote}>

@@ -26,6 +26,7 @@ import {
   CloseOutlined,
 } from '@ant-design/icons'
 import RequirementDot from '../components/RequirementDot'
+import { maskName } from '../components/SecretCell'
 
 const { Text } = Typography
 
@@ -807,7 +808,7 @@ export default function RechargeTask() {
                             selectedUserKeys: f.selectedUserKeys.filter((k) => k !== key),
                           }))}
                         >
-                          {u.nickname}{u.authName && u.authName !== u.nickname ? `（${u.authName}）` : ''}
+                          {maskName(u.nickname)}{u.authName && u.authName !== u.nickname ? `（${maskName(u.authName)}）` : ''}
                         </Tag>
                       )
                     })}
@@ -818,7 +819,7 @@ export default function RechargeTask() {
                             {form.selectedUserKeys.slice(3).map((key) => {
                               const u = ACCOUNT_LIST_V2.find((x) => x.key === key)
                               if (!u) return null
-                              return <Tag key={key} style={{ marginBottom: 2 }}>{u.nickname}{u.authName && u.authName !== u.nickname ? `（${u.authName}）` : ''}</Tag>
+                              return <Tag key={key} style={{ marginBottom: 2 }}>{maskName(u.nickname)}{u.authName && u.authName !== u.nickname ? `（${maskName(u.authName)}）` : ''}</Tag>
                             })}
                           </Space>
                         }
@@ -1063,7 +1064,7 @@ export default function RechargeTask() {
             rowKey="key"
             size="small"
             columns={[
-              { title: '用户昵称', dataIndex: 'nickname', key: 'nickname', width: 120 },
+              { title: '用户昵称', dataIndex: 'nickname', key: 'nickname', width: 120, render: (v: string) => maskName(v) },
               { title: '手机号', dataIndex: 'phone', key: 'phone', width: 130 },
               {
                 title: '账户ID',
@@ -1199,11 +1200,11 @@ export default function RechargeTask() {
                   <div>
                     {r.authName && (
                       <div style={{ fontWeight: 500 }}>
-                        {r.authName}
+                        {maskName(r.authName)}
                         <Text type="secondary" style={{ fontSize: 11, marginLeft: 6, fontWeight: 400 }}>已实名</Text>
                       </div>
                     )}
-                    <div style={{ fontSize: 12, color: '#666' }}>{r.nickname}</div>
+                    <div style={{ fontSize: 12, color: '#666' }}>{maskName(r.nickname)}</div>
                     <div style={{ fontSize: 11, color: '#996', fontFamily: 'monospace' }}>ID: {r.accountId}</div>
                   </div>
                 ),

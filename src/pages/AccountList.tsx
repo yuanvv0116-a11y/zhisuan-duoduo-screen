@@ -4,6 +4,7 @@ const { confirm } = Modal
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import RequirementDot from '../components/RequirementDot'
+import { maskName } from '../components/SecretCell'
 import {
   useResourcePacks,
   useVouchers,
@@ -434,11 +435,11 @@ export default function AccountList() {
   /* 代金券：与现金账户物理分离，此处只读展示名下券 + 支持发放 */
   const vouchers = useVouchers()
   const voucherTemplates = useVoucherTemplates()
-  /** 发放弹窗券模板下拉：仅启用状态，按创建时间倒序 */
+  /** 发放弹窗券模板下拉：仅启用状态、排除兑换专用，按创建时间倒序 */
   const enabledVoucherTemplates = useMemo(
     () =>
       voucherTemplates
-        .filter((t) => t.status === 'enabled')
+        .filter((t) => t.status === 'enabled' && !t.exchangeOnly)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [voucherTemplates],
   )
@@ -789,7 +790,7 @@ export default function AccountList() {
           </Space>
           {r.realName && (
             <div style={{ color: '#333', fontSize: 13, marginTop: 4 }}>
-              {r.realName}
+              {maskName(r.realName)}
               {r.username && <Text type="secondary" style={{ marginLeft: 6 }}>({r.username})</Text>}
             </div>
           )}
@@ -831,7 +832,7 @@ export default function AccountList() {
       title: '认证信息',
       dataIndex: 'authName',
       width: 110,
-      render: (v) => (v ? <Text>{v}</Text> : <Text type="secondary">—</Text>),
+      render: (v) => (v ? <Text>{maskName(v as string)}</Text> : <Text type="secondary">—</Text>),
     },
     {
       title: '现金账户净资产',

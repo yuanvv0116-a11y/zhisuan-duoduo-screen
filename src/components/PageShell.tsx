@@ -6,12 +6,15 @@ const { Text } = Typography
 
 interface PageShellProps {
   breadcrumb: string[]
+  /** 面包屑行前置内容（如返回链接） */
+  breadcrumbPre?: ReactNode
   /** 面包屑行尾追加的内容（如需求红点） */
   breadcrumbExtra?: ReactNode
   topExtra?: ReactNode
-  searchFields: ReactNode
-  onSearch: () => void
-  onReset: () => void
+  /** 不传则不渲染顶部搜索卡（搜索区下沉到页面内部，如 Tabs 各页签内） */
+  searchFields?: ReactNode
+  onSearch?: () => void
+  onReset?: () => void
   listTitle: string
   total: number
   totalUnit?: string
@@ -28,6 +31,7 @@ interface PageShellProps {
 
 export default function PageShell({
   breadcrumb,
+  breadcrumbPre,
   breadcrumbExtra,
   topExtra,
   searchFields,
@@ -48,28 +52,31 @@ export default function PageShell({
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        {breadcrumbPre}
         <Breadcrumb items={breadcrumb.map((title) => ({ title }))} />
         {breadcrumbExtra}
       </div>
 
       {topExtra}
 
-      <Card
-        variant="borderless"
-        styles={{ body: { padding: 16 } }}
-        style={{ marginBottom: 16 }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-          {searchFields}
-          <Space>
-            <Button type="primary" icon={<SearchOutlined />} onClick={onSearch}>
-              搜索
-            </Button>
-            <Button onClick={onReset}>重置</Button>
-          </Space>
-          {searchExtra}
-        </div>
-      </Card>
+      {searchFields && (
+        <Card
+          variant="borderless"
+          styles={{ body: { padding: 16 } }}
+          style={{ marginBottom: 16 }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+            {searchFields}
+            <Space>
+              <Button type="primary" icon={<SearchOutlined />} onClick={onSearch}>
+                搜索
+              </Button>
+              <Button onClick={onReset}>重置</Button>
+            </Space>
+            {searchExtra}
+          </div>
+        </Card>
+      )}
 
       <Card variant="borderless" styles={{ body: { padding: 16 } }}>
         <div

@@ -6,6 +6,8 @@
 - Vite + React 18 + TypeScript + Ant Design 5（antd）+ zhCN locale。
 - 状态：localStorage 存储 + useSyncExternalStore（见 `src/store.ts`），无后端。
 - 开发服务器端口：**5180**（`npm run dev -- --port 5180 --strictPort`，5173 常被占用）。
+- **统一访问地址 `http://localhost:5180/`**：汇报、回归、发给用户的地址一律用它，禁止附加 `?t=xxx` 之类 cache-busting 查询参数。
+- 「地址没变但改动不生效」优先怀疑 dev server 进程跑太久导致 watch/模块缓存失效（曾出现进程跑 21 天的情况），重启 dev server 即可解决，不要归因于用户浏览器缓存。
 - 每次改完必须跑 `npx tsc -b --pretty false` 校验通过（开启 noUnusedLocals，未使用的 import/变量要清理）。
 - 部署：`vite.config.ts` 固定 `base: './'`（产物用相对路径），`npm run build` 后的 `dist/` 是纯静态目录，可直接放到任意静态服务器的站点根目录或子目录（如 `/proto/`），无需重新构建。评审入口靠 URL 查询参数（`?review=<version>`），不依赖 history 路由，因此**不需要 SPA rewrite**。
 
@@ -38,7 +40,7 @@
 统一使用「面包屑 + 搜索卡 + 列表卡」骨架，优先复用 `src/components/PageShell.tsx`：
 - **面包屑**：体现层级，如「渠道管理 / 渠道商管理」。
 - **搜索卡**（独立白卡）：每个条件用「标签：+ 控件」形式，一行排列；末尾放主色「搜索」+ 默认「重置」按钮；**点击搜索才过滤，不做实时过滤**；输入框回车等同搜索。
-- **列表卡**（独立白卡）：卡头左「XX 列表 +『共 N 条记录』」，右「+ 新增XX」主色按钮；下方 Table。
+- **列表卡**（独立白卡）：卡头左「XX 列表」标题，右「+ 新增XX」主色按钮；下方 Table。**卡头标题旁不加任何小说明**（总数、「共 N 条记录」「N 条待审核」等一律不写）。
 
 ## 4. 组件用法约定
 - 卡片：`variant="borderless"`，body padding 16，卡片间距 16。
@@ -49,9 +51,11 @@
 - 弹窗：新增/编辑用 `Modal`（`centered`、`width` 约 520、`destroyOnClose`、okText「保存」cancelText「取消」），**不用右侧 Drawer**。表单 `layout="vertical"`。**弹窗标题只写弹窗名称本身（如「执行记录」），不拼接任务名/ID/模型名等额外信息。**
 
 ## 5. 文案与交互习惯
+- **版本需求表（`releases.ts` 的 `note` + `VersionChangelog.tsx`）写法**：每个菜单/页面一条，格式 `N. [routeKey]需求描述`，**不加 `·` 副行**。需求描述 = 一句话说明这个菜单改了什么能力，句式参照「增加分销活动菜单，支持增删改查活动。支持为活动配置分佣模型，支持分享活动链接，查看活动数据」——**既不写空泛主题（如"页面重构""交互完善"），也不堆字段/样式/按钮级细节**（列表字段、弹窗字段、颜色、按钮移位一律不写）。表格三列为「平台（管理后台/控制台/官方网站/全局）/ 功能地址（菜单路径）/ 需求简述」，平台与菜单由 routeKey 自动映射，不要写进描述文字里。
 - 实体统一称「渠道商」。
 - 操作反馈用 `message.success/error`：如「已复制」「渠道已启用」「渠道已停用」「渠道已创建/更新」「已删除」。
 - 字段值有无：一定有值的字段（如操作人 operator）直接展示；可能为空的字段（联系人/联系方式/备注）用 `—` 兜底。
+- **「需求内容」只标注、不改功能（长期约定）**：凡是指令里写了「需求内容：…」的（典型句式「XX 后增加需求红点，需求内容：…」），一律**只加 `RequirementDot` 红点、把需求原文逐字放进弹窗**，不据此修改任何功能、逻辑或种子数据；即使需求描述与现状不一致（如金额口径、计算规则对不上），也只在回复中反馈差异、给出选项，等用户明确拍板后才动代码。只有「增加小字」「改为 XX 文案」这类直接 UI 指令才改界面本身。红点标注不登记 `releases.ts`。
 
 ## 6. 数据模型要点（见 `src/types.ts`）
 - `Channel`：`name` 渠道名、`apiName` API名称、`apiUrl` API地址、`apiKey`、`status`(enabled/disabled)、`contact?`/`phone?`/`remark?` 选填、`operator` 操作人(必填,系统自动写入)、`createdAt`。
@@ -66,5 +70,7 @@
 - [ ] 表格空值 `—`、超长 ellipsis+Tooltip、分页「共 N 条记录」？
 - [ ] 敏感字段脱敏+显隐+复制（SecretCell）？状态用 Switch？删除有 Popconfirm？
 - [ ] 新增/编辑用 Modal 不用 Drawer？
+- [ ] **按钮文案就是按钮本身（如「批量设置」「批量开启」），后面不加数量/数字后缀**；选中数量等运行时信息如需提示，用 `message` 或文案说明，不拼进按钮文字。
+- [ ] **列表卡头「列表就是列表」**：配置类列表不显示「共 N 个模型」等总数、也不在标题旁挂活动名/推广等标签（`PageShell` 用 `hideTotal`、不传 `titleExtra`）。
 - [ ] `npx tsc -b` 通过、无未使用导入？
 - [ ] 需要参考标准样式时，查看设计规范页 `src/pages/StyleGuide.tsx`。

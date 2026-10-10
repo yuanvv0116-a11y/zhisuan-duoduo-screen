@@ -774,13 +774,14 @@ export const voucherNaturalPeriodHint = (unit: VoucherPeriodUnit) =>
     unit === 'week' ? '（自然周以周一为第一天）' : ''
   }`
 
-/** 券来源：只有「发放」这一个动作，不存在用户侧自助领取 */
-export type VoucherSource = 'targeted' | 'batch' | 'manual'
+/** 券来源：只有「发放」这一个动作，不存在用户侧自助领取；exchange 为推广合伙人佣金兑换生成 */
+export type VoucherSource = 'targeted' | 'batch' | 'manual' | 'exchange'
 
 export const VOUCHER_SOURCE_LABEL: Record<VoucherSource, string> = {
   targeted: '后台发放',
   batch: '批量发放',
   manual: '单个补发',
+  exchange: '佣金兑换',
 }
 
 /** 券状态：券在发放那一刻即绑定账户并到账，无「待领取」中间态 */
@@ -841,6 +842,10 @@ export interface VoucherTemplate {
   periodUnit?: VoucherPeriodUnit
   /** 使用说明（展示用，如「适用于kimi-k3」） */
   applicableTo?: string
+  /** 兑换专用券：仅出现在推广合伙人「兑换代金券」档位中，不参与后台手动发放 */
+  exchangeOnly?: boolean
+  /** 兑换金额（元）：兑换专用券每兑换 1 张要消耗的佣金，2 位小数，由模板直接配置 */
+  exchangeCost?: number
   status: 'enabled' | 'disabled'
   remark?: string
   operator: string
@@ -984,4 +989,286 @@ export interface VoucherIssueTask {
 export interface AccountTag {
   name: string
   color: string
+}
+
+/* ==================== 推广合伙人（分销） ==================== */
+
+/** 合伙人状态：正常 / 冻结（违规冻结后停发佣金、不可提现兑券） */
+export type PromoPartnerStatus = 'active' | 'frozen'
+
+export const PROMO_PARTNER_STATUS_LABEL: Record<PromoPartnerStatus, string> = {
+  active: '正常',
+  frozen: '已冻结',
+}
+
+/** 模型返佣分类：主推（高档位）/ 三方开源（低档位）；限时推广活动期实际计佣为加倍返佣比例 */
+export type PromoModelCategory = 'self' | 'third'
+
+export const PROMO_MODEL_CATEGORY_LABEL: Record<PromoModelCategory, string> = {
+  self: '主推',
+  third: '三方开源',
+}
+
+/** 推广页面渠道：官网 = 在官方网站推广活动页展示，其他 = 站外渠道，需配置活动链接 */
+export type PromoActivityPage = 'official' | 'external'
+
+export const PROMO_ACTIVITY_PAGE_LABEL: Record<PromoActivityPage, string> = {
+  official: '官网',
+  external: '其他',
+}
+
+/** 推广活动（模型返佣规则）：后台按「模型 + 倍率档位」维度配置比例与生效时间，计佣按每笔消耗当时生效的规则取比例 */
+export interface ModelRebateRule {
+  id: string
+  /** 模型名称，与模型广场保持一致 */
+  modelName: string
+  /** 返佣分类 */
+  category: PromoModelCategory
+  /** 档位名称：取自该模型的 API 倍率配置（如 标准倍率 / 尊享加速倍率） */
+  multiplierName: string
+  /** 档位倍率：与档位名称对应的倍率数值（1 / 2 / 3） */
+  modelMultiplier: number
+  /** 标准返佣比例（%），如 18 表示该模型现金消耗按 18% 计佣 */
+  rate: number
+  /** 限时推广活动：开启后活动期间实际计佣比例 = 加倍返佣比例（boostRate） */
+  campaign: boolean
+  /** 加倍返佣比例（%）：限时推广活动期间的实际计佣比例，独立设置，不再固定 × 2 */
+  boostRate?: number
+  campaignStartAt?: string
+  campaignEndAt?: string
+  /** 推广页面：官网 = 进入官网推广活动落地页，其他 = 站外活动链接 */
+  page: PromoActivityPage
+  /** 活动链接：推广页面为「其他」时必填，落地页与列表据此跳转站外活动 */
+  activityUrl?: string
+  /** 当前比例设置生效时间 */
+  effectiveAt: string
+  /** 规则状态：上线 = 参与计佣，下线 = 不计佣 */
+  status: 'on' | 'off'
+  operator: string
+  updatedAt: string
+}
+
+/** 活动内推广的模型配置项：模型 + 倍率档位 + 标准返佣比例，可选加倍返佣（活动期新比例） */
+export interface PromoCampaignModel {
+  modelName: string
+  /** 返佣分类：按模型厂商自动判定 */
+  category: PromoModelCategory
+  /** 档位名称：取自该模型的 API 倍率配置 */
+  multiplierName: string
+  modelMultiplier: number
+  /** 是否开启返佣：缺省视为开启；关闭后该档位不参与返佣 */
+  enabled?: boolean
+  /** 标准返佣比例（%） */
+  rate: number
+  /** 是否加倍返佣：活动期内按 boostRate 计佣 */
+  boost: boolean
+  /** 加倍返佣比例（%）：boost 开启时必填，需大于标准比例 */
+  boostRate?: number
+}
+
+/** 活动数据（跟踪收集）：浏览 → 点击 → 注册 → 首耗 → 计佣的漏斗指标 */
+export interface PromoCampaignStats {
+  /** 活动页浏览量 */
+  views: number
+  /** 活动页访客数 */
+  visitors: number
+  /** 点击推广按钮次数 */
+  clicks: number
+  /** 通过活动新注册用户数 */
+  newUsers: number
+  /** 其中完成首次现金消耗的用户数 */
+  firstConsumeUsers: number
+  /** 活动带来的现金消耗金额（元），即计算佣金的基数 */
+  consumeAmount: number
+  /** 活动产生的佣金金额（元） */
+  commissionAmount: number
+}
+
+/** 活动适用范围：全平台模型 = 平台所有模型倍率均参与返佣，按默认比例初始化、可逐个调整、不支持增删；部分模型 = 手动添加模型倍率并配置返佣比例 */
+export type PromoCampaignScope = 'all' | 'partial'
+
+export const PROMO_CAMPAIGN_SCOPE_LABEL: Record<PromoCampaignScope, string> = {
+  all: '全平台通用',
+  partial: '部分模型返佣',
+}
+
+/** 推广活动（活动主体）：配置活动名称与推广时间，可选开启官网推广（全局唯一），开启后官网「推广合伙人」页展示本活动的模型返佣比例 */
+export interface PromoCampaign {
+  id: string
+  /** 活动名称 */
+  name: string
+  /** 推广开始日期 YYYY-MM-DD */
+  startAt: string
+  /** 推广结束日期 YYYY-MM-DD */
+  endAt: string
+  /** 适用范围：全平台模型 / 部分模型；历史活动缺省视为部分模型 */
+  scope?: PromoCampaignScope
+  /** 默认返佣比例（%）：适用范围为「全平台模型」时使用，作为全部模型倍率的初始比例 */
+  defaultRate?: number
+  /** 是否在官网推广：全平台仅允许一个活动开启，开启后官网推广合伙人页展示本活动的模型返佣比例 */
+  webPromo: boolean
+  /** 是否在活动列表展示：缺省视为展示；关闭后控制台推广活动列表不再露出该活动，已有推广链接仍可访问 */
+  showInList?: boolean
+  /** 推广模型配置（活动创建后配置，可暂为空） */
+  models: PromoCampaignModel[]
+  /** 计佣状态：计佣中 = 正常分销计佣，已暂停 = 暂停计佣（活动状态本身按时间范围自动判断，不由人工设置） */
+  status: 'on' | 'off'
+  /** 活动数据 */
+  stats: PromoCampaignStats
+  operator: string
+  createdAt: string
+  updatedAt: string
+}
+
+export const PROMO_CAMPAIGN_STATUS_LABEL: Record<'on' | 'off', string> = {
+  on: '计佣中',
+  off: '已暂停',
+}
+
+/** 活动阶段：由活动时间范围自动判断 */
+export type CampaignPhase = 'pending' | 'ongoing' | 'ended'
+
+export const CAMPAIGN_PHASE_LABEL: Record<CampaignPhase, string> = {
+  pending: '未开始',
+  ongoing: '进行中',
+  ended: '已结束',
+}
+
+/** 佣金类型：见面礼（被邀人实名 + 首笔现金消耗触发，双方各得 20 元券）/ 消耗返佣（首耗起按模型返佣表计佣） */
+export type CommissionKind = 'gift' | 'consume'
+
+export const COMMISSION_KIND_LABEL: Record<CommissionKind, string> = {
+  gift: '见面礼',
+  consume: '消耗返佣',
+}
+
+/** 佣金流水：消耗类记录模型名与计佣时的比例快照，历史不随规则调整而改变 */
+export interface CommissionRecord {
+  id: string
+  partnerId: string
+  partnerName: string
+  kind: CommissionKind
+  /** 被邀请人昵称 */
+  inviteeName?: string
+  /** 被邀请人账户 ID（明细列在姓名下方展示） */
+  inviteeAccountId?: string
+  /** 计佣模型（消耗返佣类） */
+  modelName?: string
+  /** 模型档位快照（如 标准倍率 / 尊享加速倍率），计佣时所属模型的倍率档位 */
+  modelMultiplierName?: string
+  /** 该笔现金消耗金额（元），券支付部分不计佣 */
+  consumeAmount?: number
+  /** 计佣时的实际比例（%）快照；限时活动期已含 2 倍 */
+  rate?: number
+  /** 佣金金额（元） */
+  amount: number
+  /** 备注说明（如限时活动标注） */
+  note?: string
+  /** 来源推广活动 id：每笔消耗返佣计佣时都必须归属一个活动（常规返佣归属长期常规分销活动），仅见面礼为空 */
+  campaignId?: string
+  /** 计佣时间 */
+  at: string
+}
+
+/** 提现状态：待审核 / 已通过（打款已完成）/ 已驳回（金额退回佣金余额） */
+export type WithdrawStatus = 'pending' | 'approved' | 'rejected'
+
+export const WITHDRAW_STATUS_LABEL: Record<WithdrawStatus, string> = {
+  pending: '待审核',
+  approved: '已通过',
+  rejected: '已驳回',
+}
+
+/** 提现申请：满 100 元起提、月结审核、平台代征个人所得税 */
+export interface WithdrawRequest {
+  id: string
+  partnerId: string
+  partnerName: string
+  /** 收款人姓名 / 企业名称 */
+  accountName: string
+  /** 开户行（银行名称），提交提现时必填；历史数据可能为空 */
+  bankName?: string
+  /** 收款银行账号（列表脱敏展示） */
+  accountNo: string
+  /** 提现金额（元） */
+  amount: number
+  /** 预扣个人所得税（元），审核通过在「已打款」弹窗中录入实际扣税，默认为 0 */
+  tax: number
+  /** 月结批次（YYYY-MM） */
+  period: string
+  status: WithdrawStatus
+  appliedAt: string
+  reviewedAt?: string
+  reviewer?: string
+  rejectReason?: string
+}
+
+/** 兑券记录：佣金按 1:比例 加兑为无门槛代金券，即时到账、不经审核，因此不存在驳回 */
+export interface ExchangeRecord {
+  id: string
+  partnerId: string
+  partnerName: string
+  /** 兑换消耗的佣金（元） */
+  commission: number
+  /** 兑券比例快照（券面额 / 佣金） */
+  rate: number
+  /** 兑换所得券面额（元） */
+  faceValue: number
+  /** 兑换结果：issued 即时到账（唯一状态） */
+  status: 'issued'
+  /** 兑换生成的代金券编号 */
+  voucherCode: string
+  /** 兑换时间 */
+  at: string
+  /** 券有效期至 */
+  expireAt: string
+}
+
+/** 推广合伙人：进入控制台推广中心即建档，获得专属链接 / 邀请码 / 海报 */
+export interface PromoPartner {
+  id: string
+  /** 关联账户 ID */
+  accountId: string
+  nickname: string
+  phone: string
+  /** 专属邀请码 */
+  inviteCode: string
+  /** 专属邀请链接（带邀请码的体验落地页） */
+  inviteUrl: string
+  status: PromoPartnerStatus
+  /** 累计邀请人数 */
+  inviteCount: number
+  /** 已实名人数 */
+  verifiedCount: number
+  /** 已产生首笔现金消耗人数 */
+  firstConsumeCount: number
+  /** 累计佣金（元） */
+  totalCommission: number
+  /** 可用佣金（元） */
+  availableCommission: number
+  /** 兑换代金券已消耗（元） */
+  exchangedCommission: number
+  /** 已提现或提现中（元） */
+  withdrawnCommission: number
+  /** 开通时间 */
+  enrolledAt: string
+}
+
+/**
+ * 被邀请人：通过分销员专属链接注册的用户，构成「邀请人数 → 转化消费人数」漏斗名单。
+ * 是否已产生消费不在本记录上冗余存储，统一由「分佣明细」中该被邀请人的计佣记录判定，避免两处口径打架。
+ */
+export interface PromoInvitee {
+  id: string
+  /** 归属分销员 id */
+  partnerId: string
+  /** 被邀请人昵称，未设置时列表展示「—」 */
+  nickname?: string
+  phone: string
+  /** 被邀请人账户 ID，用于与「分佣明细」的对应用户对齐 */
+  accountId?: string
+  /** 邀请注册时间 */
+  registeredAt: string
+  /** 该次邀请归属的分销活动 id（通过活动推广链接邀请时有值，常规分销邀请为空） */
+  campaignId?: string
 }

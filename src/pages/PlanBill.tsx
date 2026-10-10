@@ -768,7 +768,6 @@ export default function PlanBill() {
         >
           <Space size={8}>
             <span style={{ fontWeight: 600, fontSize: 15 }}>账单列表</span>
-            <Text type="secondary">共 {filtered.length} 条记录</Text>
           </Space>
           <Space>
             <Button
