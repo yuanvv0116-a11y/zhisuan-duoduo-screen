@@ -525,6 +525,8 @@ export interface TokenPlan {
   summaryItems?: string[]
   /** 售价（元） */
   price: number
+  /** 前台是否以黑色高亮卡片展示（如 Pro / 企业版主推套餐） */
+  highlight?: boolean
   /** 折扣价（元），折后售价，不填等于售价 */
   discountPrice: number
   /** 默认折扣（0-100，兼容旧字段） */
@@ -559,6 +561,20 @@ export interface TokenPlan {
   operator: string
   /** 创建时间 */
   createdAt: string
+}
+
+/** 套餐配置的模型行：由套餐列表「配置模型」页维护，粒度 = 模型 × 倍率档位 */
+export interface PlanModelConfig {
+  id: string
+  planId: string
+  /** 模型名称（与模型广场同名，展示口径） */
+  modelName: string
+  /** 倍率名称：列表不展示，仅作为「模型 × 档位」去重键 */
+  multiplierName: string
+  /** 倍率 */
+  multiplier: number
+  /** 是否对外展示 */
+  visible: boolean
 }
 
 /** 折后价 = 售价 × 折扣 ÷ 100；折扣为 0 时返回原价（不打折） */

@@ -1,8 +1,36 @@
 import { useState } from 'react'
-import { Card, Typography, Button, Tag } from 'antd'
-import { RightOutlined, ArrowLeftOutlined, ApiOutlined, PayCircleOutlined, ThunderboltFilled, UsergroupAddOutlined, FunctionOutlined, AppstoreOutlined, ThunderboltOutlined, CheckOutlined, BulbOutlined, RocketOutlined, ExperimentOutlined } from '@ant-design/icons'
+import { Card, Typography, Button, Tag, Modal } from 'antd'
+import { ArrowLeftOutlined, ApiOutlined, PayCircleOutlined, ThunderboltFilled, UsergroupAddOutlined, FunctionOutlined, AppstoreOutlined, CheckCircleFilled, BulbOutlined, GoldFilled, CrownFilled, SafetyCertificateFilled } from '@ant-design/icons'
 
 const { Title, Text, Paragraph } = Typography
+
+// 除两个套餐卡片预览模型外的其余可用模型（用于「+N 更多」弹窗展示）
+const EXTRA_MODELS: { name: string; type: string }[] = [
+  { name: 'DeepSeek-V4', type: '文本' },
+  { name: 'DeepSeek-V4-Flash', type: '文本' },
+  { name: 'DeepSeek-R2', type: '文本' },
+  { name: 'Qwen3.6-14B', type: '文本' },
+  { name: 'Qwen3.6-Max', type: '文本' },
+  { name: 'GLM-5.2-FP8', type: '文本' },
+  { name: 'GLM-5.2', type: '文本' },
+  { name: 'GLM-5.1', type: '文本' },
+  { name: 'Kimi-K2.5', type: '文本' },
+  { name: 'Kimi-K2', type: '文本' },
+  { name: 'MiniMax-M2', type: '文本' },
+  { name: 'MiniMax-Text-01', type: '文本' },
+  { name: 'Doubao-Seedream-5.0-Pro', type: '图像' },
+  { name: 'Doubao-Seedance-2.0', type: '视频' },
+  { name: 'Doubao-1.5-vision', type: '图像' },
+  { name: 'ERNIE-4.5', type: '文本' },
+  { name: 'Hunyuan-T1', type: '文本' },
+  { name: 'Step-3', type: '文本' },
+  { name: 'Yi-Lightning', type: '文本' },
+  { name: 'Spark-4.0', type: '文本' },
+  { name: 'TeleChat-3', type: '文本' },
+  { name: 'InternLM-3', type: '文本' },
+  { name: 'DODO-Vision-2', type: '图像' },
+  { name: 'DODO-Audio-1', type: '音频' },
+]
 
 const ENTERPRISE_PLANS = [
   {
@@ -12,6 +40,12 @@ const ENTERPRISE_PLANS = [
     price: '100.00',
     originalPrice: '120.00',
     unit: '元/月',
+    quota: '每月：5,000万 Tokens',
+    accent: '#2f6bff',
+    headerGradient: 'linear-gradient(135deg, #eef4ff 0%, #e8f0ff 60%, #f3f0ff 100%)',
+    iconBg: 'linear-gradient(135deg, #4f8bff 0%, #2f6bff 100%)',
+    icon: <GoldFilled />,
+    solidBtn: false,
     features: [
       '智能配置：系统自动匹配模型，覆盖 GLM、Kimi、MiniMax 等多种大模型',
       '团队管理：多 API Key 用量管控，兼顾协作效率与权限管理',
@@ -33,6 +67,12 @@ const ENTERPRISE_PLANS = [
     price: '1000.00',
     originalPrice: '1200.00',
     unit: '元/月',
+    quota: '每月：10万 Tokens',
+    accent: '#7c5cfc',
+    headerGradient: 'linear-gradient(135deg, #f3edff 0%, #f0eaff 60%, #fdeef6 100%)',
+    iconBg: 'linear-gradient(135deg, #9d7bff 0%, #7c5cfc 100%)',
+    icon: <CrownFilled />,
+    solidBtn: true,
     features: [
       '灵活选择：多模型自由选配，覆盖 GLM、Kimi、MiniMax 等多种大模型',
       '精细管理：多 API Key 精细化管控，适配企业复杂团队架构与用量分配需求',
@@ -113,6 +153,9 @@ export default function EnterprisePurchasePage({ onBack, onBuy }: Props) {
   const [hoveredPlanId, setHoveredPlanId] = useState<string | null>(null)
   const [hoveredAdvantageIdx, setHoveredAdvantageIdx] = useState<number | null>(null)
   const [hoveredSceneIdx, setHoveredSceneIdx] = useState<number | null>(null)
+  const [modelModalOpen, setModelModalOpen] = useState(false)
+  const [modalPlanTitle, setModalPlanTitle] = useState('')
+  const [modalModels, setModalModels] = useState<{ name: string; type: string }[]>([])
 
   const handleBuy = (plan: typeof ENTERPRISE_PLANS[0]) => {
     onBuy(plan)
@@ -179,9 +222,9 @@ export default function EnterprisePurchasePage({ onBack, onBuy }: Props) {
                 style={{
                   borderRadius: 12,
                   overflow: 'hidden',
-                  border: isHovered ? '2px solid #7c5cfc' : '1px solid #e8ecf0',
+                  border: isHovered ? `2px solid ${plan.accent}` : '1px solid #e8ecf0',
                   background: '#fff',
-                  boxShadow: isHovered ? '0 4px 16px rgba(124,92,252,0.15)' : '0 1px 2px rgba(0,0,0,0.03)',
+                  boxShadow: isHovered ? `0 4px 16px ${plan.accent}26` : '0 1px 2px rgba(0,0,0,0.03)',
                   transition: 'all 0.2s ease',
                   cursor: 'pointer',
                   display: 'flex',
@@ -195,15 +238,36 @@ export default function EnterprisePurchasePage({ onBack, onBuy }: Props) {
                 <div
                   style={{
                     padding: '24px 28px',
-                    background: 'linear-gradient(135deg, #f0f7ff 0%, #e8f4ff 50%, #f5f0ff 100%)',
+                    background: plan.headerGradient,
                     borderBottom: '1px solid #e8ecf0',
-                    minHeight: 110,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 16,
                   }}
                 >
-                  <Text strong style={{ fontSize: 18, color: '#111827', display: 'block', marginBottom: 8 }}>
-                    {plan.name}
-                  </Text>
-                  <Text style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.7 }}>{plan.subtitle}</Text>
+                  <div
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: '50%',
+                      background: plan.iconBg,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 24,
+                      color: '#fff',
+                      flexShrink: 0,
+                      boxShadow: '0 6px 14px rgba(80,80,160,0.18)',
+                    }}
+                  >
+                    {plan.icon}
+                  </div>
+                  <div>
+                    <Text strong style={{ fontSize: 18, color: '#111827', display: 'block', marginBottom: 6 }}>
+                      {plan.name}
+                    </Text>
+                    <Text style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.7 }}>{plan.subtitle}</Text>
+                  </div>
                 </div>
 
                 {/* 内容区 */}
@@ -211,7 +275,7 @@ export default function EnterprisePurchasePage({ onBack, onBuy }: Props) {
                   {/* 价格 */}
                   <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 20 }}>
                     <span style={{ fontSize: 32, fontWeight: 700, color: '#ff6b35' }}>¥{plan.price}</span>
-                    <span style={{ fontSize: 13, color: '#6b7280', marginLeft: 4 }}>{plan.unit}</span>
+                    <span style={{ fontSize: 13, color: '#6b7280', marginLeft: 4 }}>/ {plan.unit.replace('元/', '')}</span>
                     {plan.originalPrice && (
                       <span style={{ fontSize: 13, color: '#9ca3af', textDecoration: 'line-through', marginLeft: 8 }}>
                         ¥{plan.originalPrice}
@@ -219,11 +283,32 @@ export default function EnterprisePurchasePage({ onBack, onBuy }: Props) {
                     )}
                   </div>
 
+                  {/* 周期额度 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                    <span
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: '50%',
+                        background: `${plan.accent}1a`,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 12,
+                        color: plan.accent,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <SafetyCertificateFilled />
+                    </span>
+                    <Text strong style={{ fontSize: 14, color: '#111827' }}>{plan.quota}</Text>
+                  </div>
+
                   {/* 特性列表 */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
                     {plan.features.map((f, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                        <CheckOutlined style={{ color: '#2f6bff', fontSize: 12, marginTop: 4, flexShrink: 0 }} />
+                        <CheckCircleFilled style={{ color: plan.accent, fontSize: 14, marginTop: 4, flexShrink: 0 }} />
                         <Text style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.7 }}>{f}</Text>
                       </div>
                     ))}
@@ -253,6 +338,12 @@ export default function EnterprisePurchasePage({ onBack, onBuy }: Props) {
                       ))}
                       {plan.totalModelCount > plan.models.length && (
                         <Tag
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setModalPlanTitle(plan.name)
+                            setModalModels([...plan.models, ...EXTRA_MODELS])
+                            setModelModalOpen(true)
+                          }}
                           style={{
                             margin: 0,
                             borderRadius: 4,
@@ -261,6 +352,7 @@ export default function EnterprisePurchasePage({ onBack, onBuy }: Props) {
                             background: 'transparent',
                             borderColor: '#e5e7eb',
                             color: '#2f6bff',
+                            cursor: 'pointer',
                           }}
                         >
                           +{plan.totalModelCount - plan.models.length} 更多
@@ -278,12 +370,20 @@ export default function EnterprisePurchasePage({ onBack, onBuy }: Props) {
                     style={{
                       height: 44,
                       borderRadius: 8,
-                      background: isHovered ? '#2f6bff' : '#fff',
-                      color: isHovered ? '#fff' : '#1a1a1a',
-                      borderColor: isHovered ? '#2f6bff' : '#e0e0e0',
                       fontWeight: 500,
                       fontSize: 14,
                       transition: 'all 0.2s ease',
+                      ...(plan.solidBtn
+                        ? {
+                            background: isHovered ? '#8b6cff' : plan.accent,
+                            color: '#fff',
+                            borderColor: isHovered ? '#8b6cff' : plan.accent,
+                          }
+                        : {
+                            background: isHovered ? plan.accent : '#fff',
+                            color: isHovered ? '#fff' : plan.accent,
+                            borderColor: plan.accent,
+                          }),
                     }}
                     onClick={() => handleBuy(plan)}
                   >
@@ -297,11 +397,12 @@ export default function EnterprisePurchasePage({ onBack, onBuy }: Props) {
 
         {/* 产品优势 */}
         <div style={{ marginBottom: 48 }}>
-          <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 4, height: 22, background: 'linear-gradient(180deg, #2f6bff 0%, #52c41a 100%)', borderRadius: 2 }} />
+          <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <span style={{ color: '#2f6bff', fontSize: 14 }}>✦</span>
             <Text strong style={{ fontSize: 20, color: '#111827' }}>
               产品优势
             </Text>
+            <span style={{ color: '#2f6bff', fontSize: 14 }}>✦</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
             {ADVANTAGES.map((item, i) => {
@@ -316,10 +417,11 @@ export default function EnterprisePurchasePage({ onBack, onBuy }: Props) {
                   border: `1px solid ${isHovered ? item.color : '#f0f0f0'}`,
                   background: '#fff',
                   padding: '32px 24px',
+                  textAlign: 'center',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  transform: isHovered ? 'translateY(-8px)' : 'translateY(0)',
+                  transform: isHovered ? 'translateY(-6px)' : 'translateY(0)',
                   boxShadow: isHovered
-                    ? `0 20px 40px rgba(0,0,0,0.12), 0 0 0 3px ${item.color}20`
+                    ? `0 16px 32px rgba(0,0,0,0.1), 0 0 0 3px ${item.color}20`
                     : '0 1px 3px rgba(0,0,0,0.04)',
                   cursor: 'pointer',
                 }}
@@ -327,38 +429,47 @@ export default function EnterprisePurchasePage({ onBack, onBuy }: Props) {
                 {/* 图标 */}
                 <div
                   style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 16,
-                    background: item.bgColor,
+                    width: 64,
+                    height: 64,
+                    borderRadius: '50%',
+                    margin: '0 auto 20px',
+                    background: `radial-gradient(circle, ${item.color}25 0%, ${item.color}10 60%, transparent 70%)`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 26,
-                    color: '#fff',
-                    marginBottom: 20,
-                    boxShadow: isHovered
-                      ? `0 12px 28px rgba(0,0,0,0.2), 0 0 20px ${item.color}40`
-                      : '0 8px 20px rgba(0,0,0,0.1)',
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    transform: isHovered ? 'scale(1.1) rotate(-5deg)' : 'scale(1) rotate(0)',
+                    transform: isHovered ? 'scale(1.1)' : 'scale(1)',
                   }}
                 >
-                  {item.icon}
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      background: item.bgColor,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 22,
+                      color: '#fff',
+                      boxShadow: isHovered ? `0 8px 18px ${item.color}50` : `0 4px 10px ${item.color}30`,
+                    }}
+                  >
+                    {item.icon}
+                  </div>
                 </div>
                 {/* 标题 */}
-                <Text strong style={{ fontSize: 16, color: '#111827', display: 'block', marginBottom: 8, transition: 'color 0.3s' }}>
+                <Text strong style={{ fontSize: 16, color: '#111827', display: 'block', marginBottom: 10, transition: 'color 0.3s' }}>
                   {item.title}
                 </Text>
                 {/* 装饰线 */}
                 <div
                   style={{
-                    width: isHovered ? 48 : 32,
+                    width: 28,
                     height: 3,
                     background: item.color,
                     borderRadius: 2,
-                    marginBottom: 12,
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    margin: '0 auto 14px',
                   }}
                 />
                 {/* 描述 */}
@@ -373,11 +484,12 @@ export default function EnterprisePurchasePage({ onBack, onBuy }: Props) {
 
         {/* 使用场景 */}
         <div>
-          <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 4, height: 22, background: 'linear-gradient(180deg, #2f6bff 0%, #fa8c16 100%)', borderRadius: 2 }} />
+          <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <span style={{ color: '#2f6bff', fontSize: 14 }}>✦</span>
             <Text strong style={{ fontSize: 20, color: '#111827' }}>
               使用场景
             </Text>
+            <span style={{ color: '#2f6bff', fontSize: 14 }}>✦</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
             {SCENES.map((scene, i) => {
@@ -389,110 +501,133 @@ export default function EnterprisePurchasePage({ onBack, onBuy }: Props) {
                 onMouseLeave={() => setHoveredSceneIdx(null)}
                 style={{
                   borderRadius: 16,
-                  border: `1px solid ${isHovered ? scene.color : '#f0f0f0'}`,
-                  background: '#fff',
+                  background: scene.bgGradient,
                   overflow: 'hidden',
+                  position: 'relative',
+                  padding: '32px 24px',
+                  textAlign: 'center',
                   transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                  transform: isHovered ? 'translateY(-10px)' : 'translateY(0)',
+                  transform: isHovered ? 'translateY(-8px)' : 'translateY(0)',
                   boxShadow: isHovered
-                    ? `0 24px 48px rgba(0,0,0,0.15), 0 0 0 4px ${scene.color}15`
-                    : '0 1px 3px rgba(0,0,0,0.04)',
+                    ? `0 20px 40px rgba(0,0,0,0.18), 0 0 0 4px ${scene.color}15`
+                    : '0 4px 12px rgba(0,0,0,0.08)',
                   cursor: 'pointer',
                 }}
               >
-                {/* 渐变头部 */}
+                {/* 装饰圆 */}
                 <div
                   style={{
+                    position: 'absolute',
+                    width: 140,
                     height: 140,
-                    background: scene.bgGradient,
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.12)',
+                    top: -50,
+                    right: -35,
+                    transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transform: isHovered ? 'scale(1.2)' : 'scale(1)',
+                  }}
+                />
+                {/* 图标容器 */}
+                <div
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.25)',
+                    backdropFilter: 'blur(10px)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    fontSize: 28,
+                    color: '#fff',
+                    margin: '0 auto 16px',
                     position: 'relative',
-                    overflow: 'hidden',
+                    zIndex: 1,
+                    border: '2px solid rgba(255,255,255,0.5)',
+                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transform: isHovered ? 'scale(1.1)' : 'scale(1)',
                   }}
                 >
-                  {/* 装饰圆 */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      width: 160,
-                      height: 160,
-                      borderRadius: '50%',
-                      background: 'rgba(255,255,255,0.12)',
-                      top: -60,
-                      right: -40,
-                      transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-                      transform: isHovered ? 'scale(1.2) rotate(10deg)' : 'scale(1) rotate(0)',
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: 'absolute',
-                      width: 80,
-                      height: 80,
-                      borderRadius: '50%',
-                      background: 'rgba(255,255,255,0.08)',
-                      bottom: -30,
-                      left: -20,
-                      transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-                      transform: isHovered ? 'scale(1.3) rotate(-15deg)' : 'scale(1) rotate(0)',
-                    }}
-                  />
-                  {/* 图标容器 */}
-                  <div
-                    style={{
-                      width: 72,
-                      height: 72,
-                      borderRadius: 24,
-                      background: 'rgba(255,255,255,0.25)',
-                      backdropFilter: 'blur(10px)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 36,
-                      color: '#fff',
-                      zIndex: 1,
-                      border: '2px solid rgba(255,255,255,0.5)',
-                      transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                      transform: isHovered ? 'scale(1.15) translateY(-5deg)' : 'scale(1) translateY(0)',
-                      boxShadow: isHovered ? '0 16px 32px rgba(0,0,0,0.25)' : 'none',
-                    }}
-                  >
-                    {scene.icon}
-                  </div>
+                  {scene.icon}
                 </div>
-                {/* 内容区 */}
-                <div style={{ padding: '24px 20px', transition: 'padding 0.3s' }}>
-                  <Text
-                    strong
-                    style={{
-                      fontSize: 16,
-                      color: isHovered ? scene.color : '#111827',
-                      display: 'block',
-                      marginBottom: 8,
-                      transition: 'color 0.3s',
-                    }}
-                  >
-                    {scene.title}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      color: '#6b7280',
-                      lineHeight: 1.7,
-                      transition: 'color 0.3s',
-                    }}
-                  >
-                    {scene.desc}
-                  </Text>
-                </div>
+                <Text
+                  strong
+                  style={{
+                    fontSize: 16,
+                    color: '#fff',
+                    display: 'block',
+                    marginBottom: 8,
+                    position: 'relative',
+                    zIndex: 1,
+                  }}
+                >
+                  {scene.title}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: 'rgba(255,255,255,0.9)',
+                    lineHeight: 1.7,
+                    position: 'relative',
+                    zIndex: 1,
+                  }}
+                >
+                  {scene.desc}
+                </Text>
               </div>
               )
             })}
           </div>
         </div>
       </div>
+
+      {/* 可用模型弹窗 */}
+      <Modal
+        title={modalPlanTitle}
+        open={modelModalOpen}
+        onCancel={() => setModelModalOpen(false)}
+        footer={null}
+        width={520}
+        centered
+      >
+        <div
+          style={{
+            marginBottom: 12,
+            fontSize: 12,
+            color: '#8b93a5',
+            lineHeight: 1.7,
+            background: '#f8f9fb',
+            padding: '8px 12px',
+            borderRadius: 6,
+          }}
+        >
+          为持续优化用户体验，平台将不定期上架新模型并下架低效模型。订阅套餐即视为同意本规则。
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto' }}>
+          {modalModels.map((m, idx) => (
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                background: '#f8f9fb',
+                borderRadius: 8,
+              }}
+            >
+              <Text strong style={{ fontSize: 13 }}>{m.name}</Text>
+              <Tag
+                style={{ margin: 0, borderRadius: 4, fontSize: 11 }}
+                color={m.type === '文本' ? 'blue' : m.type === '图像' ? 'purple' : 'orange'}
+              >
+                {m.type}
+              </Tag>
+            </div>
+          ))}
+        </div>
+      </Modal>
     </div>
   )
 }

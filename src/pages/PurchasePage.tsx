@@ -3,6 +3,7 @@ import { Card, Typography, Space, Button, Collapse, Tabs, Divider, Modal, Tag, m
 import { RightOutlined } from '@ant-design/icons'
 import { useTokenPlans } from '../store'
 import { calcPlanDiscountedPrice, type TokenPlan } from '../types'
+import { SHOW_ENTERPRISE } from '../constants'
 
 const PLAN_MODELS: Record<string, { name: string; type: string }[]> = {
   lite: [
@@ -80,11 +81,26 @@ const FAQS: Record<string, { q: string; a: string }[]> = {
   ],
 }
 
+const FAQ_TAB_LABELS: Record<string, string> = {
+  purchase: '订阅',
+  billing: '计费与额度',
+  integration: '套餐规则',
+  product: '其他',
+}
+
+// 开关关闭时：过滤掉提及企业版的 FAQ 条目，整组为空则隐藏该分组（FAQS 原文不删）
+const FAQ_GROUPS: { key: string; label: string; items: { q: string; a: string }[] }[] = Object.entries(FAQS)
+  .map(([key, items]) => ({
+    key,
+    label: FAQ_TAB_LABELS[key],
+    items: SHOW_ENTERPRISE ? items : items.filter((f) => !f.q.includes('企业') && !f.a.includes('企业')),
+  }))
+  .filter((g) => g.items.length > 0)
+
 const STEPS = [
-  { num: 1, title: '选购套餐', desc: '根据您的使用需求，选择并订阅合适的Token Plan套餐。' },
-  { num: 2, title: '获取密钥', desc: '登录控制台，在"Token工厂">"配置管理">"API Key管理"中，创建您的专属API-Key。' },
-  { num: 3, title: '选择模型', desc: '挑选适配您业务场景的大模型，或直接进入应用广场，体验各专业领域的成熟应用。' },
-  { num: 4, title: '开发调用', desc: '集成API-Key，调用模型服务，让AI生产力为您的代码赋能。' },
+   { num: 1, title: '选购套餐', desc: '根据您的使用需求，选择并订阅合适的Token Plan套餐。' },
+  { num: 2, title: '获取密钥', desc: '登录控制台，在"Token plan">"我的订阅">"专属 API KEY"中，创建您的专属API-Key。' },
+  { num: 3, title: '开发调用', desc: '在"我的订阅">"可使用模型"中挑选适配您业务场景的大模型，调用模型服务，让AI生产力为您的代码赋能。' },
 ]
 
 const SELLING_POINTS = [
@@ -92,6 +108,12 @@ const SELLING_POINTS = [
   { icon: '🛡️', title: '数据安全', desc: '承诺不使用用户数据进行模型训练与服务优化，满足企业级数据隐私要求' },
   { icon: '🏢', title: '企业管理功能', desc: '提供团队管理，成本管控以及用量统计等功能，解决规模化使用难题' },
 ]
+
+const PLAN_THEMES: Record<string, { icon: string; iconBg: string }> = {
+  lite: { icon: '🌱', iconBg: '#e6f7ec' },
+  standard: { icon: '💎', iconBg: '#f1edff' },
+  pro: { icon: '👑', iconBg: '#fff4e0' },
+}
 
 export default function PurchasePage({
   onBuy,
@@ -105,8 +127,8 @@ export default function PurchasePage({
   const { plans } = useTokenPlans()
   const displayedPlans = useMemo(() => plans.filter((p) => p.status === 'on' && p.level !== 'max'), [plans])
   const [purchased, setPurchased] = useState<Record<string, boolean>>({})
-  const [activeFaqTab, setActiveFaqTab] = useState('purchase')
-  const [activeFaqKey, setActiveFaqKey] = useState<string | string[]>('Token Plan 提供哪些版本？')
+  const [activeFaqTab, setActiveFaqTab] = useState(FAQ_GROUPS[0].key)
+  const [activeFaqKey, setActiveFaqKey] = useState<string | string[]>(FAQ_GROUPS[0].items[0].q)
   const [hoveredPlanId, setHoveredPlanId] = useState<string | null>(null)
   const [modelModalOpen, setModelModalOpen] = useState(false)
   const [modalPlanTitle, setModalPlanTitle] = useState('')
@@ -123,10 +145,10 @@ export default function PurchasePage({
     }
   }
 
-  const currentFaq = FAQS[activeFaqTab]
+  const currentFaq = FAQ_GROUPS.find((g) => g.key === activeFaqTab)?.items ?? []
   const handleFaqTabChange = (key: string) => {
     setActiveFaqTab(key)
-    const first = FAQS[key]?.[0]?.q
+    const first = FAQ_GROUPS.find((g) => g.key === key)?.items[0]?.q
     if (first) setActiveFaqKey(first)
   }
 
@@ -163,6 +185,7 @@ export default function PurchasePage({
             </div>
 
             {/* 企业版订阅 */}
+            {SHOW_ENTERPRISE && (
             <Card
               styles={{ body: { padding: '20px 24px' } }}
               style={{
@@ -212,6 +235,7 @@ export default function PurchasePage({
                 企业订阅 <RightOutlined style={{ fontSize: 10 }} />
               </Button>
             </Card>
+            )}
 
             {/* 卖点展示 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -261,11 +285,19 @@ export default function PurchasePage({
                     key={plan.id}
                     styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' } }}
                     style={{
-                      borderRadius: 10,
+                      borderRadius: 14,
                       overflow: 'hidden',
-                      border: isHovered ? '2px solid #7c5cfc' : '1px solid #e8ecf0',
+                      border: isStandard
+                        ? '1.5px solid #7c5cfc'
+                        : isHovered
+                          ? '1.5px solid #7c5cfc'
+                          : '1px solid #e8ecf0',
                       background: '#fff',
-                      boxShadow: isHovered ? '0 4px 16px rgba(124,92,252,0.15)' : '0 1px 2px rgba(0,0,0,0.03)',
+                      boxShadow: isStandard
+                        ? '0 6px 20px rgba(124,92,252,0.12)'
+                        : isHovered
+                          ? '0 4px 16px rgba(124,92,252,0.15)'
+                          : '0 1px 2px rgba(0,0,0,0.03)',
                       position: 'relative',
                       display: 'flex',
                       flexDirection: 'column',
@@ -280,25 +312,41 @@ export default function PurchasePage({
                       <div
                         style={{
                           position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          background: '#7c5cfc',
+                          top: 0,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          background: 'linear-gradient(135deg, #7c5cfc 0%, #8b6cff 100%)',
                           color: '#fff',
-                          padding: '2px 8px',
-                          fontSize: 10,
-                          fontWeight: 500,
-                          borderRadius: 4,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 2,
+                          padding: '4px 22px',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          borderRadius: '0 0 10px 10px',
+                          letterSpacing: 2,
                         }}
                       >
-                        <span>推荐</span>
+                        推荐
                       </div>
                     )}
 
-                    <div style={{ padding: '24px 20px 0' }}>
-                      <Text strong style={{ fontSize: 15, color: '#111827', display: 'block', marginBottom: 6 }}>{plan.name}</Text>
+                    <div style={{ padding: isStandard ? '30px 20px 0' : '24px 20px 0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                        <div
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: '50%',
+                            background: PLAN_THEMES[plan.level ?? '']?.iconBg ?? '#f0f4ff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 17,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {PLAN_THEMES[plan.level ?? '']?.icon ?? '📦'}
+                        </div>
+                        <Text strong style={{ fontSize: 15, color: '#111827' }}>{plan.name}</Text>
+                      </div>
                       <Text
                         style={{
                           fontSize: 12,
@@ -405,13 +453,22 @@ export default function PurchasePage({
                         block
                         size="large"
                         style={{
-                          height: 36,
+                          height: 40,
                           borderRadius: 8,
-                          background: isHovered ? '#1a1a1a' : '#fff',
-                          color: isHovered ? '#fff' : '#1a1a1a',
-                          borderColor: isHovered ? '#1a1a1a' : '#e0e0e0',
+                          ...(isStandard
+                            ? {
+                                background: 'linear-gradient(135deg, #7c5cfc 0%, #8b6cff 100%)',
+                                borderColor: 'transparent',
+                                color: '#fff',
+                                boxShadow: '0 4px 12px rgba(124,92,252,0.3)',
+                              }
+                            : {
+                                background: isHovered ? '#f8f9fb' : '#fff',
+                                color: '#1a1a1a',
+                                borderColor: isHovered ? '#7c5cfc' : '#e0e0e0',
+                              }),
                           fontWeight: 500,
-                          fontSize: 13,
+                          fontSize: 14,
                           transition: 'all 0.2s ease',
                           textAlign: 'center',
                         }}
@@ -735,12 +792,7 @@ export default function PurchasePage({
               <Tabs
                 activeKey={activeFaqTab}
                 onChange={handleFaqTabChange}
-                items={[
-                  { key: 'purchase', label: '订阅' },
-                  { key: 'billing', label: '计费与额度' },
-                  { key: 'integration', label: '套餐规则' },
-                  { key: 'product', label: '其他' },
-                ]}
+                items={FAQ_GROUPS.map((g) => ({ key: g.key, label: g.label }))}
                 style={{ marginBottom: 4 }}
                 size="small"
               />

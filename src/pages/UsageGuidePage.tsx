@@ -1,4 +1,5 @@
 import { ArrowLeftOutlined } from '@ant-design/icons'
+import { SHOW_ENTERPRISE } from '../constants'
 
 interface Props {
   onBack: () => void
@@ -67,7 +68,9 @@ const SECTIONS: Section[] = [
     blocks: [
       {
         type: 'p',
-        text: 'Token Plan套餐分为个人版和企业版，每个个人账号仅支持购买1个个人套餐；每个企业账号支持购买个人套餐和企业套餐各1个。每种套餐提供多个档位，匹配不同使用强度，具体以页面展示为准。',
+        text: SHOW_ENTERPRISE
+          ? 'Token Plan套餐分为个人版和企业版，每个个人账号仅支持购买1个个人套餐；每个企业账号支持购买个人套餐和企业套餐各1个。每种套餐提供多个档位，匹配不同使用强度，具体以页面展示为准。'
+          : 'Token Plan套餐为个人版，每个个人账号仅支持购买1个个人套餐。每种套餐提供多个档位，匹配不同使用强度，具体以页面展示为准。',
       },
     ],
   },
@@ -93,7 +96,7 @@ const SECTIONS: Section[] = [
       {
         type: 'ol',
         items: [
-          '优先从套餐的月度额度中抵扣',
+          '优先从套餐的额度中抵扣',
           '套餐额度用尽后，从资源包中抵扣（持有多个时优先抵扣最近到期的）',
           '全部额度用尽后，从账户扣除相应费用（原价扣除），直至账户余额用尽停止使用。',
         ],
@@ -123,7 +126,6 @@ const SECTIONS: Section[] = [
         type: 'ul',
         items: [
           '手动续费：点击「续费」按钮，续费周期与订阅时一致',
-          '自动续费：开启后，到期前指定天数系统自动扣款续费',
         ],
       },
     ],

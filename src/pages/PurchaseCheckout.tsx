@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Card, Checkbox, Button, Tag, Divider, Switch, message } from 'antd'
+import { Card, Checkbox, Button, Tag, Divider, message } from 'antd'
 import {
   WechatOutlined,
   ArrowLeftOutlined,
@@ -90,7 +90,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
     : [{ label: '月付', months: 1, discount: 100, finalPrice: plan.discountPrice ?? plan.price }]
 
   const [durationIdx, setDurationIdx] = useState<number>(0)
-  const [autoRenew, setAutoRenew] = useState(false)
+
   const [agreeTerms, setAgreeTerms] = useState(false)
 
   const currentDuration = durations[Math.min(durationIdx, durations.length - 1)]
@@ -254,7 +254,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0' }}>
                 <Tag color="blue" style={{ margin: 0, flexShrink: 0 }}>抵扣规则</Tag>
                 <span style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.6 }}>
-                  套餐额度需在订阅周期内用完，开通自动续费后下一个周期会恢复额度。周期内未耗尽额度将自动清零，不顺延到下期。
+                  套餐额度需在订阅周期内用完。周期结束，未耗尽额度将自动清零，不顺延到下期。
                 </span>
               </div>
             </div>
@@ -359,7 +359,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
                   <div style={{ fontSize: 13, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ color: '#52c41a', fontSize: 12 }}>⊙</span>
-                    每订阅{usageUnitSuffix}：{plan.usageLimit.toLocaleString()} Token
+                    每{usageUnitSuffix}：{plan.usageLimit.toLocaleString()} Tokens
                   </div>
                   <div style={{ fontSize: 13, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ color: '#52c41a', fontSize: 12 }}>⊙</span>
@@ -424,17 +424,6 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                     </div>
                   )
                 })}
-              </div>
-            </div>
-
-            {/* 自动续费 */}
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ width: 88, fontSize: 14, color: '#374151', flexShrink: 0 }}>自动续费</div>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ fontSize: 12, color: '#6b7280' }}>
-                  到期后将从账户中自动续费，可在订阅管理中随时取消，账户余额不足，会导致扣费失败，无法继续使用。
-                </div>
-                <Switch checked={autoRenew} onChange={setAutoRenew} />
               </div>
             </div>
           </Card>
@@ -524,7 +513,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                     ¥{total.toFixed(2)}
                   </span>
                   <span style={{ fontSize: 12, color: '#8b93a5', marginLeft: 2 }}>
-                    （{durationText}）
+                    （{currentDuration.label || durationText}）
                   </span>
                 </div>
               </div>
@@ -641,16 +630,37 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
 
               <div
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 4,
+                  padding: '10px 12px',
+                  background: '#f0f5ff',
+                  borderRadius: 6,
                   fontSize: 12,
-                  color: '#9ca3af',
+                  color: '#6b7280',
+                  lineHeight: 1.6,
+                  display: 'flex',
+                  gap: 6,
                 }}
               >
-                <InfoCircleOutlined />
-                <span>支付成功后将自动开始服务，可在「我的订阅」中查看</span>
+                <InfoCircleOutlined style={{ flexShrink: 0, marginTop: 2, color: '#2f6bff' }} />
+                <span>
+                  点击"去支付"即表示同意套餐规则，套餐一经订阅开通不支持退费、降配。实际扣费以账单为准。
+                </span>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 8,
+                  padding: '10px 12px',
+                  background: '#f0f5ff',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  color: '#6b7280',
+                  lineHeight: 1.6,
+                  display: 'flex',
+                  gap: 6,
+                }}
+              >
+                <InfoCircleOutlined style={{ flexShrink: 0, marginTop: 2, color: '#2f6bff' }} />
+                <span>去支付支付成功后将自动开始服务，可在「我的订阅」中查看</span>
               </div>
             </div>
           </div>

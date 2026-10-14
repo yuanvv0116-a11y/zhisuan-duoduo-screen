@@ -30,14 +30,17 @@ export interface ReleaseItem {
    * - `billing:accountOverview` 账户概览 / `billing:accountDetail` 账户明细 / `billing:recharge` 充值记录
    * - `billing:orderDetail` 订单明细 / `billing:consumption` 消费明细 / `billing:invoice` 发票信息
    * - `billing:voucher` 代金券（控制台费用 › 代金券）
+   * - `plan` 控制台顶部「Token Plan」（含概览/我的订阅三变体/资源包管理等二级页）
    * - `promo` 控制台顶部「推广合伙人」/ `login` 登录页
    */
   consoleKeys?: string[]
   /**
    * 本次涉及的官方网站页面（可选，不写表示官网导航不做裁剪）
-   * - `promo` 推广合伙人落地页（官网导航目前仅此一项）
+   * - `tokenPlan` 官网「Token Plan」菜单页（OfficialWebPage）
+   * - `promo` 推广合伙人落地页
+   * 评审时官网只显示声明页面的导航项并落到第一个声明页；完整版官网始终保留全部导航结构。
    */
-  websiteKeys?: 'promo'[]
+  websiteKeys?: ('promo' | 'tokenPlan')[]
   note?: string
   /** 本次迭代涉及的视图（可选，默认 admin） */
   views?: ('admin' | 'console' | 'website')[]
@@ -49,6 +52,8 @@ export interface ReleaseItem {
 export interface ConsoleScope {
   factory: string[] | null
   billing: string[] | null
+  /** 是否放行控制台顶部「Token Plan」 */
+  tokenPlan: boolean
   /** 是否放行控制台顶部「推广合伙人」 */
   promo: boolean
   /** 是否放行登录页 */
@@ -64,6 +69,7 @@ export function parseConsoleScope(release: ReleaseItem | null | undefined): Cons
   return {
     factory: factory.length ? factory : null,
     billing: billing.length ? billing : null,
+    tokenPlan: keys.includes('plan'),
     promo: keys.includes('promo'),
     login: keys.includes('login'),
   }
@@ -332,6 +338,17 @@ export const RELEASES: Record<string, ReleaseItem> = {
       '14. [console]推广合伙人收益明细支持按全部计佣记录导出，不再展示每日 23:59 统一计佣的提示文案',
       '15. [console]推广合伙人收益明细支持按计佣时间、被邀请人、活动名称搜索。每笔计佣都归属一个活动，活动不再为空',
     ].join('\n'),
+  },
+
+  /** ===== 2.7：Token Plan 迭代（需求收集中，未发布，仅本地评审） ===== */
+  '2.7': {
+    title: '2.7 Token Plan 迭代',
+    routeKeys: ['tokenPlan', 'resourcePack', 'planStats'],
+    consoleKeys: ['plan', 'login', 'billing:orderDetail'],
+    websiteKeys: ['tokenPlan'],
+    views: ['admin', 'console', 'website'],
+    publishedAt: '',
+    note: 'Token Plan 相关需求迭代（需求收集中，待补充）',
   },
 }
 

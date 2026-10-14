@@ -1,5 +1,8 @@
 import type { SettlementMethod, BillingType, ModelType, PricingMode } from './types'
 
+/** 企业版总开关：false = 隐藏所有企业版信息与入口；改回 true 即可全部恢复（代码与数据均未删除） */
+export const SHOW_ENTERPRISE = false
+
 export const SETTLEMENT_METHODS: {
   value: SettlementMethod
   label: string
