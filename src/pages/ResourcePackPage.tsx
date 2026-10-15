@@ -287,7 +287,7 @@ export default function ResourcePackPage() {
               购买须知
             </Tag>
             <span style={{ flex: 1 }}>
-              资源包购买成功后立即生效，一经购买不支持退款，请您确认需求后再下单支付。
+              加油包购买成功后立即生效，一经购买不支持退款，请您确认需求后再下单支付。
             </span>
           </div>
 
