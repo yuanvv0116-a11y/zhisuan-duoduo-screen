@@ -117,8 +117,6 @@ const FULL_MENU: MenuItem[] = [
     children: [
       { key: 'models', label: '模型列表' },
       { key: 'modelGroups', label: '模型分组' },
-      { key: 'resourcePack', label: '资源包管理' },
-      { key: 'tokenPlan', label: 'Token Plan' },
     ],
   },
   {
@@ -150,7 +148,6 @@ const FULL_MENU: MenuItem[] = [
       { key: 'channelStat', label: '渠道统计与性能分析' },
       { key: 'modelUsageStat', label: '模型使用统计分析' },
       { key: 'modelUsageDetail', label: '模型使用明细' },
-      { key: 'planStats', label: '资源包与套餐统计' },
       { key: 'voucherStats', label: '代金券统计' },
     ],
   },
@@ -158,7 +155,6 @@ const FULL_MENU: MenuItem[] = [
     key: 'billGroup',
     label: '账单管理',
     children: [
-      { key: 'planBill', label: '套餐与资源包账单' },
       { key: 'userConsumeBill', label: '用户消费账单' },
     ],
   },
@@ -911,38 +907,6 @@ export default function App() {
                 >
                   opc社区
                 </span>
-              )}
-              {!consoleScope && (
-              <span
-                style={{
-                  color: consoleSubPage === 'tokenPlan' ? '#2f6bff' : '#5a6474',
-                  fontWeight: consoleSubPage === 'tokenPlan' ? 600 : 400,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-                onClick={() => { setConsoleSubPage('tokenPlan'); setTokenPlanSub('overview'); setCheckoutPlan(null); setPaymentData(null); setShowEnterprisePage(false); setEnterpriseCheckoutPlan(null); setShowUsageGuide(false); setShowUsageStats(false); setAgreementView(null) }}
-              >
-                Token Plan
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    marginLeft: 4,
-                    padding: '0 5px',
-                    height: 16,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: '#fff',
-                    background: 'linear-gradient(135deg, #ff6b6b 0%, #ff4d4f 100%)',
-                    borderRadius: 8,
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  NEW
-                </span>
-              </span>
               )}
               {showConsolePromo && (
                 <span
