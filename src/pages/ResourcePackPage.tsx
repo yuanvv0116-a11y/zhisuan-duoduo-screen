@@ -227,7 +227,6 @@ export default function ResourcePackPage() {
     const expiryDate = new Date()
     expiryDate.setMonth(expiryDate.getMonth() + validityMonths)
     const expiryText = `${expiryDate.getFullYear()}-${String(expiryDate.getMonth() + 1).padStart(2, '0')}-${String(expiryDate.getDate()).padStart(2, '0')}`
-    const packModel = buyPack.name.split(' ')[0]
     const amountMatch = /^([\d.]+)(万|亿)?(张|次)?/.exec(packAmount)
     const amountValue = amountMatch
       ? parseFloat(amountMatch[1]) * (amountMatch[2] === '亿' ? 100000000 : amountMatch[2] === '万' ? 10000 : 1)
@@ -528,17 +527,13 @@ export default function ResourcePackPage() {
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, color: '#6b7280' }}>可用模型</span>
-                    <span style={{ fontSize: 13, color: '#111827', fontWeight: 500 }}>{packModel}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                     <span style={{ fontSize: 13, color: '#6b7280' }}>额度</span>
                     <span style={{ fontSize: 13, color: '#111827', fontWeight: 500, textAlign: 'right' }}>
                       {quotaText}
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, color: '#6b7280' }}>订阅时长</span>
+                    <span style={{ fontSize: 13, color: '#6b7280' }}>有效期</span>
                     <span style={{ fontSize: 13, color: '#111827', textAlign: 'right' }}>
                       {packValidity}（到期：{expiryText}）
                     </span>
@@ -585,9 +580,6 @@ export default function ResourcePackPage() {
                     <div style={{ textAlign: 'right' }}>
                       <span style={{ fontSize: 26, fontWeight: 700, color: '#ff6b35' }}>
                         ¥{total.toFixed(2)}
-                      </span>
-                      <span style={{ fontSize: 12, color: '#8b93a5', marginLeft: 2 }}>
-                        （×{qty}）
                       </span>
                     </div>
                   </div>
