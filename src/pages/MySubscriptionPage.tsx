@@ -1155,7 +1155,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                   <a
                     style={{ color: PRIMARY, cursor: 'pointer' }}
                   >
-                    查看详情
+                    查看模型详情
                   </a>
                 </span>
               ),
