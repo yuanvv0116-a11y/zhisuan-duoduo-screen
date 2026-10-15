@@ -841,6 +841,17 @@ export default function ConsolePromo() {
             <div style={{ fontSize: 18, fontWeight: 700, color: '#1f2d4d', lineHeight: 1.5 }}>
               <span style={{ marginRight: 8 }}>🔥</span>
               {campaignModel.modelName} 限时活动进行中
+              <RequirementDot
+                title="限时活动横幅 · 需求说明"
+                sections={[
+                  {
+                    label: '需求内容',
+                    items: [
+                      '如最新的活动有增加佣金的配置，则展示此处。 展示活动名称，佣金加倍+原比例+加倍后比例和活动截止时间',
+                    ],
+                  },
+                ]}
+              />
             </div>
             <div style={{ fontSize: 14, marginTop: 2, color: '#4a5878' }}>
               佣金加倍
