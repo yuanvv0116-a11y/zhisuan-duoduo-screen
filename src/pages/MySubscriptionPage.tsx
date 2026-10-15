@@ -823,21 +823,22 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               >
                 Base URL
               </span>
-              <code
-                style={{
-                  fontSize: 13,
-                  color: '#334155',
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                  background: 'transparent',
-                  padding: 0,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-                title="https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
-              >
-                https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
-              </code>
+              <Tooltip title="服务接入根地址，调用 API 时拼接在 Endpoint 之前">
+                <code
+                  style={{
+                    fontSize: 13,
+                    color: '#334155',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                    background: 'transparent',
+                    padding: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+                </code>
+              </Tooltip>
               <Tooltip title="复制">
                 <span
                   onClick={() =>
@@ -872,22 +873,27 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>
                 API Endpoints:
               </span>
-              {['/v1/chat/completions', '/v1/messages'].map((endpoint) => (
-                <span key={endpoint} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                  <code
-                    style={{
-                      fontSize: 13,
-                      color: '#334155',
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                      background: 'transparent',
-                      padding: 0,
-                    }}
-                  >
-                    {endpoint}
-                  </code>
+              {[
+                { path: '/v1/chat/completions', desc: '对话补全接口，OpenAI 兼容的多轮对话' },
+                { path: '/v1/messages', desc: '消息接口，Anthropic 兼容的对话消息' },
+              ].map((endpoint) => (
+                <span key={endpoint.path} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <Tooltip title={endpoint.desc}>
+                    <code
+                      style={{
+                        fontSize: 13,
+                        color: '#334155',
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                        background: 'transparent',
+                        padding: 0,
+                      }}
+                    >
+                      {endpoint.path}
+                    </code>
+                  </Tooltip>
                   <Tooltip title="复制">
                     <span
-                      onClick={() => copyToClipboard(endpoint, 'API Endpoint')}
+                      onClick={() => copyToClipboard(endpoint.path, 'API Endpoint')}
                       style={{
                         marginLeft: 16,
                         color: PRIMARY,
