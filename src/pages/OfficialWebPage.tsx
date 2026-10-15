@@ -25,16 +25,17 @@ const { Title, Text, Paragraph } = Typography
 
 const HERO_BG = new URL('../assets/web-tokenplan-hero.jpg', import.meta.url).href
 
+/** 支持的 AI 工具品牌图标（来自各品牌官网，本地化存放） */
 const AI_TOOLS = [
-  { name: 'Claude Code', icon: '✨' },
-  { name: 'Codex', icon: '🧬' },
-  { name: 'WorkBuddy', icon: '🤝' },
-  { name: 'TraeWork', icon: '🚀' },
-  { name: 'CodeBuddy', icon: '💻' },
-  { name: 'TraeCode', icon: '⚡' },
-  { name: 'OpenCode', icon: '🖥️' },
-  { name: 'Cursor', icon: '🎨' },
-  { name: 'OpenClaw', icon: '🐙' },
+  { name: 'Claude Code', icon: new URL('../assets/ai-tool-claude.png', import.meta.url).href },
+  { name: 'Codex', icon: new URL('../assets/ai-tool-codex.svg', import.meta.url).href },
+  { name: 'WorkBuddy', icon: new URL('../assets/ai-tool-workbuddy.svg', import.meta.url).href },
+  { name: 'TraeWork', icon: new URL('../assets/ai-tool-traework.png', import.meta.url).href },
+  { name: 'CodeBuddy', icon: new URL('../assets/ai-tool-codebuddy.svg', import.meta.url).href },
+  { name: 'TraeCode', icon: new URL('../assets/ai-tool-traecode.png', import.meta.url).href },
+  { name: 'OpenCode', icon: new URL('../assets/ai-tool-opencode.png', import.meta.url).href },
+  { name: 'Cursor', icon: new URL('../assets/ai-tool-cursor.png', import.meta.url).href },
+  { name: 'OpenClaw', icon: new URL('../assets/ai-tool-openclaw.png', import.meta.url).href },
 ]
 
 /** 资源包（按设计图 8 个） */
@@ -721,7 +722,11 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
                   cursor: 'pointer',
                 }}
               >
-                <span style={{ fontSize: 26, lineHeight: 1 }}>{tool.icon}</span>
+                <img
+                  src={tool.icon}
+                  alt={tool.name}
+                  style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'contain', display: 'block' }}
+                />
                 <Text strong style={{ fontSize: 14, color: '#1a1a1a' }}>
                   {tool.name}
                 </Text>
