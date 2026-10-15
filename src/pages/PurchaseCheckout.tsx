@@ -180,7 +180,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
             <ArrowLeftOutlined />
             返回
           </a>
-          <span style={{ fontSize: 14, color: '#111827', fontWeight: 500 }}>{isRenew ? 'Token Plan 个人版套餐 续费' : '购买 Token Plan 套餐'}</span>
+          <span style={{ fontSize: 14, color: '#111827', fontWeight: 500 }}>{isRenew ? 'Token Plan 套餐 续费' : '购买 Token Plan 套餐'}</span>
         </div>
       </div>
 
@@ -195,7 +195,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
         {/* 页面标题 */}
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 22, fontWeight: 600, color: '#111827', margin: 0 }}>
-            {isRenew ? 'Token Plan 个人版套餐 续费' : '购买 Token Plan 套餐'}
+            {isRenew ? 'Token Plan 套餐 续费' : '购买 Token Plan 套餐'}
            </h2>
         </div>
 
