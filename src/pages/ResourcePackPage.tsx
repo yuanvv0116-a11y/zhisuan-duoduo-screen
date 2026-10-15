@@ -374,6 +374,10 @@ export default function ResourcePackPage() {
                     <span>有效期：{packValidity}</span>
                   </div>
                 </div>
+                <div style={{ marginTop: 16, fontSize: 13, color: '#4b5563', lineHeight: 1.8 }}>
+                  <div>支持模型（为优化使用，期间可能有部分调整）</div>
+                  <div>Qwen3.6-27B,DODO-AC-Ultra-5,Doubao-Seedream-5.0,DeepSeek-V4-Flash，+3</div>
+                </div>
               </Card>
 
               <Card
