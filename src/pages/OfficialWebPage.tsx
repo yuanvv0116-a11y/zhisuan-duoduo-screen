@@ -619,7 +619,7 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
       <section id="tp-section-resourcePack" style={{ padding: '68px 24px 0', scrollMarginTop: 80 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 30, color: '#1a1a1a', fontWeight: 700 }}>
-            低价大额度资源包，赋能业务高效落地
+            低价大额度加油包，赋能业务高效落地
           </Title>
           <Paragraph style={{ textAlign: 'center', color: '#86909c', margin: '10px 0 24px', fontSize: 14 }}>
             精选多款旗舰模型，限时优惠进行中！
