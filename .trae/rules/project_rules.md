@@ -8,17 +8,25 @@
 - 开发服务器端口：**5180**（`npm run dev -- --port 5180 --strictPort`，5173 常被占用）。
 - **统一访问地址 `http://localhost:5180/`**：汇报、回归、发给用户的地址一律用它，禁止附加 `?t=xxx` 之类 cache-busting 查询参数。
 - 「地址没变但改动不生效」优先怀疑 dev server 进程跑太久导致 watch/模块缓存失效（曾出现进程跑 21 天的情况），重启 dev server 即可解决，不要归因于用户浏览器缓存。
+- **「部署本地」≠ 发布线上（重要，用户明确纠正过）**：用户说「部署本地 / 把本地代码部署一下」= 只启动/重启本地 dev server（`http://localhost:5180/`），**禁止** commit+push 到 `182.92.106.90:9001`。线上发布仅在用户明确说「上线 / 发布线上 / 部署线上」时才执行。
 - 每次改完必须跑 `npx tsc -b --pretty false` 校验通过（开启 noUnusedLocals，未使用的 import/变量要清理）。
 - 部署：`vite.config.ts` 固定 `base: './'`（产物用相对路径），`npm run build` 后的 `dist/` 是纯静态目录，可直接放到任意静态服务器的站点根目录或子目录（如 `/proto/`），无需重新构建。评审入口靠 URL 查询参数（`?review=<version>`），不依赖 history 路由，因此**不需要 SPA rewrite**。
 
 ## 0.1 部署信息速查（固定事实，跨会话直接引用，勿删）
 - **项目**：`package.json` name `zhisuan-channel-settlement`（页面标题「智算多多 · 渠道结算中心」）；纯静态 SPA，无后端，数据存各自浏览器 localStorage。
-- **线上入口**：完整版 `http://182.92.106.90:9001/`；评审版 `http://182.92.106.90:9001/?review=<版本>`（当前 `?review=2.3`）。裁剪配置在 `src/releases.ts` 的 `RELEASES`（新版本必须加在对象末尾，`LATEST_RELEASE` 取最后一个 key）。
+- **线上入口**：完整版 `http://182.92.106.90:9001/`；评审版 `http://182.92.106.90:9001/?review=<版本>`（当前已发布至 `2.6`，评审版 `?review=2.6`）。裁剪配置在 `src/releases.ts` 的 `RELEASES`（新版本必须加在对象末尾，`LATEST_RELEASE` 取最后一个 key）。
 - **服务器**：阿里云 ECS `182.92.106.90`，`root` 登录；**密码不入本文件**——本机 `~/.ssh/id_ed25519.pub` 已加入服务器 `authorized_keys`，可 `ssh root@182.92.106.90` 免密。Alibaba Cloud Linux 3；git 2.43.7、node v24.8.0、npm 11.6.0、nginx 1.24.0；2 核 / 可用内存约 1.3G / 磁盘 40G 用 15%。
 - **服务器落点**：源码仓库 `/var/www/zhisuan-duoduo/repo`（checkout 分支 `v2.1`）；线上产物 `/var/www/zhisuan-duoduo/dist`；上一版备份 `dist_prev`（回滚：`mv dist_prev dist` 后 reload）；发布脚本 `deploy.sh`；发布日志 `deploy.log`；站点配置 `/etc/nginx/conf.d/zhisuan-duoduo.conf`（`listen 9001`、gzip、html no-cache、`try_files` 回退）。
 - **git 远端**：`origin` = `git@github.com:yuanvv0116-a11y/zhisuan-duoduo-screen.git`（2026-10-10 起由 https 改为 SSH，原 https token 已失效；本机 `~/.ssh/id_ed25519` 已加入 GitHub 账号 SSH keys）；`deploy` = `ssh://root@182.92.106.90/var/www/zhisuan-duoduo/repo`。
 - **发布方式（首选）**：`git commit` → `git push deploy v2.1` → 服务器 `post-receive` 钩子自动 `npm run build` → 原子切换 dist → `nginx -t && systemctl reload nginx`，约 40 秒；构建失败线上保持原版本。手动发布：`bash /var/www/zhisuan-duoduo/deploy.sh`。
 - **分支现状**：本地工作分支 `v2.2`（自 `v2.1` 拉出，尚未推远端）；**服务器部署分支固定为 `v2.1`**（`deploy.sh` 里 `BRANCH=${DEPLOY_BRANCH:-v2.1}`，`receive.denyCurrentBranch=updateInstead` 的非裸仓库），所以发布时必须把提交推到 `v2.1`：`git push origin v2.2:v2.1 && git push deploy v2.2:v2.1`；`main` 本地领先远端 16 个提交、`new-features` 与远端分叉，推这两个需先向用户确认；`.github/workflows/deploy.yml`（Actions 用 sshpass 传 dist，依赖 `ALIYUN_HOST/USER/PASSWORD/PORT`+`DEPLOY_PATH` secrets）目前未纳入版本控制，现发布链路不依赖它。
+- **多版本并行 / 混合改动发布模型（长期机制，用户已拍板，必须照做）**：会持续并行开发多个版本、改动经常混在同一工作区，发布时按下面流程剥离，**绝不为了发布去动工作区未提交的改动**：
+  1. **日常纪律**：一个 commit 尽量只属于一个版本号，message 前缀标版本（如 `feat(2.7): ...`）；未提交改动＝天然未发布，留在工作区即可，不阻塞任何版本发布。
+  2. **纯未提交场景**：要发的内容都已提交、工作区是更高版本的未提交改动 → 直接把当前分支推 `v2.1` 即可（未提交改动不会跟走）。
+  3. **已提交混入场景**（HEAD 里混有更高版本代码）：用 worktree 隔离发布，不在工作区里 revert——`git worktree add /tmp/zhisuan-release-<版本> -b release-<版本> <发布切点提交>` → `git revert --no-edit <混入的高版本提交>`（可多个）→ 在 worktree 里改 `releases.ts` 填发布日期 → 软链主项目 `node_modules`、删 `tsconfig.tsbuildinfo`、跑 `npx tsc -b --pretty false` + `npm run build` 验证 → commit → `git push deploy release-<版本>:v2.1` 触发自动发布 → `git push origin release-<版本>` 备份 → 核验线上后 `git worktree remove` 清理。
+  4. **revert 的后遗症（关键）**：release 分支上的 revert 只存在于发布线。以后发布更高版本时，先把 release 分支合回工作分支（`git merge v2.1`），revert 会试图删掉那部分高版本代码——**合并时以高版本代码为准**（对被 revert 的提交做 revert-the-revert，或直接用工作区文件覆盖），确认无误再推 `v2.1`。
+  5. **本次事实登记（2026-10-15）**：已按此模型发布 2.4/2.5/2.6（commit `b6a9bac`，分支 `release-26`，推到了 `v2.1`），其中 revert 了 `017d3b0`（2.7 混入：SHOW_ENTERPRISE、PlanModelConfig、官网套餐改版等）。**发 2.7 前必须先把 `v2.1`（含该 revert）合回 `v2.2` 并恢复 2.7 代码**，否则 2.7 发布会把已写好的功能又发没了。2.5 一并标发布是因为切点 `f504c01` 本身含 2.5（Token工厂用量）代码，不可拆。
+  6. **发布线额外裁剪（2026-10-15，commit `1617b6a`）**：应用户要求，线上（含所有评审版）**看不到 Token Plan / 资源包菜单和页面本身**——`release-26` 在 `App.tsx` 删掉了 FULL_MENU 四项（资源包管理、Token Plan、资源包与套餐统计、套餐与资源包账单）和控制台顶部「Token Plan」导航 span（页面组件代码保留、仅无入口）。**发 2.7 合回 `v2.1` 时以 `v2.2` 工作区 `App.tsx` 为准恢复这些菜单入口**（同第 4 条 revert 后遗症处理）。
 - **端口占用（新增站点前先避让）**：`22` sshd；`80` nginx → `/var/www/kresta-ai`（`kresta-ai.conf`，`server_name xiatm.work`，**别的项目不可动**）；`8000` python 服务（curl 返回 401 属正常）；`9001` 本项目（安全组已放行）；`9000` 被安全组拦截勿用。
 - **网络注意**：本机与服务器访问 `github.com:443` 偶发超时，推 GitHub 失败先重试；`git push deploy` 走 22 端口不受影响。
 
