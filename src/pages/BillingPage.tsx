@@ -115,6 +115,15 @@ const emptyConsumptionSearch: ConsumptionSearchForm = {
 
 const { RangePicker } = DatePicker
 
+/** 订单详情弹窗内的小节标题 */
+function OrderDetailGroup({ title }: { title: string }) {
+  return (
+    <div style={{ fontSize: 13, fontWeight: 600, color: '#1f2937', padding: '12px 0 1px' }}>
+      {title}
+    </div>
+  )
+}
+
 /** 订单详情弹窗的行：左侧灰色标签 + 右侧深色值，标签可带 ⓘ 说明 */
 function OrderDetailRow({
   label,
@@ -467,7 +476,15 @@ function OrderDetailSection() {
               />
             </div>
 
+            <OrderDetailGroup title="订单信息" />
             <OrderDetailRow label="订单号">{currentOrder.orderNo}</OrderDetailRow>
+            <OrderDetailRow label="产品名称">{currentOrder.productName}</OrderDetailRow>
+            <OrderDetailRow label="产品类型">
+              {ORDER_PRODUCT_TYPE_LABEL[currentOrder.productType]}
+            </OrderDetailRow>
+            <OrderDetailRow label="订单类型">{ORDER_TYPE_LABEL[currentOrder.orderType]}</OrderDetailRow>
+
+            <OrderDetailGroup title="订阅信息" />
             <OrderDetailRow label="订阅名称">
               {currentOrder.planName ?? currentOrder.productName}
             </OrderDetailRow>
@@ -481,7 +498,20 @@ function OrderDetailSection() {
                 ? '月付'
                 : '—'}
             </OrderDetailRow>
-            <OrderDetailRow label="订单类型">{ORDER_TYPE_LABEL[currentOrder.orderType]}</OrderDetailRow>
+
+            <OrderDetailGroup title="费用信息" />
+            <OrderDetailRow label="官网目录总价">
+              ¥{(currentOrder.originalPrice ?? 0).toFixed(2)}
+            </OrderDetailRow>
+            <OrderDetailRow label="优惠金额">
+              ¥{(currentOrder.discountAmount ?? 0).toFixed(2)}
+            </OrderDetailRow>
+            <OrderDetailRow label="优惠券金额">¥{(currentOrder.couponAmount ?? 0).toFixed(2)}</OrderDetailRow>
+            <OrderDetailRow label="实付金额" tooltip="官网目录总价 − 优惠金额 − 优惠券金额">
+              <span style={{ fontWeight: 600 }}>¥{currentOrder.amount.toFixed(2)}</span>
+            </OrderDetailRow>
+
+            <OrderDetailGroup title="支付与资源" />
             <OrderDetailRow label="支付状态">
               <Tag
                 color={statusTagColor(currentOrder.status)}
@@ -506,16 +536,6 @@ function OrderDetailSection() {
             </OrderDetailRow>
             <OrderDetailRow label="资源生效时间">{currentOrder.grantedAt || '—'}</OrderDetailRow>
             <OrderDetailRow label="失效时间">{currentOrder.expireAt ?? '—'}</OrderDetailRow>
-            <OrderDetailRow label="官网目录总价">
-              ¥{(currentOrder.originalPrice ?? 0).toFixed(2)}
-            </OrderDetailRow>
-            <OrderDetailRow label="优惠金额">
-              ¥{(currentOrder.discountAmount ?? 0).toFixed(2)}
-            </OrderDetailRow>
-            <OrderDetailRow label="优惠券金额">¥{(currentOrder.couponAmount ?? 0).toFixed(2)}</OrderDetailRow>
-            <OrderDetailRow label="实付金额" tooltip="官网目录总价 − 优惠金额 − 优惠券金额">
-              <span style={{ fontWeight: 600 }}>¥{currentOrder.amount.toFixed(2)}</span>
-            </OrderDetailRow>
           </div>
         )}
       </Modal>
