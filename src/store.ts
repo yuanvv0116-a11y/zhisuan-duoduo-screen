@@ -2422,7 +2422,7 @@ export function useAccountLedgers() {
 
 /* ============================== 费用管理 - 订单明细 ============================== */
 
-const ORDER_DETAIL_STORAGE_KEY = 'zsdd_order_details_v6'
+const ORDER_DETAIL_STORAGE_KEY = 'zsdd_order_details_v7'
 
 const CUSTOMER_ID = '76971777531177000123'
 
@@ -2449,6 +2449,30 @@ const ORDER_DETAIL_SEED: OrderDetail[] = [
     expireAt: '2026-10-18 10:24:52',
     totalTokens: '100,000,000',
     remainingTokens: '86,400,000',
+    paymentChannel: '微信',
+  },
+  {
+    id: 'od_003',
+    tab: 'subscription',
+    customerId: CUSTOMER_ID,
+    productType: 'plan',
+    productName: '进阶套餐（Standard）',
+    orderNo: '20261015e8c41f07b6d29a35c17',
+    orderType: 'renew',
+    createdAt: '2026-10-15 09:32:05',
+    grantedAt: '2026-11-18 10:24:52',
+    payAt: '2026-10-15 09:32:28',
+    status: 'paid',
+    amount: 139.3,
+    originalPrice: 199,
+    discountAmount: 59.7,
+    couponAmount: 0,
+    planName: 'Token Plan 个人版',
+    seatName: '进阶套餐（Standard） 月付 x1',
+    resourceStatus: 'inactive',
+    expireAt: '2026-12-18 10:24:52',
+    totalTokens: '100,000,000',
+    remainingTokens: '100,000,000',
     paymentChannel: '微信',
   },
   {
