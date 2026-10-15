@@ -624,14 +624,6 @@ export default function ResourcePackPage() {
               <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
                 <Button
                   block
-                  size="large"
-                  onClick={() => setBuyPack(null)}
-                  style={{ height: 46, borderRadius: 8, fontSize: 14, borderColor: '#e8ecf0' }}
-                >
-                  取消
-                </Button>
-                <Button
-                  block
                   type="primary"
                   size="large"
                   onClick={handlePay}
