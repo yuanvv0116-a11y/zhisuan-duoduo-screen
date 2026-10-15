@@ -33,15 +33,21 @@ const DESC_GLM =
   '智谱旗舰模型，支持 1M 无损上下文，长程任务执行更稳定，工程规范遵循更可靠。'
 
 const PACKS: Pack[] = [
-  { id: 'p1', name: 'Qwen-Max 特价尊享包', desc: DESC_QWEN, price: 189.9, originalPrice: 259.9, benefit: '包含1亿Qwen-Max（有效期3个月）' },
-  { id: 'p2', name: 'Qwen-Max 特价尝鲜包', desc: DESC_QWEN, price: 39.9, originalPrice: 59.9, benefit: '包含2000万Qwen-Max（有效期1个月）' },
-  { id: 'p3', name: 'DeepSeek-V4 8折特惠包', desc: DESC_DEEPSEEK, price: 56, originalPrice: 70, benefit: '包含3000万DeepSeek-V4（有效期1个月）' },
-  { id: 'p4', name: 'DeepSeek-V4 3折尊享包', desc: DESC_DEEPSEEK, price: 199.9, originalPrice: 666, benefit: '包含1亿DeepSeek-V4（有效期3个月）' },
-  { id: 'p5', name: 'Wan-Image 8折特惠包', desc: DESC_WAN, price: 40, originalPrice: 50, benefit: '包含1000张Wan-Image图像（有效期1个月）' },
-  { id: 'p6', name: 'Wan-Image 3折尝鲜包', desc: DESC_WAN, price: 5.9, originalPrice: 19.9, benefit: '包含100张Wan-Image图像（有效期1个月）' },
-  { id: 'p7', name: 'HappyHorse 视频8折特惠包', desc: DESC_HORSE, price: 28, originalPrice: 35, benefit: '包含10次HappyHorse视频生成（有效期1个月）' },
-  { id: 'p8', name: 'GLM-5.2 3折尝鲜包', desc: DESC_GLM, price: 2.9, originalPrice: 9.9, benefit: '包含100万GLM-5.2（有效期1个月）' },
+  { id: 'p1', name: 'Qwen-Max 特价尊享包', desc: DESC_QWEN, price: 189.9, originalPrice: 259.9, benefit: '包含1亿 Tokens（有效期3个月）' },
+  { id: 'p2', name: 'Qwen-Max 特价尝鲜包', desc: DESC_QWEN, price: 39.9, originalPrice: 59.9, benefit: '包含2000万 Tokens（有效期1个月）' },
+  { id: 'p3', name: 'DeepSeek-V4 8折特惠包', desc: DESC_DEEPSEEK, price: 56, originalPrice: 70, benefit: '包含3000万 Tokens（有效期1个月）' },
+  { id: 'p4', name: 'DeepSeek-V4 3折尊享包', desc: DESC_DEEPSEEK, price: 199.9, originalPrice: 666, benefit: '包含1亿 Tokens（有效期3个月）' },
+  { id: 'p5', name: 'Wan-Image 8折特惠包', desc: DESC_WAN, price: 40, originalPrice: 50, benefit: '包含1000张图像（有效期1个月）' },
+  { id: 'p6', name: 'Wan-Image 3折尝鲜包', desc: DESC_WAN, price: 5.9, originalPrice: 19.9, benefit: '包含100张图像（有效期1个月）' },
+  { id: 'p7', name: 'HappyHorse 视频8折特惠包', desc: DESC_HORSE, price: 28, originalPrice: 35, benefit: '包含10次视频生成（有效期1个月）' },
+  { id: 'p8', name: 'GLM-5.2 3折尝鲜包', desc: DESC_GLM, price: 2.9, originalPrice: 9.9, benefit: '包含100万 Tokens（有效期1个月）' },
 ]
+
+/** 从 benefit 文案拆出「额度」与「有效期」，用于卡片内展示 */
+function splitBenefit(benefit: string): { amount: string; validity: string } {
+  const m = /^包含(.+?)（有效期(.+?)）$/.exec(benefit)
+  return m ? { amount: m[1], validity: m[2] } : { amount: benefit, validity: '—' }
+}
 
 const BUY_NOTES = [
   '资源包购买成功后立即生效，使用时优先扣减Token Plan  然后扣减资源包，资源包额度使用完后则扣减现金账户;',
@@ -637,6 +643,7 @@ export default function ResourcePackPage() {
                     }}
                   >
                     {PACKS.map((p) => {
+                      const { amount, validity } = splitBenefit(p.benefit)
                       return (
                         <div
                           key={p.id}
@@ -661,12 +668,29 @@ export default function ResourcePackPage() {
                               fontSize: 13,
                               color: '#6b7280',
                               lineHeight: 1.8,
-                              minHeight: 70,
                             }}
                           >
                             {p.desc}
                           </div>
-                          <div style={{ borderTop: '1px solid #f0f0f0', margin: '4px 0 14px' }} />
+                          <div
+                            style={{
+                              marginTop: 10,
+                              marginBottom: 12,
+                              fontSize: 13,
+                              color: '#333',
+                              lineHeight: 1.9,
+                            }}
+                          >
+                            <div>
+                              <span style={{ color: '#86909c' }}>包含额度：</span>
+                              <span style={{ fontWeight: 600 }}>{amount}</span>
+                            </div>
+                            <div>
+                              <span style={{ color: '#86909c' }}>有效期：</span>
+                              <span style={{ fontWeight: 600 }}>{validity}</span>
+                            </div>
+                          </div>
+                          <div style={{ borderTop: '1px solid #f0f0f0', marginBottom: 14 }} />
                           <div style={{ marginBottom: 14 }}>
                             <span style={{ fontSize: 26, fontWeight: 700, color: '#f5222d' }}>
                               {p.price}
