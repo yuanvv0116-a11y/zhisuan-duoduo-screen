@@ -11,6 +11,7 @@ import {
   InputNumber,
   Button,
   Form,
+  Tooltip,
   Radio,
   message,
 } from 'antd'
@@ -19,9 +20,7 @@ import type { ColumnsType } from 'antd/es/table'
 import PageShell from '../components/PageShell'
 import SearchField from '../components/SearchField'
 import RequirementDot from '../components/RequirementDot'
-import PlanModelConfig from './PlanModelConfig'
-import { useTokenPlans } from '../store'
-import { SHOW_ENTERPRISE } from '../constants'
+import { useTokenPlans, useModels } from '../store'
 import {
   type PlanType,
   type PlanDurationOption,
@@ -53,13 +52,13 @@ const USAGE_PERIOD_LABEL: Record<PlanUsagePeriod, string> = {
   yearly: '每年',
 }
 
-/** 有效期单位对应的可用用量周期（周期范围必须小于有效期范围，如有效期为季度则只可选天/周/月） */
+/** 有效期单位对应的可用用量周期（周期不能大于有效期单位） */
 const VALIDITY_TO_USAGE_PERIODS: Record<PlanValidityUnit, PlanUsagePeriod[]> = {
   day: ['daily'],
-  week: ['daily'],
-  month: ['daily', 'weekly'],
-  quarter: ['daily', 'weekly', 'monthly'],
-  year: ['daily', 'weekly', 'monthly'],
+  week: ['daily', 'weekly'],
+  month: ['daily', 'weekly', 'monthly'],
+  quarter: ['daily', 'weekly', 'monthly', 'quarterly'],
+  year: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'],
 }
 
 /** 格式化 Token 用量：自动转万/亿 */
@@ -84,8 +83,6 @@ interface FormState {
   planType: PlanType
   summaryItems: string[]
   price: number
-  /** 前台黑色高亮卡片 */
-  highlight: boolean
   discountPrice: number
   /** 折扣 0-100（100 = 不打折，85 = 85折） */
   discount: number
@@ -101,6 +98,7 @@ interface FormState {
   validityUnit: PlanValidityUnit
   autoRenew: boolean
   status: 'on' | 'off'
+  modelIds: string[]
   /** 是否前台展示划线原价 */
   showOriginalPrice: boolean
   /** 划线展示的原价（元） */
@@ -113,7 +111,6 @@ const emptyForm: FormState = {
   planType: 'personal',
   summaryItems: [],
   price: 0,
-  highlight: false,
   discountPrice: 0,
   discount: 100,
   durations: [{ label: '月付', months: 1, discount: 100, finalPrice: 0 }],
@@ -121,11 +118,12 @@ const emptyForm: FormState = {
   totalTokens: 0,
   usageLimitEnabled: true,
   usageLimit: 0,
-  usagePeriod: 'daily',
+  usagePeriod: 'monthly',
   validityValue: 1,
   validityUnit: 'month',
   autoRenew: false,
   status: 'on',
+  modelIds: [],
   showOriginalPrice: false,
   originalPrice: 0,
 }
@@ -164,9 +162,13 @@ const VALIDITY_UNIT_DURATION_TEMPLATES: Record<
 
 export default function TokenPlanListPage() {
   const { plans, addPlan, updatePlan, removePlan } = useTokenPlans()
+  const { models } = useModels()
 
-  /** 「配置模型」页：页内子状态切换，非全局路由 */
-  const [configPlan, setConfigPlan] = useState<TokenPlan | null>(null)
+  const modelNameMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    models.forEach((it) => (m[it.id] = it.name))
+    return m
+  }, [models])
 
   /* 搜索 */
   const [qName, setQName] = useState('')
@@ -197,6 +199,8 @@ export default function TokenPlanListPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
+  const [modelPickerOpen, setModelPickerOpen] = useState(false)
+  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([])
   const [deleteTarget, setDeleteTarget] = useState<TokenPlan | null>(null)
   const [deletePassword, setDeletePassword] = useState('')
 
@@ -214,7 +218,6 @@ export default function TokenPlanListPage() {
       planType: plan.planType ?? 'personal',
       summaryItems: plan.summaryItems ?? [],
       price: plan.price,
-      highlight: plan.highlight ?? false,
       discountPrice: plan.price,
       discount: 100,
       durations: plan.durations?.length
@@ -228,14 +231,12 @@ export default function TokenPlanListPage() {
       totalTokens: (plan as any).totalTokens ?? plan.usageLimit ?? 0,
       usageLimitEnabled: (plan as any).usageLimitEnabled ?? true,
       usageLimit: plan.usageLimit,
-      // 旧数据可能用量周期不小于有效期范围，编辑时校正到可用范围内
-      usagePeriod: VALIDITY_TO_USAGE_PERIODS[plan.validityUnit].includes(plan.usagePeriod)
-        ? plan.usagePeriod
-        : VALIDITY_TO_USAGE_PERIODS[plan.validityUnit][0],
+      usagePeriod: plan.usagePeriod,
       validityValue: plan.validityValue,
       validityUnit: plan.validityUnit,
       autoRenew: plan.autoRenew,
       status: plan.status,
+      modelIds: [...plan.modelIds],
       showOriginalPrice: plan.showOriginalPrice ?? false,
       originalPrice: plan.originalPrice ?? 0,
     })
@@ -278,7 +279,6 @@ export default function TokenPlanListPage() {
       planType: form.planType,
       summaryItems: form.summaryItems.filter((s) => s.trim()),
       price: form.price,
-      highlight: form.highlight,
       discountPrice: form.price,
       discount: 100,
       durations: form.durations,
@@ -291,8 +291,7 @@ export default function TokenPlanListPage() {
       validityUnit: form.validityUnit,
       autoRenew: form.autoRenew,
       status: form.status,
-      // 包含模型改由列表「配置模型」页维护，表单不再配置：编辑保留原值，新增置空
-      modelIds: editingId ? plans.find((p) => p.id === editingId)?.modelIds ?? [] : [],
+      modelIds: form.modelIds,
       showOriginalPrice: form.showOriginalPrice,
       originalPrice: form.originalPrice,
     }
@@ -305,6 +304,17 @@ export default function TokenPlanListPage() {
       message.success('套餐已创建')
     }
     setModalOpen(false)
+  }
+
+  /* 模型选择弹窗 */
+  const openModelPicker = () => {
+    setSelectedModelIds([...form.modelIds])
+    setModelPickerOpen(true)
+  }
+
+  const confirmModelPicker = () => {
+    setForm({ ...form, modelIds: [...selectedModelIds] })
+    setModelPickerOpen(false)
   }
 
   /* 列表列 */
@@ -336,19 +346,32 @@ export default function TokenPlanListPage() {
         v === 'enterprise' ? <Tag color="purple">企业版</Tag> : <Tag color="blue">个人版</Tag>,
     },
     {
-      title: '套餐内容',
+      title: '摘要',
       dataIndex: 'summaryItems',
       key: 'summaryItems',
       width: 220,
       render: (items?: string[]) =>
         items && items.length > 0 ? (
-          <div style={{ maxWidth: 200 }}>
-            {items.map((s, i) => (
-              <div key={i} style={{ fontSize: 12, color: '#666', lineHeight: 1.8 }}>
-                • {s}
+          <Tooltip
+            title={
+              <div style={{ lineHeight: 1.8 }}>
+                {items.map((s, i) => (
+                  <div key={i}>• {s}</div>
+                ))}
               </div>
-            ))}
-          </div>
+            }
+          >
+            <div style={{ maxWidth: 200 }}>
+              {items.slice(0, 2).map((s, i) => (
+                <div key={i} style={{ fontSize: 12, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  • {s}
+                </div>
+              ))}
+              {items.length > 2 && (
+                <div style={{ fontSize: 12, color: '#999' }}>+{items.length - 2} 更多</div>
+              )}
+            </div>
+          </Tooltip>
         ) : (
           <Text type="secondary">—</Text>
         ),
@@ -376,20 +399,31 @@ export default function TokenPlanListPage() {
         ),
     },
     {
+      title: '展示原价',
+      key: 'showOriginalPrice',
+      width: 90,
+      align: 'center',
+      render: (_, r: TokenPlan) => (
+        <Tag color={r.showOriginalPrice ? 'green' : 'default'}>
+          {r.showOriginalPrice ? '是' : '否'}
+        </Tag>
+      ),
+    },
+    {
       title: '订阅时长',
       key: 'durations',
       width: 180,
       render: (_, r) => {
         if (!r.durations || r.durations.length === 0) return <Text type="secondary">—</Text>
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+          <Space size={[4, 4]} wrap>
             {r.durations.map((d, i) => (
-              <Tag key={i} color={d.discount >= 100 ? 'default' : 'orange'} style={{ marginInlineEnd: 0 }}>
+              <Tag key={i} color={d.discount >= 100 ? 'default' : 'orange'}>
                 {d.label}
                 {d.discount < 100 ? ` ${formatDiscount(d.discount)}` : ''}
               </Tag>
             ))}
-          </div>
+          </Space>
         )
       },
     },
@@ -430,6 +464,37 @@ export default function TokenPlanListPage() {
       render: (_, r) => `${r.validityValue} ${VALIDITY_UNIT_LABEL[r.validityUnit]}`,
     },
     {
+      title: '自动续费',
+      dataIndex: 'autoRenew',
+      key: 'autoRenew',
+      width: 90,
+      align: 'center',
+      render: (v: boolean) =>
+        v ? <Tag color="green">支持</Tag> : <Tag>不支持</Tag>,
+    },
+    {
+      title: '包含模型',
+      key: 'modelIds',
+      width: 100,
+      align: 'center',
+      render: (_, r) => {
+        if (r.modelIds.length === 0) return <Text type="secondary">—</Text>
+        return (
+          <Tooltip
+            title={
+              <div style={{ lineHeight: 1.8 }}>
+                {r.modelIds.map((id) => (
+                  <div key={id}>{modelNameMap[id] ?? '—'}</div>
+                ))}
+              </div>
+            }
+          >
+            <Text style={{ cursor: 'pointer', color: '#2f6bff' }}>{r.modelIds.length}</Text>
+          </Tooltip>
+        )
+      },
+    },
+    {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
@@ -458,12 +523,9 @@ export default function TokenPlanListPage() {
       title: '操作',
       key: 'action',
       fixed: 'right',
-      width: 190,
+      width: 120,
       render: (_, r) => (
         <Space size={4}>
-          <Button type="link" size="small" onClick={() => setConfigPlan(r)}>
-            配置模型
-          </Button>
           <Button type="link" size="small" onClick={() => openEdit(r)}>
             编辑
           </Button>
@@ -483,9 +545,40 @@ export default function TokenPlanListPage() {
     },
   ]
 
-  if (configPlan) {
-    return <PlanModelConfig plan={configPlan} onBack={() => setConfigPlan(null)} />
-  }
+  /* 模型选择表格列 */
+  const modelPickerColumns: ColumnsType<(typeof models)[0]> = [
+    {
+      title: '模型名称',
+      dataIndex: 'name',
+      key: 'name',
+      render: (v: string) => <Text strong>{v}</Text>,
+    },
+    {
+      title: '输出类型',
+      dataIndex: 'outputModals',
+      key: 'outputModals',
+      width: 140,
+      render: (v: string[]) =>
+        v?.length ? (
+          <Space size={4} wrap>
+            {v.map((m) => (
+              <Tag key={m}>{m}</Tag>
+            ))}
+          </Space>
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
+    },
+    {
+      title: '上架状态',
+      dataIndex: 'online',
+      key: 'online',
+      width: 100,
+      align: 'center',
+      render: (v: boolean) =>
+        v ? <Tag color="green">已上架</Tag> : <Tag color="red">已下架</Tag>,
+    },
+  ]
 
   return (
     <PageShell
@@ -596,7 +689,7 @@ export default function TokenPlanListPage() {
                     '套餐名称 50 字内不可重复',
                     '副标题选填，用于列表展示',
                     '套餐版本：个人版 / 企业版',
-                    '套餐内容按条展示，支持新增/删除/修改',
+                    '摘要按条展示，支持新增/删除/修改',
                   ],
                 },
                 {
@@ -617,10 +710,11 @@ export default function TokenPlanListPage() {
                   ],
                 },
                 {
-                  label: '状态',
+                  label: '模型与状态',
                   items: [
+                    '点击选择模型，可多选；空模型也允许保存',
                     '套餐状态：默认上架，可在新增时直接关掉',
-                    '前台设为主推：默认关闭，开启后前台卡片高亮展示',
+                    '是否支持自动续费：默认关闭',
                   ],
                 },
                 {
@@ -708,7 +802,7 @@ export default function TokenPlanListPage() {
               onChange={(e) => setForm({ ...form, planType: e.target.value })}
             >
               <Radio value="personal">个人版</Radio>
-              {SHOW_ENTERPRISE && <Radio value="enterprise">企业版</Radio>}
+              <Radio value="enterprise">企业版</Radio>
             </Radio.Group>
           </Form.Item>
 
@@ -810,6 +904,8 @@ export default function TokenPlanListPage() {
                     })
                   }}
                   options={[
+                    { value: 'day', label: '天' },
+                    { value: 'week', label: '周' },
                     { value: 'month', label: '个月' },
                     { value: 'quarter', label: '个季度' },
                     { value: 'year', label: '年' },
@@ -865,8 +961,6 @@ export default function TokenPlanListPage() {
                 const displayUnits = durationToDisplayUnits(dur.months, form.validityUnit)
                 const autoLabel = buildDurationLabel(displayUnits, form.validityUnit)
                 const unitMeta = PLAN_DURATION_UNIT_META[form.validityUnit]
-                // 总金额 = 行内显示的数量 × 售价（折扣前原价）
-                const totalAmount = +(form.price * displayUnits).toFixed(2)
                 return (
                   <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <Input
@@ -901,19 +995,6 @@ export default function TokenPlanListPage() {
                       min={1}
                       precision={0}
                       addonAfter={unitMeta.unitSingle}
-                    />
-                    <InputNumber
-                      style={{ width: 110 }}
-                      size="small"
-                      disabled
-                      value={totalAmount}
-                      prefix="¥"
-                      title="总金额 = 数量 × 售价"
-                      formatter={(value) =>
-                        value === undefined || value === null
-                          ? ''
-                          : `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                      }
                     />
                     <InputNumber
                       style={{ width: 100 }}
@@ -1001,7 +1082,7 @@ export default function TokenPlanListPage() {
             </div>
           </Form.Item>
 
-          {/* 开关项：产品标签 / 上下架 / 前台设为主推 */}
+          {/* 开关项：推荐 / 上下架 / 自动续费 */}
           <div
             style={{
               display: 'flex',
@@ -1036,17 +1117,98 @@ export default function TokenPlanListPage() {
             </div>
             <div style={{ width: 1, background: '#f0f0f0' }} />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 16 }}>
-              <span style={{ fontSize: 13, color: '#333' }}>前台设为主推</span>
+              <span style={{ fontSize: 13, color: '#333' }}>是否支持自动续费</span>
               <Switch
-                checked={form.highlight}
-                onChange={(v) => setForm({ ...form, highlight: v })}
-                checkedChildren="是"
-                unCheckedChildren="否"
+                checked={form.autoRenew}
+                onChange={(v) => setForm({ ...form, autoRenew: v })}
+                checkedChildren="支持"
+                unCheckedChildren="不支持"
                 size="small"
               />
             </div>
           </div>
+
+          {/* 包含模型 */}
+          <Form.Item label="包含模型" style={{ marginBottom: 0 }}>
+            <div
+              style={{
+                padding: 12,
+                background: '#fafafa',
+                borderRadius: 8,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 8,
+                }}
+              >
+                <Text type="secondary">
+                  已选 {form.modelIds.length} 个模型
+                </Text>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  size="small"
+                  onClick={openModelPicker}
+                >
+                  选择模型
+                </Button>
+              </div>
+              {form.modelIds.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 12, color: '#999', fontSize: 12 }}>
+                  点击「选择模型」添加包含的模型
+                </div>
+              ) : (
+                <Space size={[8, 8]} wrap>
+                  {form.modelIds.map((id) => (
+                    <Tag
+                      key={id}
+                      closable
+                      onClose={() =>
+                        setForm({
+                          ...form,
+                          modelIds: form.modelIds.filter((m) => m !== id),
+                        })
+                      }
+                    >
+                      {modelNameMap[id] ?? '—'}
+                    </Tag>
+                  ))}
+                </Space>
+              )}
+            </div>
+          </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 模型选择弹窗 */}
+      <Modal
+        title="选择模型"
+        open={modelPickerOpen}
+        onCancel={() => setModelPickerOpen(false)}
+        onOk={confirmModelPicker}
+        okText="确认选择"
+        cancelText="取消"
+        centered
+        width={700}
+        destroyOnClose
+      >
+        <Table
+          rowKey="id"
+          columns={modelPickerColumns}
+          dataSource={models}
+          rowSelection={{
+            type: 'checkbox',
+            selectedRowKeys: selectedModelIds,
+            onChange: (keys) => setSelectedModelIds(keys as string[]),
+          }}
+          pagination={{ pageSize: 8, showSizeChanger: false }}
+          size="small"
+          scroll={{ y: 360 }}
+        />
       </Modal>
 
       {/* 删除确认弹窗 */}

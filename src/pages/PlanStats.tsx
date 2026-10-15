@@ -16,7 +16,6 @@ import {
   WarningOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { SHOW_ENTERPRISE } from '../constants'
 
 const { Text } = Typography
 
@@ -158,13 +157,11 @@ function OverviewCard() {
               <Text type="secondary" style={{ fontSize: 13 }}>Token Plan套餐总数</Text>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontSize: 26, fontWeight: 600, color: '#333' }}>{SHOW_ENTERPRISE ? 5 : 3}</span>
+              <span style={{ fontSize: 26, fontWeight: 600, color: '#333' }}>5</span>
               <Text type="secondary" style={{ fontSize: 14 }}>个</Text>
               <div style={{ display: 'flex', gap: 6, marginLeft: 4 }}>
                 <Tag color="#722ed1" style={{ borderRadius: 4, fontSize: 12 }}>个人版 3</Tag>
-                {SHOW_ENTERPRISE && (
-                  <Tag color="#fa8c16" style={{ borderRadius: 4, fontSize: 12 }}>企业版 2</Tag>
-                )}
+                <Tag color="#fa8c16" style={{ borderRadius: 4, fontSize: 12 }}>企业版 2</Tag>
               </div>
             </div>
           </div>
@@ -666,14 +663,7 @@ export default function PlanStats() {
       {/* 热门排行榜 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} lg={12}>
-          <RankingTable
-            dataSource={
-              SHOW_ENTERPRISE
-                ? HOT_PLANS
-                : HOT_PLANS.filter((p) => p.type !== '企业版').map((p, i) => ({ ...p, rank: i + 1 }))
-            }
-            title={SHOW_ENTERPRISE ? '热门套餐 TOP 5' : '热门套餐 TOP 3'}
-          />
+          <RankingTable dataSource={HOT_PLANS} title="热门套餐 TOP 5" />
         </Col>
         <Col xs={24} lg={12}>
           <RankingTable dataSource={HOT_RESOURCE_PACKS} title="热门资源包 TOP 5" />

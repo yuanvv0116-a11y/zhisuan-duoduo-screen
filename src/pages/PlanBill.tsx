@@ -25,7 +25,6 @@ import {
   PhoneOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { SHOW_ENTERPRISE } from '../constants'
 
 const { Text } = Typography
 const { RangePicker } = DatePicker
@@ -355,7 +354,6 @@ export default function PlanBill() {
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
-      if (!SHOW_ENTERPRISE && r.productName.includes('企业')) return false
       if (appliedSearch.orderNo && !r.orderNo.toLowerCase().includes(appliedSearch.orderNo.toLowerCase())) return false
       if (appliedSearch.productName && !r.productName.toLowerCase().includes(appliedSearch.productName.toLowerCase())) return false
       if (appliedSearch.userAccount && !r.userAccount.toLowerCase().includes(appliedSearch.userAccount.toLowerCase())) return false

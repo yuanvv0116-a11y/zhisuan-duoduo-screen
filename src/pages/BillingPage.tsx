@@ -26,7 +26,6 @@ import {
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import { demoVoucherCompactTs, demoVoucherStamp, useAccountLedgers, useOrderDetails } from '../store'
-import { SHOW_ENTERPRISE } from '../constants'
 import type {
   AccountLedger,
   AccountOperationType,
@@ -182,7 +181,6 @@ function OrderDetailSection() {
 
   const filtered = useMemo(() => {
     return allOrders.filter((o) => {
-      if (!SHOW_ENTERPRISE && o.productName.includes('企业版')) return false
       if (applied.productName) {
         if (!o.productName.toLowerCase().includes(applied.productName.trim().toLowerCase()))
           return false

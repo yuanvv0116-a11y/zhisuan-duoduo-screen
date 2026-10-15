@@ -9,7 +9,6 @@ import type {
   ModelItem,
   ModelGroup,
   ModelRebateRule,
-  PlanModelConfig,
   PromoActivityPage,
   PromoCampaign,
   PromoCampaignModel,
@@ -1905,7 +1904,7 @@ export function useResourcePacks() {
 
 /* ---------------- Token 套餐 ---------------- */
 
-const PLAN_STORAGE_KEY = 'zsdd_token_plans_v14'
+const PLAN_STORAGE_KEY = 'zsdd_token_plans_v13'
 
 const planSeed: TokenPlan[] = [
   {
@@ -1975,7 +1974,6 @@ const planSeed: TokenPlan[] = [
     planType: 'personal',
     summaryItems: ['适合每天高频使用的开发者', '优先排队通道', '支持全部模型'],
     price: 599,
-    highlight: true,
     discountPrice: 497.17,
     discount: 83,
     showOriginalPrice: true,
@@ -2094,121 +2092,6 @@ export function useTokenPlans() {
   }, [])
 
   return { plans, addPlan, updatePlan, removePlan }
-}
-
-/* ---------------- 套餐配置的模型（配置模型页） ---------------- */
-
-const PLAN_MODEL_STORAGE_KEY = 'zsdd_plan_models_v1'
-
-const planModelSeed: PlanModelConfig[] = [
-  {
-    id: uid(),
-    planId: planSeed[0].id,
-    modelName: 'DODO-AC-Ultra-5',
-    multiplierName: '标准倍率',
-    multiplier: 1,
-    visible: true,
-  },
-  {
-    id: uid(),
-    planId: planSeed[0].id,
-    modelName: 'Qwen3.6-27B-NVFP4',
-    multiplierName: '活动优惠倍率',
-    multiplier: 0.8,
-    visible: true,
-  },
-  {
-    id: uid(),
-    planId: planSeed[1].id,
-    modelName: 'DODO-AC-Ultra-5',
-    multiplierName: '尊享加速倍率',
-    multiplier: 2,
-    visible: true,
-  },
-  {
-    id: uid(),
-    planId: planSeed[1].id,
-    modelName: 'DeepSeek-V4-Flash',
-    multiplierName: '尊享加速倍率',
-    multiplier: 2,
-    visible: true,
-  },
-  {
-    id: uid(),
-    planId: planSeed[1].id,
-    modelName: 'Doubao-Seedream-5.0-Pro',
-    multiplierName: '标准倍率',
-    multiplier: 1.5,
-    visible: false,
-  },
-  {
-    id: uid(),
-    planId: planSeed[2].id,
-    modelName: 'DeepSeek-V4-Flash',
-    multiplierName: '独享资源倍率',
-    multiplier: 3,
-    visible: true,
-  },
-  {
-    id: uid(),
-    planId: planSeed[2].id,
-    modelName: 'Doubao-Seedance-2.0',
-    multiplierName: '视频生成倍率',
-    multiplier: 1.2,
-    visible: true,
-  },
-]
-
-function loadPlanModels(): PlanModelConfig[] {
-  try {
-    const raw = localStorage.getItem(PLAN_MODEL_STORAGE_KEY)
-    if (raw) return JSON.parse(raw) as PlanModelConfig[]
-  } catch {
-    /* ignore */
-  }
-  localStorage.setItem(PLAN_MODEL_STORAGE_KEY, JSON.stringify(planModelSeed))
-  return planModelSeed
-}
-
-let planModelState: PlanModelConfig[] = loadPlanModels()
-const planModelListeners = new Set<() => void>()
-
-function emitPlanModels() {
-  localStorage.setItem(PLAN_MODEL_STORAGE_KEY, JSON.stringify(planModelState))
-  planModelListeners.forEach((l) => l())
-}
-
-function subscribePlanModels(cb: () => void) {
-  planModelListeners.add(cb)
-  return () => planModelListeners.delete(cb)
-}
-
-function getPlanModelsSnapshot() {
-  return planModelState
-}
-
-export function usePlanModels() {
-  const planModels = useSyncExternalStore(subscribePlanModels, getPlanModelsSnapshot)
-
-  const addPlanModels = useCallback((planId: string, rows: Omit<PlanModelConfig, 'id' | 'planId'>[]) => {
-    planModelState = [
-      ...planModelState,
-      ...rows.map((r) => ({ ...r, id: uid(), planId })),
-    ]
-    emitPlanModels()
-  }, [])
-
-  const updatePlanModel = useCallback((id: string, patch: Partial<PlanModelConfig>) => {
-    planModelState = planModelState.map((r) => (r.id === id ? { ...r, ...patch } : r))
-    emitPlanModels()
-  }, [])
-
-  const removePlanModel = useCallback((id: string) => {
-    planModelState = planModelState.filter((r) => r.id !== id)
-    emitPlanModels()
-  }, [])
-
-  return { planModels, addPlanModels, updatePlanModel, removePlanModel }
 }
 
 /* ============================== 费用管理 - 账户明细 ============================== */

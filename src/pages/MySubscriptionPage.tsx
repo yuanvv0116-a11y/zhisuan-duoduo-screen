@@ -26,9 +26,9 @@ import {
   PlusOutlined,
   ReloadOutlined,
   ArrowRightOutlined,
+  SearchOutlined,
 } from '@ant-design/icons'
 import { maskSecret } from '../components/SecretCell'
-import { SHOW_ENTERPRISE } from '../constants'
 
 const { Text } = Typography
 
@@ -106,6 +106,7 @@ const PLAN_INFO = {
   remainingDays: 31,
   startAt: '2026-08-23 13:55:43',
   endAt: '2026-09-24 00:00:00',
+  autoRenew: false,
 }
 
 export type ModelRow = {
@@ -167,10 +168,12 @@ interface Props {
   variant?: 'normal' | 'noPlan' | 'noPack'
   onSubscribe?: (edition: 'personal' | 'team') => void
   onRenew?: () => void
-  onViewOrders?: () => void
 }
 
-export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal', onSubscribe, onRenew, onViewOrders }: Props) {
+export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal', onSubscribe, onRenew }: Props) {
+  const [autoRenewModalOpen, setAutoRenewModalOpen] = useState(false)
+  const [closeRenewModalOpen, setCloseRenewModalOpen] = useState(false)
+  const [autoRenewEnabled, setAutoRenewEnabled] = useState(PLAN_INFO.autoRenew)
   const [edition, setEdition] = useState<'personal' | 'team'>('personal')
   const [packDetailOpen, setPackDetailOpen] = useState(false)
 
@@ -268,25 +271,27 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
   const editionLabel = edition === 'personal' ? '个人版' : '企业版'
   const isEmptyState = variant === 'noPlan'
 
+  const emptyTitle = variant === 'noPlan'
+    ? `暂未订阅${editionLabel}套餐`
+    : `暂无${editionLabel}资源包`
+  const emptySubtitle = variant === 'noPlan'
+    ? `订阅 Token Plan ${editionLabel}套餐以开始使用服务`
+    : `暂无可用${editionLabel}资源包，请先购买`
+  const emptyBtnText = variant === 'noPlan' ? '立即订阅' : '去购买'
+
   return (
     <div style={{ padding: 24, background: '#f0f2f5', minHeight: '100%' }}>
-      {/* 顶部 Tab（未购买套餐的空状态不展示） */}
-      {!isEmptyState && (
-        <div style={{ marginBottom: 16 }}>
-          <Segmented
-            value={edition}
-            onChange={(v) => setEdition(v as 'personal' | 'team')}
-            options={
-              SHOW_ENTERPRISE
-                ? [
-                    { label: '个人版', value: 'personal' },
-                    { label: '企业版', value: 'team' },
-                  ]
-                : [{ label: '个人版', value: 'personal' }]
-            }
-          />
-        </div>
-      )}
+      {/* 顶部 Tab */}
+      <div style={{ marginBottom: 16 }}>
+        <Segmented
+          value={edition}
+          onChange={(v) => setEdition(v as 'personal' | 'team')}
+          options={[
+            { label: '个人版', value: 'personal' },
+            { label: '企业版', value: 'team' },
+          ]}
+        />
+      </div>
 
       {/* 空状态 */}
       {isEmptyState ? (
@@ -302,60 +307,20 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 24,
+            gap: 16,
           }}
         >
-          <div style={{ fontSize: 18, color: '#1f2937', fontWeight: 600 }}>您还未订阅 Token Plan</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <Button
-              size="large"
-              onClick={() => onSubscribe?.('personal')}
-              style={{
-                height: 44,
-                borderRadius: 10,
-                padding: '0 28px',
-                fontSize: 15,
-                fontWeight: 600,
-                background: '#111827',
-                borderColor: '#111827',
-                color: '#fff',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              立即购买个人版
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M7 17L17 7" />
-                <path d="M9 7h8v8" />
-              </svg>
-            </Button>
-            {SHOW_ENTERPRISE && (
-              <Button
-                size="large"
-                onClick={() => onSubscribe?.('team')}
-                style={{
-                  height: 44,
-                  borderRadius: 10,
-                  padding: '0 28px',
-                  fontSize: 15,
-                  fontWeight: 500,
-                  color: '#111827',
-                  borderColor: '#e0e0e0',
-                  background: '#fff',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                立即购买企业版
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7 17L17 7" />
-                  <path d="M9 7h8v8" />
-                </svg>
-              </Button>
-            )}
-          </div>
+          <SearchOutlined style={{ fontSize: 48, color: '#c4cdd6' }} />
+          <div style={{ fontSize: 18, color: '#1f2937', fontWeight: 600 }}>{emptyTitle}</div>
+          <div style={{ fontSize: 14, color: '#94a3b8' }}>{emptySubtitle}</div>
+          <Button
+            type="primary"
+            size="large"
+            onClick={() => onSubscribe?.(edition)}
+            style={{ height: 44, borderRadius: 8, padding: '0 32px', fontSize: 15, marginTop: 8 }}
+          >
+            {emptyBtnText}
+          </Button>
         </div>
       ) : (
       <>
@@ -380,8 +345,6 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               'linear-gradient(180deg, rgba(174,214,255,0.18) 0%, rgba(255,255,255,1) 60%)',
             borderRight: '1px solid #eef0f4',
             position: 'relative',
-            display: 'flex',
-            flexDirection: 'column',
           }}
         >
           <div
@@ -412,7 +375,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               </Tooltip>
             </Space>
             <a
-              onClick={() => onViewOrders?.()}
+              onClick={() => message.info('查看历史订单')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -427,16 +390,8 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             </a>
           </div>
 
-          {/* 信息列表（flex:1 均分剩余高度，避免与底部按钮之间出现大片空白） */}
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-evenly',
-              gap: 18,
-            }}
-          >
+          {/* 信息列表 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <span style={{ color: '#94a3b8', width: 74 }}>套餐状态</span>
               <Tag
@@ -482,10 +437,46 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               <span style={{ color: '#94a3b8', width: 74 }}>结束时间</span>
               <Text style={{ color: '#111827' }}>{PLAN_INFO.endAt}</Text>
             </div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16,
+                marginTop: 2,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <span style={{ color: '#94a3b8', width: 74 }}>自动续费</span>
+                <Text style={{ color: '#111827' }}>
+                  {autoRenewEnabled ? '已开启' : '未开启'}
+                </Text>
+              </div>
+              <a
+                onClick={() => {
+                  if (autoRenewEnabled) {
+                    setCloseRenewModalOpen(true)
+                  } else {
+                    setAutoRenewModalOpen(true)
+                  }
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  color: autoRenewEnabled ? '#ef4444' : PRIMARY,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                {autoRenewEnabled ? '关闭自动续费' : '开启自动续费'}{' '}
+                <ArrowRightOutlined style={{ fontSize: 12 }} />
+              </a>
+            </div>
           </div>
 
           {/* 底部按钮 */}
-          <div style={{ marginTop: 'auto', paddingTop: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Button
               size="large"
               type="primary"
@@ -515,12 +506,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               marginBottom: 32,
             }}
           >
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: '#1f2937' }}>套餐额度</div>
-              <div style={{ marginTop: 4, fontSize: 12, color: '#94a3b8' }}>
-                限额周期：2026-10-12 ~ 2026-10-18，周期内未用完的额度不作结转
-              </div>
-            </div>
+            <span style={{ fontSize: 20, fontWeight: 600, color: '#1f2937' }}>套餐额度</span>
             <Space size={16}>
               <a
                 onClick={() => onOpenUsageStats?.()}
@@ -613,14 +599,11 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
           {variant === 'noPack' ? (
             <div
               style={{
-                height: 103,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
+                textAlign: 'center',
+                padding: '48px 0',
               }}
             >
-              <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 14 }}>
+              <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 16 }}>
                 暂无可用{editionLabel}资源包，请先购买
               </div>
               <Button
@@ -772,7 +755,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
         style={{ borderRadius: 12, marginBottom: 16, border: '1px solid #eef0f4' }}
         bodyStyle={{ padding: '28px 32px' }}
       >
-        {/* API Key 标题 */}
+        {/* API Key 标题 + 新增 */}
         <div
           style={{
             display: 'flex',
@@ -784,6 +767,21 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
           <div style={{ fontSize: 20, fontWeight: 600, color: '#1f2937' }}>
             专属 API KEY
           </div>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              if (apiKeys.length >= MAX_API_KEYS) {
+                message.error(`每个账户最多可生成 ${MAX_API_KEYS} 个密钥`)
+                return
+              }
+              addForm.setFieldsValue({ permanent: true })
+              setAddModalOpen(true)
+            }}
+            style={{ borderRadius: 8, height: 36, padding: '0 16px' }}
+          >
+            新增
+          </Button>
         </div>
         <div style={{ color: '#64748b', lineHeight: 1.8, marginBottom: 18 }}>
           请妥善保存您的密钥信息，不要与他人共享，或者暴露在客户端代码中。为保护您的账户安全，我们可能会自动禁用任何公开泄漏的 API
@@ -870,32 +868,6 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
           </div>
         </div>
 
-        {/* API Key 列表上方：新增 */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            marginBottom: 12,
-          }}
-        >
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              if (apiKeys.length >= MAX_API_KEYS) {
-                message.error(`每个账户最多可生成 ${MAX_API_KEYS} 个密钥`)
-                return
-              }
-              addForm.setFieldsValue({ permanent: true })
-              setAddModalOpen(true)
-            }}
-            style={{ borderRadius: 8, height: 36, padding: '0 16px' }}
-          >
-            新增
-          </Button>
-        </div>
-
         {/* API Key 表格 */}
         <Table<ApiKeyItem>
           rowKey="id"
@@ -903,7 +875,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
           pagination={false}
           tableLayout="fixed"
           style={{ fontSize: 14 }}
-          locale={{ emptyText: '暂无 API Key，点击上方「新增」创建' }}
+          locale={{ emptyText: '暂无 API Key，点击右上角「新增」创建' }}
           columns={[
             {
               title: '名称',
@@ -1199,6 +1171,108 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
           ]}
         />
       </Card>
+
+      {/* 开启自动续费 确认弹窗 */}
+      <Modal
+        open={autoRenewModalOpen}
+        onCancel={() => setAutoRenewModalOpen(false)}
+        onOk={() => {
+          setAutoRenewEnabled(true)
+          setAutoRenewModalOpen(false)
+          message.success('自动续费已开启')
+        }}
+        centered
+        width={640}
+        destroyOnClose
+        okText="确定"
+        cancelText="取消"
+        okButtonProps={{ style: { background: PRIMARY, borderColor: PRIMARY, height: 40, paddingInline: 26 } }}
+        cancelButtonProps={{ style: { height: 40, paddingInline: 26 } }}
+        title={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 18, fontWeight: 600, color: '#1e2a57' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                background: '#eaf1ff',
+                color: PRIMARY,
+                fontSize: 14,
+              }}
+            >
+              <InfoCircleOutlined />
+            </span>
+            确认开启自动续费？
+          </span>
+        }
+      >
+        <div
+          style={{
+            padding: '16px 24px 4px',
+            fontSize: 15,
+            lineHeight: 1.9,
+            color: '#445064',
+          }}
+        >
+          <ol style={{ paddingLeft: 22, margin: 0 }}>
+            <li style={{ marginBottom: 14 }}>
+              设置自动续订后次日生效，并非立即执行续订。生效后将于资源到期前1天的8:00开始续订扣款，当天最多执行3次。如资源明天8:00到期，则今日8:00后不会自动续订，请手工续订。
+            </li>
+            <li style={{ marginBottom: 14 }}>
+              自动续订扣款仅可扣除账户余额（不支持扣除银行卡/支付宝余额、信用卡额度），请保证额度充足。
+            </li>
+            <li>自动续费周期与新购周期保持一致</li>
+          </ol>
+        </div>
+      </Modal>
+
+      {/* 关闭自动续费 确认弹窗 */}
+      <Modal
+        open={closeRenewModalOpen}
+        onCancel={() => setCloseRenewModalOpen(false)}
+        onOk={() => {
+          setAutoRenewEnabled(false)
+          setCloseRenewModalOpen(false)
+          message.success('已关闭自动续费')
+        }}
+        centered
+        width={520}
+        destroyOnClose
+        okText="确定关闭"
+        cancelText="取消"
+        okButtonProps={{
+          danger: true,
+          style: { height: 40, paddingInline: 26 },
+        }}
+        cancelButtonProps={{ style: { height: 40, paddingInline: 26 } }}
+        title={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 18, fontWeight: 600, color: '#1e2a57' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                background: '#fff1f0',
+                color: '#ef4444',
+                fontSize: 14,
+              }}
+            >
+              ⚠
+            </span>
+            确认关闭自动续费？
+          </span>
+        }
+      >
+        <div style={{ padding: '8px 24px 4px', fontSize: 15, lineHeight: 1.9, color: '#445064' }}>
+          关闭后，当前套餐到期将不再自动续订。如需续订请在到期前手动操作。
+        </div>
+      </Modal>
 
       {/* 资源包详情弹窗 */}
       <Modal

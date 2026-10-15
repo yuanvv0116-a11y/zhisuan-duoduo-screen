@@ -35,7 +35,6 @@ import MySubscriptionPage from './pages/MySubscriptionPage'
 import BillingPage, { type BillingSubPage } from './pages/BillingPage'
 import ResourcePackPage from './pages/ResourcePackPage'
 import PromoLandingPage from './pages/PromoLandingPage'
-import OfficialWebPage from './pages/OfficialWebPage'
 import PromoShareLandingPage from './pages/PromoShareLandingPage'
 import PromoInviteeLandingPageV2 from './pages/PromoInviteeLandingPageV2'
 import PromoLoginPage from './pages/PromoLoginPage'
@@ -53,7 +52,6 @@ import { RELEASES, parseConsoleScope } from './releases'
 import { getActiveScope, getScopeFromUrl, getScopeRouteKeys, isInScope, SCOPES } from './scope'
 import { getPromoSession } from './store'
 import type { TokenPlan } from './types'
-import { SHOW_ENTERPRISE } from './constants'
 
 const { Sider, Content, Header } = Layout
 const { Text } = Typography
@@ -197,31 +195,6 @@ const MENU_LEAF_KEYS: Set<string> = new Set(
   FULL_MENU.flatMap((it) => (it.children && it.children.length ? it.children.map((c) => c.key) : [it.key])),
 )
 
-/** 官方网站页面 key：tokenPlan=「Token Plan」菜单页，promo=推广合伙人落地页，其余为占位页 */
-type WebsitePage =
-  | 'tokenPlan'
-  | 'product'
-  | 'plaza'
-  | 'factory'
-  | 'market'
-  | 'intel'
-  | 'news'
-  | 'solution'
-  | 'promo'
-
-/** 官网完整顶部导航（固定结构，评审模式只隐藏未声明的项，不删结构） */
-const WEBSITE_NAV: { key: WebsitePage; label: string }[] = [
-  { key: 'tokenPlan', label: 'Token Plan' },
-  { key: 'product', label: '产品服务' },
-  { key: 'plaza', label: '模型广场' },
-  { key: 'factory', label: 'Token工厂' },
-  { key: 'market', label: '算力市场' },
-  { key: 'intel', label: '算力商情' },
-  { key: 'news', label: '行业资讯' },
-  { key: 'solution', label: '解决方案' },
-  { key: 'promo', label: '推广合伙人' },
-]
-
 /** 按 routeKeys 过滤菜单；组内没有可见子项时整个组隐藏 */
 function filterMenu(items: MenuItem[], allowed: Set<string> | 'all'): MenuItem[] {
   if (allowed === 'all') return items
@@ -283,8 +256,6 @@ export default function App() {
   /** 从「分销合伙人 › 分佣明细」跳转带过来的分销员，用于分佣明细页自动搜索 */
   const [commissionDetailFilter, setCommissionDetailFilter] = useState<CommissionDetailFilter | undefined>(undefined)
   const [viewMode, setViewMode] = useState<'admin' | 'console' | 'website'>('admin')
-  /** 官网当前页：默认落在「Token Plan」菜单页 */
-  const [websitePage, setWebsitePage] = useState<WebsitePage>('tokenPlan')
   /** 控制台默认落在费用管理，顶部导航点击「控制台」时也回到费用管理 */
   const [consoleSubPage, setConsoleSubPage] = useState<string>('billing')
   const [tokenPlanSub, setTokenPlanSub] = useState<
@@ -327,13 +298,6 @@ export default function App() {
   const handleRenew = () => {
     setCheckoutPlan(renewPlan)
     setIsRenewMode(true)
-  }
-  /** 「查看历史订单」：跳转到费用管理的订单明细页 */
-  const handleViewOrders = () => {
-    setCheckoutPlan(null)
-    setIsRenewMode(false)
-    setConsoleSubPage('billing')
-    setBillingSub('orderDetail')
   }
   const [paymentData, setPaymentData] = useState<{
     plan: TokenPlan
@@ -473,15 +437,9 @@ export default function App() {
   const showConsoleFactory = !consoleScope || !!allowedFactoryMenus
   const showConsoleBilling = !consoleScope || !!allowedBillingSubs
   const showConsolePromo = !consoleScope || consoleScope.promo
-  /** 控制台顶部「Token Plan」：完整版始终显示；评审模式按 consoleKeys 是否含 `plan` 放行 */
-  const showConsoleTokenPlan = !consoleScope || consoleScope.tokenPlan
   const showConsoleLogin = !reviewRelease || !consoleScope || consoleScope.login
-  /** 官网可见导航：完整版全量；评审模式只放行 websiteKeys 声明的页面（隐藏而非删除，其余页面结构保留） */
-  const visibleWebNav = reviewRelease?.websiteKeys
-    ? WEBSITE_NAV.filter((n) => (reviewRelease.websiteKeys as string[]).includes(n.key))
-    : WEBSITE_NAV
-  /** 官网落地页：取可见导航第一项 */
-  const websiteLanding: WebsitePage = visibleWebNav[0]?.key ?? 'tokenPlan'
+  /** 官方网站导航：评审模式下只放行本次 websiteKeys 声明的页面（当前官网仅「推广合伙人」一项） */
+  const showWebPromo = !reviewRelease?.websiteKeys || reviewRelease.websiteKeys.includes('promo')
   const defaultConsoleSub = showConsoleFactory
     ? 'tokenFactory'
     : showConsoleBilling
@@ -489,25 +447,18 @@ export default function App() {
       : 'tokenFactory'
   /** 费用管理默认子页：评审模式取本次放行项的第一项，否则落在菜单首项「账户概览」 */
   const defaultBillingSub: BillingSubPage = allowedBillingSubs?.[0] ?? 'accountOverview'
-  /** 点击「控制台」时的落地子页：放行推广合伙人直达该页，其次 Token Plan，再次 Token工厂，最后费用管理 */
-  const consoleLandingSub = showConsolePromo
-    ? 'promo'
-    : showConsoleTokenPlan
-      ? 'tokenPlan'
-      : showConsoleFactory
-        ? 'tokenFactory'
-        : 'billing'
+  /** 点击「控制台」时的落地子页：完整版与本次放行推广合伙人的评审版直达该页，其次费用管理，最后 Token工厂 */
+  const consoleLandingSub = showConsolePromo ? 'promo' : showConsoleBilling ? 'billing' : defaultConsoleSub
 
   /** 评审模式：控制台子页回落到本次范围内的入口 */
   useEffect(() => {
     if (!consoleScope) return
-    if (!showConsoleFactory && !showConsoleBilling && !showConsolePromo && !showConsoleTokenPlan) return
-    if (consoleSubPage === 'tokenFactory' && !showConsoleFactory) setConsoleSubPage(showConsolePromo ? 'promo' : showConsoleTokenPlan ? 'tokenPlan' : 'billing')
-    if (consoleSubPage === 'billing' && !showConsoleBilling) setConsoleSubPage(showConsolePromo ? 'promo' : showConsoleTokenPlan ? 'tokenPlan' : 'tokenFactory')
-    if (consoleSubPage === 'tokenPlan' && !showConsoleTokenPlan) setConsoleSubPage(defaultConsoleSub)
-    if (['appPlaza', 'opc'].includes(consoleSubPage)) setConsoleSubPage(defaultConsoleSub)
+    if (!showConsoleFactory && !showConsoleBilling && !showConsolePromo) return
+    if (consoleSubPage === 'tokenFactory' && !showConsoleFactory) setConsoleSubPage(showConsolePromo ? 'promo' : 'billing')
+    if (consoleSubPage === 'billing' && !showConsoleBilling) setConsoleSubPage(showConsolePromo ? 'promo' : 'tokenFactory')
+    if (['appPlaza', 'opc', 'tokenPlan'].includes(consoleSubPage)) setConsoleSubPage(defaultConsoleSub)
     if (consoleSubPage === 'promo' && !showConsolePromo) setConsoleSubPage(defaultConsoleSub)
-  }, [consoleScope, consoleSubPage, showConsoleFactory, showConsoleBilling, showConsolePromo, showConsoleTokenPlan, defaultConsoleSub])
+  }, [consoleScope, consoleSubPage, showConsoleFactory, showConsoleBilling, showConsolePromo, defaultConsoleSub])
 
   /** 评审模式：费用二级菜单回落到本次范围内的第一项 */
   useEffect(() => {
@@ -515,13 +466,6 @@ export default function App() {
     if (allowedBillingSubs.includes(billingSub)) return
     setBillingSub(allowedBillingSubs[0])
   }, [allowedBillingSubs, billingSub])
-
-  /** 评审模式：官网当前页不在放行范围时，回落到落地页 */
-  useEffect(() => {
-    if (viewMode !== 'website') return
-    if (visibleWebNav.some((n) => n.key === websitePage)) return
-    setWebsitePage(websiteLanding)
-  }, [viewMode, reviewVersion, websitePage, websiteLanding])
 
   /** 分销商活动落地页：?share=<活动id> 命中时整屏渲染，不叠加后台/控制台/官网的任何外壳；
    * 用 state 承载是为了「进入控制台」时能清掉它、让 App 正常渲染控制台 */
@@ -727,12 +671,9 @@ export default function App() {
             if (next === 'console') {
               setConsoleSubPage(consoleLandingSub)
               if (consoleLandingSub === 'billing') setBillingSub(defaultBillingSub)
-              if (consoleLandingSub === 'tokenPlan') setTokenPlanSub('overview')
               setCheckoutPlan(null)
               setPaymentData(null)
             }
-            /** 点击「官方网站」回到落地页（完整版 Token Plan 菜单页；评审版本次放行页） */
-            if (next === 'website') setWebsitePage(websiteLanding)
           }}
           options={[
             {
@@ -971,7 +912,7 @@ export default function App() {
                   opc社区
                 </span>
               )}
-              {showConsoleTokenPlan && (
+              {!consoleScope && (
               <span
                 style={{
                   color: consoleSubPage === 'tokenPlan' ? '#2f6bff' : '#5a6474',
@@ -1123,12 +1064,12 @@ export default function App() {
                 setTokenPlanSub('mySubscriptionNoPack')
               }}
             />
-          ) : consoleSubPage === 'tokenPlan' && SHOW_ENTERPRISE && showEnterprisePage && !enterpriseCheckoutPlan ? (
+          ) : consoleSubPage === 'tokenPlan' && showEnterprisePage && !enterpriseCheckoutPlan ? (
             <EnterprisePurchasePage
               onBack={() => setShowEnterprisePage(false)}
               onBuy={(plan) => setEnterpriseCheckoutPlan(plan)}
             />
-          ) : consoleSubPage === 'tokenPlan' && SHOW_ENTERPRISE && showEnterprisePage && enterpriseCheckoutPlan ? (
+          ) : consoleSubPage === 'tokenPlan' && showEnterprisePage && enterpriseCheckoutPlan ? (
             <EnterpriseCheckoutPage
               plan={enterpriseCheckoutPlan}
               onBack={() => setEnterpriseCheckoutPlan(null)}
@@ -1207,11 +1148,11 @@ export default function App() {
                 ) : tokenPlanSub === 'resourcePack' ? (
                   <ResourcePackPage />
                 ) : tokenPlanSub === 'mySubscriptionNoPlan' ? (
-                  <MySubscriptionPage variant="noPlan" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} />
+                  <MySubscriptionPage variant="noPlan" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} />
                 ) : tokenPlanSub === 'mySubscriptionNoPack' ? (
-                  <MySubscriptionPage variant="noPack" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} />
+                  <MySubscriptionPage variant="noPack" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} />
                 ) : (
-                  <MySubscriptionPage variant="normal" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} />
+                  <MySubscriptionPage variant="normal" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} />
                 )}
               </div>
             </div>
@@ -1261,7 +1202,7 @@ export default function App() {
         </Content>
       )}
 
-      {/* 官方网站视图：完整顶部导航 + 各页面内容；评审模式只隐藏未声明的导航项 */}
+      {/* 官方网站视图：独立顶部导航（仅「推广合伙人」）+ 推广合伙人落地页 */}
       {viewMode === 'website' && (
         <Content style={{ overflow: 'auto', background: '#fff' }}>
           <div
@@ -1295,53 +1236,32 @@ export default function App() {
                 <span style={{ color: '#5a6474', fontWeight: 400, fontSize: 12 }}>国联股份</span>
                 <span style={{ fontWeight: 600 }}>智算多多</span>
               </Space>
-              {visibleWebNav.map((nav) => {
-                const isActive = websitePage === nav.key
-                if (nav.key === 'promo') {
-                  return (
-                    <span
-                      key={nav.key}
-                      onClick={() => setWebsitePage('promo')}
-                      style={{
-                        color: isActive ? '#1a1a1a' : '#5a6474',
-                        fontWeight: isActive ? 600 : 400,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      <MoneyCollectOutlined style={{ color: '#fa8c16' }} />
-                      推广合伙人
-                      <RequirementDot
-                        title="推广合伙人 · 需求说明"
-                        sections={[
-                          {
-                            label: '需求内容',
-                            items: [
-                              '1.页面展示如图；',
-                              '2.部分信息根据分销活动动态展示，具体见页面需求提示。',
-                            ],
-                          },
-                        ]}
-                      />
-                    </span>
-                  )
-                }
-                return (
-                  <span
-                    key={nav.key}
-                    onClick={() => setWebsitePage(nav.key)}
-                    style={{
-                      color: isActive ? '#1a1a1a' : '#5a6474',
-                      fontWeight: isActive ? 600 : 400,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {nav.label}
-                  </span>
-                )
-              })}
+              {showWebPromo && (
+                <span
+                  style={{
+                    color: '#1a1a1a',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <MoneyCollectOutlined style={{ color: '#fa8c16' }} />
+                  推广合伙人
+                  <RequirementDot
+                    title="推广合伙人 · 需求说明"
+                    sections={[
+                      {
+                        label: '需求内容',
+                        items: [
+                          '1.页面展示如图；',
+                          '2.部分信息根据分销活动动态展示，具体见页面需求提示。',
+                        ],
+                      },
+                    ]}
+                  />
+                </span>
+              )}
             </Space>
             <Space size={16}>
               <span style={{ color: '#5a6474', cursor: 'pointer' }}>控制台</span>
@@ -1379,8 +1299,7 @@ export default function App() {
               </span>
             </Space>
           </div>
-          {websitePage === 'tokenPlan' && <OfficialWebPage />}
-          {websitePage === 'promo' && (
+          {showWebPromo && (
             <PromoLandingPage
               onGoConsole={() => {
                 /** 未登录先过登录页，登录成功后由 onSuccess 落到控制台 · 推广合伙人；已登录直接进 */
@@ -1395,13 +1314,7 @@ export default function App() {
               }}
             />
           )}
-          {websitePage !== 'tokenPlan' && websitePage !== 'promo' && (
-            <div style={{ padding: 120, textAlign: 'center', color: '#999' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🚧</div>
-              <div style={{ fontSize: 16 }}>该页面建设中...</div>
-            </div>
-          )}
-          {websitePage !== 'tokenPlan' && <SiteFooter />}
+          <SiteFooter />
         </Content>
       )}
     </Layout>
