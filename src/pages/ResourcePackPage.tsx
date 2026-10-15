@@ -15,6 +15,7 @@ import type { AgreementType } from './AgreementPage'
 type Pack = {
   id: string
   name: string
+  model: string
   desc: string
   price: number
   originalPrice: number
@@ -33,14 +34,14 @@ const DESC_GLM =
   '智谱旗舰模型，支持 1M 无损上下文，长程任务执行更稳定，工程规范遵循更可靠。'
 
 const PACKS: Pack[] = [
-  { id: 'p1', name: 'Qwen-Max 特价尊享包', desc: DESC_QWEN, price: 189.9, originalPrice: 259.9, benefit: '包含1亿 Tokens（有效期3个月）' },
-  { id: 'p2', name: 'Qwen-Max 特价尝鲜包', desc: DESC_QWEN, price: 39.9, originalPrice: 59.9, benefit: '包含2000万 Tokens（有效期1个月）' },
-  { id: 'p3', name: 'DeepSeek-V4 8折特惠包', desc: DESC_DEEPSEEK, price: 56, originalPrice: 70, benefit: '包含3000万 Tokens（有效期1个月）' },
-  { id: 'p4', name: 'DeepSeek-V4 3折尊享包', desc: DESC_DEEPSEEK, price: 199.9, originalPrice: 666, benefit: '包含1亿 Tokens（有效期3个月）' },
-  { id: 'p5', name: 'Wan-Image 8折特惠包', desc: DESC_WAN, price: 40, originalPrice: 50, benefit: '包含1000张图像（有效期1个月）' },
-  { id: 'p6', name: 'Wan-Image 3折尝鲜包', desc: DESC_WAN, price: 5.9, originalPrice: 19.9, benefit: '包含100张图像（有效期1个月）' },
-  { id: 'p7', name: 'HappyHorse 视频8折特惠包', desc: DESC_HORSE, price: 28, originalPrice: 35, benefit: '包含10次视频生成（有效期1个月）' },
-  { id: 'p8', name: 'GLM-5.2 3折尝鲜包', desc: DESC_GLM, price: 2.9, originalPrice: 9.9, benefit: '包含100万 Tokens（有效期1个月）' },
+  { id: 'p1', name: 'Qwen-Max 特价尊享包', model: 'Qwen-Max', desc: DESC_QWEN, price: 189.9, originalPrice: 259.9, benefit: '包含1亿 Tokens（有效期3个月）' },
+  { id: 'p2', name: 'Qwen-Max 特价尝鲜包', model: 'Qwen-Max', desc: DESC_QWEN, price: 39.9, originalPrice: 59.9, benefit: '包含2000万 Tokens（有效期1个月）' },
+  { id: 'p3', name: 'DeepSeek-V4 8折特惠包', model: 'DeepSeek-V4', desc: DESC_DEEPSEEK, price: 56, originalPrice: 70, benefit: '包含3000万 Tokens（有效期1个月）' },
+  { id: 'p4', name: 'DeepSeek-V4 3折尊享包', model: 'DeepSeek-V4', desc: DESC_DEEPSEEK, price: 199.9, originalPrice: 666, benefit: '包含1亿 Tokens（有效期3个月）' },
+  { id: 'p5', name: 'Wan-Image 8折特惠包', model: 'Wan-Image', desc: DESC_WAN, price: 40, originalPrice: 50, benefit: '包含1000张图像（有效期1个月）' },
+  { id: 'p6', name: 'Wan-Image 3折尝鲜包', model: 'Wan-Image', desc: DESC_WAN, price: 5.9, originalPrice: 19.9, benefit: '包含100张图像（有效期1个月）' },
+  { id: 'p7', name: 'HappyHorse 视频8折特惠包', model: 'HappyHorse', desc: DESC_HORSE, price: 28, originalPrice: 35, benefit: '包含10次视频生成（有效期1个月）' },
+  { id: 'p8', name: 'GLM-5.2 3折尝鲜包', model: 'GLM-5.2', desc: DESC_GLM, price: 2.9, originalPrice: 9.9, benefit: '包含100万 Tokens（有效期1个月）' },
 ]
 
 /** 从 benefit 文案拆出「额度」与「有效期」，用于卡片内展示 */
@@ -681,6 +682,10 @@ export default function ResourcePackPage() {
                               lineHeight: 1.9,
                             }}
                           >
+                            <div>
+                              <span style={{ color: '#86909c' }}>支持模型：</span>
+                              <span style={{ fontWeight: 600 }}>{p.model}</span>
+                            </div>
                             <div>
                               <span style={{ color: '#86909c' }}>包含额度：</span>
                               <span style={{ fontWeight: 600 }}>{amount}</span>
