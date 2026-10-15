@@ -1142,7 +1142,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             },
             {
               title: '操作',
-              width: 200,
+              width: 260,
               fixed: 'right',
               render: (_: unknown, record) => (
                 <span style={{ whiteSpace: 'nowrap' }}>
