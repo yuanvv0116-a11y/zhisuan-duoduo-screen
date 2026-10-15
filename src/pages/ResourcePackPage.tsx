@@ -54,7 +54,7 @@ function splitBenefit(benefit: string): { amount: string; validity: string } {
 }
 
 const BUY_NOTES = [
-  '资源包购买成功后立即生效，使用时优先扣减Token Plan  然后扣减资源包，资源包额度使用完后则扣减现金账户;',
+  '加油包购买成功后立即生效，使用时优先扣减Token Plan 然后扣减加油包，加油包额度使用完后则扣减现金账户;',
   '资源包的有效期按照自然月计算，具体以页面为主，同时购买相同模型资源包使用时间不叠加；',
   '资源包购买后不支持退款；',
 ]
