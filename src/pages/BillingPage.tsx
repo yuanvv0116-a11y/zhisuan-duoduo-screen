@@ -483,6 +483,20 @@ function OrderDetailSection() {
               {ORDER_PRODUCT_TYPE_LABEL[currentOrder.productType]}
             </OrderDetailRow>
             <OrderDetailRow label="订单类型">{ORDER_TYPE_LABEL[currentOrder.orderType]}</OrderDetailRow>
+            <OrderDetailRow label="资源状态">
+              {currentOrder.resourceStatus ? (
+                <Tag
+                  color={resourceStatusTagColor(currentOrder.resourceStatus)}
+                  style={{ borderRadius: 4, marginInlineEnd: 0 }}
+                >
+                  {RESOURCE_STATUS_LABEL[currentOrder.resourceStatus]}
+                </Tag>
+              ) : (
+                '—'
+              )}
+            </OrderDetailRow>
+            <OrderDetailRow label="资源生效时间">{currentOrder.grantedAt || '—'}</OrderDetailRow>
+            <OrderDetailRow label="失效时间">{currentOrder.expireAt ?? '—'}</OrderDetailRow>
 
             <OrderDetailGroup title="费用信息" />
             <OrderDetailRow label="官网目录总价">
