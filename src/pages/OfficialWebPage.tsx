@@ -26,16 +26,15 @@ const { Title, Text, Paragraph } = Typography
 const HERO_BG = new URL('../assets/web-tokenplan-hero.jpg', import.meta.url).href
 
 const AI_TOOLS = [
-  { name: 'Qwen Code', icon: '💎' },
-  { name: 'Cline', icon: '🎯' },
   { name: 'Claude Code', icon: '✨' },
-  { name: 'Cursor', icon: '🎨' },
-  { name: 'OpenCode', icon: '🖥️' },
   { name: 'Codex', icon: '🧬' },
-  { name: 'Kilo CLI', icon: '🔧' },
+  { name: 'WorkBuddy', icon: '🤝' },
+  { name: 'TraeWork', icon: '🚀' },
+  { name: 'CodeBuddy', icon: '💻' },
+  { name: 'TraeCode', icon: '⚡' },
+  { name: 'OpenCode', icon: '🖥️' },
+  { name: 'Cursor', icon: '🎨' },
   { name: 'OpenClaw', icon: '🐙' },
-  { name: 'LangChain', icon: '🔗' },
-  { name: 'Llamaindex', icon: '🦙' },
 ]
 
 /** 资源包（按设计图 8 个） */
@@ -707,23 +706,23 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
           <Paragraph style={{ textAlign: 'center', color: '#86909c', margin: '10px 0 20px', fontSize: 14 }}>
             Token Plan 支持兼容 OpenAI / Anthropic 协议的主流工具
           </Paragraph>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: 16 }}>
             {AI_TOOLS.map((tool) => (
               <div
                 key={tool.name}
                 style={{
-                  background: '#fff',
+                  background: '#f7f8fa',
                   borderRadius: 12,
-                  border: '1px solid #eef0f4',
-                  padding: '18px 24px',
+                  padding: '20px 8px 16px',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 14,
+                  gap: 10,
                   cursor: 'pointer',
                 }}
               >
-                <span style={{ fontSize: 24, lineHeight: 1 }}>{tool.icon}</span>
-                <Text strong style={{ fontSize: 15, color: '#1a1a1a' }}>
+                <span style={{ fontSize: 26, lineHeight: 1 }}>{tool.icon}</span>
+                <Text strong style={{ fontSize: 14, color: '#1a1a1a' }}>
                   {tool.name}
                 </Text>
               </div>
