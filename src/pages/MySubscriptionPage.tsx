@@ -269,8 +269,8 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
 
   return (
     <div style={{ padding: 24, background: '#f0f2f5', minHeight: '100%' }}>
-      {/* 顶部 Tab（未购买套餐的空状态不展示） */}
-      {!isEmptyState && (
+      {/* 顶部 Tab（仅正常订阅状态展示，未购买套餐/未购买资源包状态不展示） */}
+      {variant === 'normal' && (
         <div style={{ marginBottom: 16 }}>
           <Segmented
             value={edition}
