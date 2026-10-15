@@ -789,83 +789,119 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
           Key。您也可以随时重置以生成新的密钥。
         </div>
 
-        {/* 接入地址 */}
+        {/* 接入地址：Base URL + API Endpoints */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#1f2937', marginBottom: 10 }}>
             接入地址
           </div>
           <div
             style={{
-              display: 'flex',
-              gap: 16,
-              flexWrap: 'wrap',
+              padding: '4px 16px',
+              background: '#f8fafc',
+              border: '1px solid #eef0f4',
+              borderRadius: 8,
             }}
           >
-            {[
-              {
-                label: 'OpenAI 兼容',
-                url: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
-              },
-              {
-                label: 'Anthropic 兼容',
-                url: 'https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic',
-              },
-            ].map((item) => (
-              <div
-                key={item.label}
+            {/* Base URL */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '10px 0',
+              }}
+            >
+              <span
                 style={{
-                  flex: 1,
-                  minWidth: 360,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 16px',
-                  background: '#f8fafc',
-                  border: '1px solid #eef0f4',
-                  borderRadius: 8,
+                  fontSize: 13,
+                  color: '#64748b',
+                  whiteSpace: 'nowrap',
+                  fontWeight: 500,
+                  width: 110,
+                  flexShrink: 0,
                 }}
               >
+                Base URL
+              </span>
+              <code
+                style={{
+                  flex: 1,
+                  fontSize: 13,
+                  color: '#334155',
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                  background: 'transparent',
+                  padding: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+                title="https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+              >
+                https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+              </code>
+              <Tooltip title="复制">
                 <span
+                  onClick={() =>
+                    copyToClipboard(
+                      'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
+                      'Base URL',
+                    )
+                  }
                   style={{
-                    fontSize: 13,
-                    color: '#64748b',
-                    whiteSpace: 'nowrap',
-                    fontWeight: 500,
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    flexShrink: 0,
                   }}
                 >
-                  {item.label}
+                  <CopyOutlined />
                 </span>
-                <code
+              </Tooltip>
+            </div>
+            {/* API Endpoints */}
+            <div style={{ borderTop: '1px solid #eef0f4', padding: '10px 0' }}>
+              <div style={{ fontSize: 13, color: '#64748b', fontWeight: 500, marginBottom: 6 }}>
+                API Endpoints:
+              </div>
+              {['/v1/chat/completions', '/v1/messages'].map((endpoint) => (
+                <div
+                  key={endpoint}
                   style={{
-                    flex: 1,
-                    fontSize: 13,
-                    color: '#334155',
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                    background: 'transparent',
-                    padding: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '4px 0',
                   }}
-                  title={item.url}
                 >
-                  {item.url}
-                </code>
-                <Tooltip title="复制">
-                  <span
-                    onClick={() => copyToClipboard(item.url, '接入地址')}
+                  <code
                     style={{
-                      color: '#94a3b8',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      flexShrink: 0,
+                      flex: 1,
+                      fontSize: 13,
+                      color: '#334155',
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                      background: 'transparent',
+                      padding: 0,
+                      paddingLeft: 110,
                     }}
                   >
-                    <CopyOutlined />
-                  </span>
-                </Tooltip>
-              </div>
-            ))}
+                    {endpoint}
+                  </code>
+                  <Tooltip title="复制">
+                    <span
+                      onClick={() => copyToClipboard(endpoint, 'API Endpoint')}
+                      style={{
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <CopyOutlined />
+                    </span>
+                  </Tooltip>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
