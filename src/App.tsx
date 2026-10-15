@@ -347,6 +347,10 @@ export default function App() {
     setFactoryDetailId(id)
     setConsoleSubPage('tokenFactory')
   }
+  /** 未购买资源包时的「去购买」：跳转到资源包管理页 */
+  const handleGoResourcePack = () => {
+    setTokenPlanSub('resourcePack')
+  }
   const [paymentData, setPaymentData] = useState<{
     plan: TokenPlan
     duration: any
@@ -1247,7 +1251,7 @@ export default function App() {
                 ) : tokenPlanSub === 'mySubscriptionNoPlan' ? (
                   <MySubscriptionPage variant="noPlan" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} onViewModelDetail={handleViewModelDetail} />
                 ) : tokenPlanSub === 'mySubscriptionNoPack' ? (
-                  <MySubscriptionPage variant="noPack" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} onViewModelDetail={handleViewModelDetail} />
+                  <MySubscriptionPage variant="noPack" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} onViewModelDetail={handleViewModelDetail} onGoResourcePack={handleGoResourcePack} />
                 ) : (
                   <MySubscriptionPage variant="normal" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} onViewModelDetail={handleViewModelDetail} />
                 )}

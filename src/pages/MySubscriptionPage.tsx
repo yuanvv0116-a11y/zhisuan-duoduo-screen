@@ -170,9 +170,11 @@ interface Props {
   onViewOrders?: () => void
   /** 「查看模型详情」：跳转到 Token工厂模型广场对应模型的详情页 */
   onViewModelDetail?: (model: string) => void
+  /** 未购买资源包时的「去购买」：跳转到资源包管理 */
+  onGoResourcePack?: () => void
 }
 
-export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal', onSubscribe, onRenew, onViewOrders, onViewModelDetail }: Props) {
+export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal', onSubscribe, onRenew, onViewOrders, onViewModelDetail, onGoResourcePack }: Props) {
   const [edition, setEdition] = useState<'personal' | 'team'>('personal')
   const [packDetailOpen, setPackDetailOpen] = useState(false)
   const [guideModel, setGuideModel] = useState<string | null>(null)
@@ -627,7 +629,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               </div>
               <Button
                 type="primary"
-                onClick={() => onSubscribe?.(edition)}
+                onClick={() => onGoResourcePack?.()}
                 style={{ height: 40, borderRadius: 8, padding: '0 24px' }}
               >
                 去购买
