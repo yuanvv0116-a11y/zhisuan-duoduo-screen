@@ -1176,7 +1176,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                     style={{ color: PRIMARY, cursor: 'pointer', marginRight: 16 }}
                     onClick={() => setGuideModel(record.model)}
                   >
-                    接入示例
+                    接入信息
                   </a>
                   <a
                     style={{ color: PRIMARY, cursor: 'pointer' }}
