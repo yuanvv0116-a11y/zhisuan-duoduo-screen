@@ -10,7 +10,6 @@ import {
   Tooltip,
   Tag,
   Modal,
-  Descriptions,
   message,
   Alert,
   Select,
@@ -23,6 +22,7 @@ import {
   DownloadOutlined,
   InfoCircleOutlined,
   ProfileOutlined,
+  CloseOutlined,
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import { demoVoucherCompactTs, demoVoucherStamp, useAccountLedgers, useOrderDetails } from '../store'
@@ -115,58 +115,44 @@ const emptyConsumptionSearch: ConsumptionSearchForm = {
 
 const { RangePicker } = DatePicker
 
-function DetailRow({
+/** 订单详情弹窗的行：左侧灰色标签 + 右侧深色值，标签可带 ⓘ 说明 */
+function OrderDetailRow({
   label,
-  value,
-  copyable,
-  divider = true,
+  tooltip,
+  children,
 }: {
-  label: React.ReactNode
-  value: React.ReactNode
-  copyable?: boolean
-  divider?: boolean
+  label: string
+  tooltip?: string
+  children: React.ReactNode
 }) {
-  const [copied, setCopied] = useState(false)
-  const handleCopy = () => {
-    if (typeof value === 'string' || typeof value === 'number') {
-      navigator.clipboard.writeText(String(value))
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    }
-  }
   return (
     <div
       style={{
         display: 'flex',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingBottom: divider ? 18 : 0,
-        borderBottom: divider ? '1px solid #f0f0f0' : 'none',
+        gap: 16,
+        padding: '11px 0',
       }}
     >
-      <span style={{ fontSize: 14, color: '#94a3b8', flexShrink: 0 }}>{label}</span>
       <span
         style={{
-          fontSize: 14,
-          color: '#1f2937',
-          textAlign: 'right',
+          width: 120,
+          flexShrink: 0,
+          fontSize: 13,
+          color: '#8c8c8c',
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          maxWidth: '60%',
-          wordBreak: 'break-all',
+          gap: 4,
         }}
       >
-        {value}
-        {copyable && (
-          <Tooltip title={copied ? '已复制' : '复制'}>
-            <ExportOutlined
-              style={{ color: '#bfbfbf', cursor: 'pointer', fontSize: 12 }}
-              onClick={handleCopy}
-            />
+        {label}
+        {tooltip && (
+          <Tooltip title={tooltip}>
+            <InfoCircleOutlined style={{ color: '#c0c4cc', fontSize: 12 }} />
           </Tooltip>
         )}
       </span>
+      <span style={{ fontSize: 13, color: '#1f2937', wordBreak: 'break-all' }}>{children}</span>
     </div>
   )
 }
@@ -456,134 +442,82 @@ function OrderDetailSection() {
         open={detailOpen}
         onCancel={() => setDetailOpen(false)}
         footer={null}
-        width={600}
+        width={520}
         destroyOnClose
         title={null}
-        closable={true}
+        closable={false}
       >
-        <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          <div style={{ fontSize: 17, fontWeight: 600, color: '#1f2937', marginBottom: 16 }}>
-            订单详情
+        {currentOrder && (
+          <div style={{ maxHeight: '70vh', overflowY: 'auto', padding: '4px 4px 0' }}>
+            {/* 标题行 */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingBottom: 14,
+                marginBottom: 6,
+                borderBottom: '1px solid #eef0f4',
+              }}
+            >
+              <span style={{ fontSize: 16, fontWeight: 600, color: '#1f2937' }}>订单详情</span>
+              <CloseOutlined
+                style={{ color: '#8c8c8c', cursor: 'pointer', fontSize: 14 }}
+                onClick={() => setDetailOpen(false)}
+              />
+            </div>
+
+            <OrderDetailRow label="订单号">{currentOrder.orderNo}</OrderDetailRow>
+            <OrderDetailRow label="订阅名称">
+              {currentOrder.planName ?? currentOrder.productName}
+            </OrderDetailRow>
+            <OrderDetailRow label="套餐/席位名称" tooltip="套餐规格与购买数量">
+              {currentOrder.seatName ?? '—'}
+            </OrderDetailRow>
+            <OrderDetailRow label="订阅周期">
+              {currentOrder.seatName?.includes('年付')
+                ? '年付'
+                : currentOrder.seatName?.includes('月付')
+                ? '月付'
+                : '—'}
+            </OrderDetailRow>
+            <OrderDetailRow label="交易类型">{ORDER_TYPE_LABEL[currentOrder.orderType]}</OrderDetailRow>
+            <OrderDetailRow label="支付状态">
+              <Tag
+                color={statusTagColor(currentOrder.status)}
+                style={{ borderRadius: 4, marginInlineEnd: 0 }}
+              >
+                {ORDER_STATUS_LABEL[currentOrder.status]}
+              </Tag>
+            </OrderDetailRow>
+            <OrderDetailRow label="创建时间">{currentOrder.createdAt}</OrderDetailRow>
+            <OrderDetailRow label="支付时间">{currentOrder.payAt ?? '—'}</OrderDetailRow>
+            <OrderDetailRow label="资源状态">
+              {currentOrder.resourceStatus ? (
+                <Tag
+                  color={resourceStatusTagColor(currentOrder.resourceStatus)}
+                  style={{ borderRadius: 4, marginInlineEnd: 0 }}
+                >
+                  {RESOURCE_STATUS_LABEL[currentOrder.resourceStatus]}
+                </Tag>
+              ) : (
+                '—'
+              )}
+            </OrderDetailRow>
+            <OrderDetailRow label="生效时间">{currentOrder.grantedAt || '—'}</OrderDetailRow>
+            <OrderDetailRow label="失效时间">{currentOrder.expireAt ?? '—'}</OrderDetailRow>
+            <OrderDetailRow label="官网目录总价">
+              ¥{(currentOrder.originalPrice ?? 0).toFixed(2)}
+            </OrderDetailRow>
+            <OrderDetailRow label="优惠金额">
+              ¥{(currentOrder.discountAmount ?? 0).toFixed(2)}
+            </OrderDetailRow>
+            <OrderDetailRow label="优惠券金额">¥{(currentOrder.couponAmount ?? 0).toFixed(2)}</OrderDetailRow>
+            <OrderDetailRow label="应付金额" tooltip="官网目录总价 − 优惠金额 − 优惠券金额">
+              ¥{currentOrder.amount.toFixed(2)}
+            </OrderDetailRow>
           </div>
-          {currentOrder && (
-            <>
-              <Descriptions
-                column={2}
-                size="small"
-                bordered
-                labelStyle={{ width: 100, color: '#8c8c8c', background: '#fafafa' }}
-                contentStyle={{ color: '#333' }}
-              >
-                <Descriptions.Item label="订单号">
-                  <span
-                    style={{
-                      fontFamily: 'monospace',
-                      cursor: 'pointer',
-                      wordBreak: 'break-all',
-                    }}
-                    onClick={() => {
-                      navigator.clipboard.writeText(currentOrder.orderNo)
-                      message.success('已复制')
-                    }}
-                  >
-                    {currentOrder.orderNo}
-                  </span>
-                </Descriptions.Item>
-                <Descriptions.Item label="订单类型">
-                  {ORDER_TYPE_LABEL[currentOrder.orderType]}
-                </Descriptions.Item>
-                <Descriptions.Item label="产品名称">
-                  <span title={currentOrder.productName}>{currentOrder.productName}</span>
-                </Descriptions.Item>
-                <Descriptions.Item label="支付状态">
-                  <Tag color={statusTagColor(currentOrder.status)} style={{ borderRadius: 6 }}>
-                    {ORDER_STATUS_LABEL[currentOrder.status]}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="订单总价">
-                  ¥{(currentOrder.originalPrice ?? 0).toFixed(2)}
-                </Descriptions.Item>
-                <Descriptions.Item label="优惠金额">
-                  ¥{(currentOrder.discountAmount ?? 0).toFixed(2)}
-                </Descriptions.Item>
-                <Descriptions.Item label="实付金额" span={2}>
-                  <span style={{ fontWeight: 600, color: '#ef4444', fontSize: 18 }}>
-                    ¥{currentOrder.amount.toFixed(2)}
-                  </span>
-                  <span style={{ color: '#8c8c8c', fontSize: 12, marginLeft: 16 }}>
-                    支付渠道：{currentOrder.paymentChannel ?? '—'}
-                  </span>
-                </Descriptions.Item>
-              </Descriptions>
-
-              <div style={{ height: 12 }} />
-
-              <Descriptions
-                title="资源信息"
-                column={2}
-                size="small"
-                bordered
-                labelStyle={{ width: 100, color: '#8c8c8c', background: '#fafafa' }}
-                contentStyle={{ color: '#333' }}
-              >
-                <Descriptions.Item label="资源状态">
-                  {currentOrder.resourceStatus ? (
-                    <Tag
-                      color={resourceStatusTagColor(currentOrder.resourceStatus)}
-                      style={{ borderRadius: 6 }}
-                    >
-                      {RESOURCE_STATUS_LABEL[currentOrder.resourceStatus]}
-                    </Tag>
-                  ) : (
-                    '—'
-                  )}
-                </Descriptions.Item>
-                <Descriptions.Item label="生效时间">
-                  {currentOrder.grantedAt || '—'}
-                </Descriptions.Item>
-                <Descriptions.Item label="失效时间">
-                  {currentOrder.expireAt ?? '—'}
-                </Descriptions.Item>
-                <Descriptions.Item label="总量">
-                  {currentOrder.totalTokens
-                    ? `${currentOrder.totalTokens} Tokens`
-                    : '—'}
-                </Descriptions.Item>
-                <Descriptions.Item label="余量" span={2}>
-                  <span
-                    style={{
-                      color:
-                        currentOrder.remainingTokens === '0'
-                          ? '#ef4444'
-                          : '#333',
-                    }}
-                  >
-                    {currentOrder.remainingTokens
-                      ? `${currentOrder.remainingTokens} Tokens`
-                      : '—'}
-                  </span>
-                </Descriptions.Item>
-              </Descriptions>
-
-              <div style={{ height: 12 }} />
-
-              <Descriptions
-                column={2}
-                size="small"
-                bordered
-                labelStyle={{ width: 100, color: '#8c8c8c', background: '#fafafa' }}
-                contentStyle={{ color: '#333' }}
-              >
-                <Descriptions.Item label="创建时间">
-                  {currentOrder.createdAt}
-                </Descriptions.Item>
-                <Descriptions.Item label="支付时间">
-                  {currentOrder.payAt ?? '—'}
-                </Descriptions.Item>
-              </Descriptions>
-            </>
-          )}
-        </div>
+        )}
       </Modal>
     </>
   )
