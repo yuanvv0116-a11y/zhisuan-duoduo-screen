@@ -468,20 +468,14 @@ function OrderDetailSection() {
             </div>
 
             <OrderDetailRow label="订单号">{currentOrder.orderNo}</OrderDetailRow>
-            <OrderDetailRow label="订阅名称">
-              {currentOrder.planName ?? currentOrder.productName}
+            <OrderDetailRow label="产品名称">{currentOrder.productName}</OrderDetailRow>
+            <OrderDetailRow label="产品类型">
+              {ORDER_PRODUCT_TYPE_LABEL[currentOrder.productType]}
             </OrderDetailRow>
-            <OrderDetailRow label="套餐/席位名称" tooltip="套餐规格与购买数量">
-              {currentOrder.seatName ?? '—'}
+            <OrderDetailRow label="订单类型">{ORDER_TYPE_LABEL[currentOrder.orderType]}</OrderDetailRow>
+            <OrderDetailRow label="实付金额">
+              <span style={{ fontWeight: 600 }}>¥{currentOrder.amount.toFixed(2)}</span>
             </OrderDetailRow>
-            <OrderDetailRow label="订阅周期">
-              {currentOrder.seatName?.includes('年付')
-                ? '年付'
-                : currentOrder.seatName?.includes('月付')
-                ? '月付'
-                : '—'}
-            </OrderDetailRow>
-            <OrderDetailRow label="交易类型">{ORDER_TYPE_LABEL[currentOrder.orderType]}</OrderDetailRow>
             <OrderDetailRow label="支付状态">
               <Tag
                 color={statusTagColor(currentOrder.status)}
@@ -490,8 +484,8 @@ function OrderDetailSection() {
                 {ORDER_STATUS_LABEL[currentOrder.status]}
               </Tag>
             </OrderDetailRow>
-            <OrderDetailRow label="创建时间">{currentOrder.createdAt}</OrderDetailRow>
-            <OrderDetailRow label="支付时间">{currentOrder.payAt ?? '—'}</OrderDetailRow>
+            <OrderDetailRow label="交易时间">{currentOrder.createdAt}</OrderDetailRow>
+            <OrderDetailRow label="资源生效时间">{currentOrder.grantedAt || '—'}</OrderDetailRow>
             <OrderDetailRow label="资源状态">
               {currentOrder.resourceStatus ? (
                 <Tag
@@ -504,18 +498,7 @@ function OrderDetailSection() {
                 '—'
               )}
             </OrderDetailRow>
-            <OrderDetailRow label="生效时间">{currentOrder.grantedAt || '—'}</OrderDetailRow>
             <OrderDetailRow label="失效时间">{currentOrder.expireAt ?? '—'}</OrderDetailRow>
-            <OrderDetailRow label="官网目录总价">
-              ¥{(currentOrder.originalPrice ?? 0).toFixed(2)}
-            </OrderDetailRow>
-            <OrderDetailRow label="优惠金额">
-              ¥{(currentOrder.discountAmount ?? 0).toFixed(2)}
-            </OrderDetailRow>
-            <OrderDetailRow label="优惠券金额">¥{(currentOrder.couponAmount ?? 0).toFixed(2)}</OrderDetailRow>
-            <OrderDetailRow label="应付金额" tooltip="官网目录总价 − 优惠金额 − 优惠券金额">
-              ¥{currentOrder.amount.toFixed(2)}
-            </OrderDetailRow>
           </div>
         )}
       </Modal>
