@@ -2503,6 +2503,14 @@ function loadOrderDetails(): OrderDetail[] {
       if (Array.isArray(parsed) && parsed.length > 0) {
         const first = parsed[0]
         if (first && 'resourceStatus' in first && 'paymentChannel' in first) {
+          // 按 id 补齐缺失的种子订单，保证后续新增的演示数据对存量浏览器也可见
+          const ids = new Set(parsed.map((o) => o.id))
+          const missing = ORDER_DETAIL_SEED.filter((o) => !ids.has(o.id))
+          if (missing.length > 0) {
+            const merged = [...parsed, ...missing]
+            localStorage.setItem(ORDER_DETAIL_STORAGE_KEY, JSON.stringify(merged))
+            return merged
+          }
           return parsed
         }
       }
