@@ -277,7 +277,9 @@ export const RELEASES: Record<string, ReleaseItem> = {
   /** ===== 2.4：推广合伙人计划雏形 ===== */
   '2.4': {
     title: '2.4 推广合伙人：分享一条链接，最高返 20%',
-    routeKeys: ['promoPartnerManage', 'promoRebateConfig', 'promoSettleAudit'],
+    routeKeys: ['promoPartnerManage', 'promoRebateConfig', 'promoCommissionDetail', 'promoSettleAudit', 'promoStats', 'voucherIssueCenter'],
+    consoleKeys: ['tf:overview', 'promo', 'login'],
+    websiteKeys: ['promo'],
     views: ['admin', 'console', 'website'],
     publishedAt: '2026-10-15',
     note: [
