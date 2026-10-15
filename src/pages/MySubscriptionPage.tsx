@@ -173,6 +173,7 @@ interface Props {
 export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal', onSubscribe, onRenew, onViewOrders }: Props) {
   const [edition, setEdition] = useState<'personal' | 'team'>('personal')
   const [packDetailOpen, setPackDetailOpen] = useState(false)
+  const [guideModel, setGuideModel] = useState<string | null>(null)
 
   /** ====== API Key 列表管理 ====== */
   const [apiKeys, setApiKeys] = useState<ApiKeyItem[]>(loadApiKeys)
@@ -1167,14 +1168,22 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             },
             {
               title: '操作',
-              width: 100,
+              width: 160,
               fixed: 'right',
-              render: () => (
-                <a
-                  style={{ color: PRIMARY, cursor: 'pointer' }}
-                >
-                  查看详情
-                </a>
+              render: (_: unknown, record) => (
+                <>
+                  <a
+                    style={{ color: PRIMARY, cursor: 'pointer', marginRight: 16 }}
+                    onClick={() => setGuideModel(record.model)}
+                  >
+                    接入示例
+                  </a>
+                  <a
+                    style={{ color: PRIMARY, cursor: 'pointer' }}
+                  >
+                    查看详情
+                  </a>
+                </>
               ),
             },
           ]}
@@ -1202,6 +1211,74 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             <div key={it.label} style={{ display: 'flex', fontSize: 14, lineHeight: 1.6 }}>
               <span style={{ width: 84, color: '#94a3b8', flexShrink: 0 }}>{it.label}</span>
               <span style={{ color: '#1f2937', flex: 1 }}>{it.value}</span>
+            </div>
+          ))}
+        </div>
+      </Modal>
+
+      {/* API 接入指南弹窗 */}
+      <Modal
+        title={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 4, height: 16, background: PRIMARY, borderRadius: 2 }} />
+            API 接入指南
+          </span>
+        }
+        open={guideModel !== null}
+        onCancel={() => setGuideModel(null)}
+        footer={null}
+        centered
+        width={520}
+        destroyOnClose
+      >
+        <div style={{ padding: '4px 4px 8px' }}>
+          {[
+            { label: 'Base URL：', items: [{ text: 'https://api.zsdodo.com', color: PRIMARY, label: 'Base URL' }] },
+            {
+              label: 'API Endpoints：',
+              items: [
+                { text: '/v1/messages', label: 'API Endpoint', color: undefined },
+                { text: '/v1/chat/completions', label: 'API Endpoint', color: undefined },
+              ],
+            },
+            { label: 'Model ID：', items: [{ text: guideModel ?? '', color: undefined, label: 'Model ID' }] },
+          ].map((group, gi, arr) => (
+            <div
+              key={group.label}
+              style={{
+                padding: '14px 0',
+                borderBottom: gi < arr.length - 1 ? '1px solid #eef0f4' : 'none',
+              }}
+            >
+              <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 6 }}>{group.label}</div>
+              {group.items.map((it) => (
+                <div
+                  key={it.text}
+                  style={{ display: 'flex', alignItems: 'center', padding: '5px 0' }}
+                >
+                  <span
+                    style={{
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                      fontSize: 14,
+                      color: it.color ?? '#1f2937',
+                      flex: 1,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {it.text}
+                  </span>
+                  <Tooltip title="复制">
+                    <span
+                      onClick={() => copyToClipboard(it.text, it.label)}
+                      style={{ color: '#94a3b8', cursor: 'pointer', display: 'inline-flex' }}
+                    >
+                      <CopyOutlined />
+                    </span>
+                  </Tooltip>
+                </div>
+              ))}
             </div>
           ))}
         </div>
