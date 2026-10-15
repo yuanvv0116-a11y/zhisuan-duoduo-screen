@@ -1141,32 +1141,6 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               render: (v: string) => <Text style={{ color: '#475569' }}>{v}</Text>,
             },
             {
-              title: 'Model ID',
-              dataIndex: 'model',
-              width: 220,
-              render: (v: string) => (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span
-                    style={{
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                      color: '#334155',
-                      fontSize: 13,
-                    }}
-                  >
-                    {v}
-                  </span>
-                  <Tooltip title="复制">
-                    <span
-                      onClick={() => copyToClipboard(v, 'Model ID')}
-                      style={{ color: '#94a3b8', cursor: 'pointer', display: 'inline-flex' }}
-                    >
-                      <CopyOutlined />
-                    </span>
-                  </Tooltip>
-                </div>
-              ),
-            },
-            {
               title: '操作',
               width: 200,
               fixed: 'right',
