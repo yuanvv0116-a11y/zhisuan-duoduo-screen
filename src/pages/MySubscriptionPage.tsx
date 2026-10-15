@@ -870,9 +870,6 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                 gap: '8px 24px',
               }}
             >
-              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>
-                API Endpoints:
-              </span>
               {[
                 { path: '/v1/chat/completions', desc: '对话补全接口，OpenAI 兼容的多轮对话' },
                 { path: '/v1/messages', desc: '消息接口，Anthropic 兼容的对话消息' },
