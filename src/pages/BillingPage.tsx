@@ -491,8 +491,7 @@ function OrderDetailSection() {
             <OrderDetailRow label="优惠金额">
               ¥{(currentOrder.discountAmount ?? 0).toFixed(2)}
             </OrderDetailRow>
-            <OrderDetailRow label="优惠券金额">¥{(currentOrder.couponAmount ?? 0).toFixed(2)}</OrderDetailRow>
-            <OrderDetailRow label="实付金额" tooltip="官网目录总价 − 优惠金额 − 优惠券金额">
+            <OrderDetailRow label="实付金额" tooltip="官网目录总价 − 优惠金额">
               <span style={{ fontWeight: 600 }}>¥{currentOrder.amount.toFixed(2)}</span>
             </OrderDetailRow>
 
