@@ -889,7 +889,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                     <span
                       onClick={() => copyToClipboard(endpoint, 'API Endpoint')}
                       style={{
-                        marginLeft: 8,
+                        marginLeft: 16,
                         color: '#94a3b8',
                         cursor: 'pointer',
                         display: 'inline-flex',
