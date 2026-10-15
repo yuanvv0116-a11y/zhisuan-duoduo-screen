@@ -483,6 +483,8 @@ function OrderDetailSection() {
               {ORDER_PRODUCT_TYPE_LABEL[currentOrder.productType]}
             </OrderDetailRow>
             <OrderDetailRow label="订单类型">{ORDER_TYPE_LABEL[currentOrder.orderType]}</OrderDetailRow>
+
+            <OrderDetailGroup title="资源信息" />
             <OrderDetailRow label="资源状态">
               {currentOrder.resourceStatus ? (
                 <Tag
@@ -508,6 +510,8 @@ function OrderDetailSection() {
             <OrderDetailRow label="实付金额" tooltip="官网目录总价 − 优惠金额">
               <span style={{ fontWeight: 600 }}>¥{currentOrder.amount.toFixed(2)}</span>
             </OrderDetailRow>
+
+            <OrderDetailGroup title="支付信息" />
             <OrderDetailRow label="支付状态">
               <Tag
                 color={statusTagColor(currentOrder.status)}
