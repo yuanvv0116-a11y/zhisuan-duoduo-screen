@@ -1168,10 +1168,10 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             },
             {
               title: '操作',
-              width: 160,
+              width: 200,
               fixed: 'right',
               render: (_: unknown, record) => (
-                <>
+                <span style={{ whiteSpace: 'nowrap' }}>
                   <a
                     style={{ color: PRIMARY, cursor: 'pointer', marginRight: 16 }}
                     onClick={() => setGuideModel(record.model)}
@@ -1183,7 +1183,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                   >
                     查看详情
                   </a>
-                </>
+                </span>
               ),
             },
           ]}
