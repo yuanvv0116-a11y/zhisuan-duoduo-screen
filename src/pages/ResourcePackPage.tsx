@@ -2,6 +2,9 @@ import { useMemo, useState } from 'react'
 import { Button, Card, Checkbox, Divider, Table, Tabs, Tag, Tooltip, message } from 'antd'
 import {
   ArrowLeftOutlined,
+  CalendarOutlined,
+  CodeSandboxOutlined,
+  DatabaseOutlined,
   InfoCircleOutlined,
   MinusOutlined,
   PlusOutlined,
@@ -678,19 +681,22 @@ export default function ResourcePackPage() {
                               marginTop: 10,
                               marginBottom: 12,
                               fontSize: 13,
-                              color: '#333',
-                              lineHeight: 1.9,
+                              color: '#1d2129',
+                              lineHeight: 2.1,
                             }}
                           >
-                            <div>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                              <CodeSandboxOutlined style={{ color: '#86909c', marginRight: 8 }} />
                               <span style={{ color: '#86909c' }}>支持模型：</span>
                               <span style={{ fontWeight: 600 }}>{p.model}</span>
                             </div>
-                            <div>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                              <DatabaseOutlined style={{ color: '#86909c', marginRight: 8 }} />
                               <span style={{ color: '#86909c' }}>包含额度：</span>
                               <span style={{ fontWeight: 600 }}>{amount}</span>
                             </div>
-                            <div>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                              <CalendarOutlined style={{ color: '#86909c', marginRight: 8 }} />
                               <span style={{ color: '#86909c' }}>有效期：</span>
                               <span style={{ fontWeight: 600 }}>{validity}</span>
                             </div>
