@@ -2,9 +2,13 @@ import { useMemo, useState } from 'react'
 import { Button, Card, Checkbox, Divider, Table, Tabs, Tag, Tooltip, message } from 'antd'
 import {
   ArrowLeftOutlined,
+  BookFilled,
+  CodeFilled,
   InfoCircleOutlined,
   MinusOutlined,
   PlusOutlined,
+  StarFilled,
+  TagFilled,
   WechatOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -41,6 +45,14 @@ const PACKS: Pack[] = [
   { id: 'p6', name: 'Wan-Image 3折尝鲜包', desc: DESC_WAN, price: 5.9, originalPrice: 19.9, benefit: '包含100张Wan-Image图像（有效期1个月）' },
   { id: 'p7', name: 'HappyHorse 视频8折特惠包', desc: DESC_HORSE, price: 28, originalPrice: 35, benefit: '包含10次HappyHorse视频生成（有效期1个月）' },
   { id: 'p8', name: 'GLM-5.2 3折尝鲜包', desc: DESC_GLM, price: 2.9, originalPrice: 9.9, benefit: '包含100万GLM-5.2（有效期1个月）' },
+]
+
+/** 加油包卡片左上角图标（按顺序循环使用） */
+const PACK_ICONS = [
+  { icon: <StarFilled />, bg: 'linear-gradient(135deg, #8a7bff, #4a5bf0)' },
+  { icon: <BookFilled />, bg: 'linear-gradient(135deg, #35e0b0, #0db39a)' },
+  { icon: <CodeFilled />, bg: 'linear-gradient(135deg, #5b8cff, #2f6bff)' },
+  { icon: <TagFilled />, bg: 'linear-gradient(135deg, #ffbe4a, #ff8a2f)' },
 ]
 
 const BUY_NOTES = [
@@ -631,55 +643,61 @@ export default function ResourcePackPage() {
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
                       gap: 16,
                       marginTop: 8,
                     }}
                   >
-                    {PACKS.map((p) => (
+                    {PACKS.map((p, i) => {
+                      const it = PACK_ICONS[i % PACK_ICONS.length]
+                      return (
                         <div
                           key={p.id}
                           style={{
-                            position: 'relative',
-                            overflow: 'hidden',
                             display: 'flex',
                             flexDirection: 'column',
-                            borderRadius: 8,
-                            border: '1px solid #aec8ff',
-                            background:
-                              'linear-gradient(160deg, #eef4ff 0%, #f5f9ff 55%, #eaf1fe 100%)',
+                            borderRadius: 12,
+                            border: '1px solid #eef0f4',
+                            background: '#fff',
+                            boxShadow: '0 2px 8px rgba(15, 35, 95, 0.06)',
                             padding: 20,
                           }}
                         >
-                          <div
-                            style={{
-                              position: 'absolute',
-                              top: -70,
-                              right: -70,
-                              width: 200,
-                              height: 200,
-                              borderRadius: '50%',
-                              background:
-                                'radial-gradient(circle, rgba(47,107,255,0.12) 0%, rgba(47,107,255,0) 70%)',
-                            }}
-                          />
-                          <div style={{ fontSize: 17, fontWeight: 700, color: '#111827' }}>
-                            {p.name}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div
+                              style={{
+                                width: 42,
+                                height: 42,
+                                borderRadius: 10,
+                                background: it.bg,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#fff',
+                                fontSize: 20,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {it.icon}
+                            </div>
+                            <span style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>
+                              {p.name}
+                            </span>
                           </div>
                           <div
                             style={{
-                              flex: 1,
                               marginTop: 12,
                               fontSize: 13,
                               color: '#6b7280',
-                              lineHeight: 1.7,
+                              lineHeight: 1.8,
+                              minHeight: 70,
                             }}
                           >
                             {p.desc}
                           </div>
-                          <div style={{ borderTop: '1px solid #e3eaf5', margin: '14px 0 12px' }} />
-                          <div style={{ marginBottom: 12 }}>
-                            <span style={{ fontSize: 22, fontWeight: 700, color: '#f5222d' }}>
+                          <div style={{ borderTop: '1px solid #f0f0f0', margin: '4px 0 14px' }} />
+                          <div style={{ marginBottom: 14 }}>
+                            <span style={{ fontSize: 26, fontWeight: 700, color: '#f5222d' }}>
                               {p.price}
                             </span>
                             <span style={{ fontSize: 13, color: '#f5222d', marginLeft: 4 }}>元</span>
@@ -688,7 +706,8 @@ export default function ResourcePackPage() {
                             去购买
                           </Button>
                         </div>
-                      ))}
+                      )
+                    })}
                   </div>
                 </div>
               ),
