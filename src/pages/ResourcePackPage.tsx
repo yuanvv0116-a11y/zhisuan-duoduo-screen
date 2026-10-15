@@ -70,7 +70,6 @@ const PACK_MODELS: { name: string; type: string }[] = [
   { name: 'Doubao-Seedream-5.0', type: '图像' },
   { name: 'DeepSeek-V4-Flash', type: '文本' },
   { name: 'GLM-5.2', type: '文本' },
-  { name: 'Wan-Image', type: '图像' },
   { name: 'HappyHorse', type: '视频' },
 ]
 
@@ -391,30 +390,47 @@ export default function ResourcePackPage() {
                 </div>
                 <div style={{ marginTop: 16 }}>
                   <div style={{ fontSize: 13, color: '#4b5563', marginBottom: 8 }}>
-                    支持模型（为优化使用，期间可能有部分调整）
+                    支持模型（{PACK_MODELS.length}个，为优化使用，期间可能有部分调整）
                   </div>
-                  <div style={{ fontSize: 13, color: '#333', lineHeight: 1.8 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {(() => {
-                      const MAX_SHOW = 4
+                      const MAX_SHOW = 3
                       const showModels = PACK_MODELS.slice(0, MAX_SHOW)
                       const hasMore = PACK_MODELS.length > MAX_SHOW
                       return (
                         <>
-                          {showModels.map((m, i) => (
-                            <span key={m.name}>
-                              <span style={{ color: '#111827' }}>{m.name}</span>
-                              {(i < showModels.length - 1 || hasMore) && (
-                                <span style={{ color: '#c0c4cc', margin: '0 4px' }}>,</span>
-                              )}
-                            </span>
+                          {showModels.map((m) => (
+                            <Tag
+                              key={m.name}
+                              style={{
+                                margin: 0,
+                                borderRadius: 4,
+                                fontSize: 11,
+                                padding: '2px 8px',
+                                background: '#f5f7fa',
+                                borderColor: '#e5e7eb',
+                                color: '#4b5563',
+                              }}
+                            >
+                              {m.name}
+                            </Tag>
                           ))}
                           {hasMore && (
-                            <a
+                            <Tag
                               onClick={() => setModelModalOpen(true)}
-                              style={{ color: '#2f6bff', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                              style={{
+                                margin: 0,
+                                borderRadius: 4,
+                                fontSize: 11,
+                                padding: '2px 8px',
+                                background: 'transparent',
+                                borderColor: '#e5e7eb',
+                                color: '#2f6bff',
+                                cursor: 'pointer',
+                              }}
                             >
-                              +{PACK_MODELS.length - MAX_SHOW}
-                            </a>
+                              +{PACK_MODELS.length - MAX_SHOW} 更多
+                            </Tag>
                           )}
                         </>
                       )
