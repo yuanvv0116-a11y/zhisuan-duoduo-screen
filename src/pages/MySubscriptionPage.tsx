@@ -859,29 +859,28 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               </Tooltip>
             </div>
             {/* API Endpoints */}
-            <div style={{ borderTop: '1px solid #eef0f4', padding: '10px 0' }}>
-              <div style={{ fontSize: 13, color: '#64748b', fontWeight: 500, marginBottom: 6 }}>
+            <div
+              style={{
+                borderTop: '1px solid #eef0f4',
+                padding: '10px 0',
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px 24px',
+              }}
+            >
+              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>
                 API Endpoints:
-              </div>
+              </span>
               {['/v1/chat/completions', '/v1/messages'].map((endpoint) => (
-                <div
-                  key={endpoint}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '4px 0',
-                  }}
-                >
+                <span key={endpoint} style={{ display: 'inline-flex', alignItems: 'center' }}>
                   <code
                     style={{
-                      flex: 1,
                       fontSize: 13,
                       color: '#334155',
                       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
                       background: 'transparent',
                       padding: 0,
-                      paddingLeft: 110,
                     }}
                   >
                     {endpoint}
@@ -890,16 +889,16 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                     <span
                       onClick={() => copyToClipboard(endpoint, 'API Endpoint')}
                       style={{
+                        marginLeft: 8,
                         color: '#94a3b8',
                         cursor: 'pointer',
                         display: 'inline-flex',
-                        flexShrink: 0,
                       }}
                     >
                       <CopyOutlined />
                     </span>
                   </Tooltip>
-                </div>
+                </span>
               ))}
             </div>
           </div>
