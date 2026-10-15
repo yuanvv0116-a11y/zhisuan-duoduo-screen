@@ -2535,6 +2535,24 @@ export function useOrderDetails() {
   return list
 }
 
+/** 支付待支付订单：标记已支付、写入支付时间与渠道，资源随即生效 */
+export function payOrderDetail(orderNo: string) {
+  const now = nowStamp()
+  orderDetailState = orderDetailState.map((o) =>
+    o.orderNo === orderNo && o.status === 'pending'
+      ? {
+          ...o,
+          status: 'paid' as const,
+          payAt: now,
+          paymentChannel: '微信',
+          resourceStatus: 'active' as const,
+          grantedAt: now,
+        }
+      : o,
+  )
+  emitOrderDetails()
+}
+
 /* ============================== 代金券 ============================== */
 
 /**

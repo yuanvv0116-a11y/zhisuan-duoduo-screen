@@ -25,8 +25,9 @@ import {
   CloseOutlined,
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
-import { demoVoucherCompactTs, demoVoucherStamp, useAccountLedgers, useOrderDetails } from '../store'
+import { demoVoucherCompactTs, demoVoucherStamp, useAccountLedgers, useOrderDetails, payOrderDetail } from '../store'
 import { SHOW_ENTERPRISE } from '../constants'
+import PaymentPage from './PaymentPage'
 import type {
   AccountLedger,
   AccountOperationType,
@@ -174,6 +175,7 @@ function OrderDetailSection() {
   const [pageSize, setPageSize] = useState(10)
   const [detailOpen, setDetailOpen] = useState(false)
   const [currentOrder, setCurrentOrder] = useState<OrderDetail | null>(null)
+  const [payingOrder, setPayingOrder] = useState<OrderDetail | null>(null)
 
   const filtered = useMemo(() => {
     return allOrders.filter((o) => {
@@ -320,19 +322,30 @@ function OrderDetailSection() {
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 140,
       fixed: 'right',
       render: (_v, r) => (
-        <Button
-          type="link"
-          style={{ padding: 0, color: '#2f6bff' }}
-          onClick={() => {
-            setCurrentOrder(r)
-            setDetailOpen(true)
-          }}
-        >
-          查看详情
-        </Button>
+        <Space size={12}>
+          {r.status === 'pending' && (
+            <Button
+              type="link"
+              style={{ padding: 0, color: '#2f6bff' }}
+              onClick={() => setPayingOrder(r)}
+            >
+              去支付
+            </Button>
+          )}
+          <Button
+            type="link"
+            style={{ padding: 0, color: '#2f6bff' }}
+            onClick={() => {
+              setCurrentOrder(r)
+              setDetailOpen(true)
+            }}
+          >
+            查看详情
+          </Button>
+        </Space>
       ),
     },
   ]
@@ -349,6 +362,23 @@ function OrderDetailSection() {
       setPage(p)
       setPageSize(ps)
     },
+  }
+
+  if (payingOrder) {
+    return (
+      <PaymentPage
+        productName={payingOrder.productName}
+        total={payingOrder.amount}
+        orderNo={payingOrder.orderNo}
+        qty={1}
+        onBack={() => setPayingOrder(null)}
+        onPaymentSuccess={() => {
+          payOrderDetail(payingOrder.orderNo)
+          message.success('支付成功')
+          setPayingOrder(null)
+        }}
+      />
+    )
   }
 
   return (
