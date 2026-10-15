@@ -255,7 +255,7 @@ export default function ResourcePackPage() {
         <div style={{ maxWidth: 1120, margin: '0 auto', padding: 24 }}>
           <div style={{ marginBottom: 24 }}>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0 }}>
-              购买资源包
+              购买加油包
             </h1>
           </div>
 
@@ -625,7 +625,7 @@ export default function ResourcePackPage() {
           items={[
             {
               key: 'buy',
-              label: '购买资源包',
+              label: '购买加油包',
               children: (
                 <div>
                   <div
@@ -695,7 +695,7 @@ export default function ResourcePackPage() {
             },
             {
               key: 'mine',
-              label: '我的资源包',
+              label: '我的加油包',
               children: (
                 <div>
                   <div

@@ -1205,7 +1205,7 @@ export default function App() {
                       { key: 'mySubscriptionNoPlan', label: '我的订阅（未购买套餐）' },
                       { key: 'mySubscriptionNoPack', label: '我的订阅（未购买资源包）' },
                       { key: 'mySubscription', label: '我的订阅' },
-                      { key: 'resourcePack', label: '资源包管理' },
+                      { key: 'resourcePack', label: '加油包' },
                     ] as const
                   ).map((it) => (
                   <div
