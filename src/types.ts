@@ -726,10 +726,6 @@ export interface OrderDetail {
   discountAmount?: number
   /** 代金券抵扣金额 */
   couponAmount?: number
-  /** 订阅名称 */
-  planName?: string
-  /** 套餐/席位名称 */
-  seatName?: string
   /** 资源状态 */
   resourceStatus?: ResourceStatus
   /** 失效时间 */

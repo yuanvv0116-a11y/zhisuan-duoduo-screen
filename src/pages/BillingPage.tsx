@@ -484,21 +484,6 @@ function OrderDetailSection() {
             </OrderDetailRow>
             <OrderDetailRow label="订单类型">{ORDER_TYPE_LABEL[currentOrder.orderType]}</OrderDetailRow>
 
-            <OrderDetailGroup title="订阅信息" />
-            <OrderDetailRow label="订阅名称">
-              {currentOrder.planName ?? currentOrder.productName}
-            </OrderDetailRow>
-            <OrderDetailRow label="套餐/席位名称" tooltip="套餐规格与购买数量">
-              {currentOrder.seatName ?? '—'}
-            </OrderDetailRow>
-            <OrderDetailRow label="订阅周期">
-              {currentOrder.seatName?.includes('年付')
-                ? '年付'
-                : currentOrder.seatName?.includes('月付')
-                ? '月付'
-                : '—'}
-            </OrderDetailRow>
-
             <OrderDetailGroup title="费用信息" />
             <OrderDetailRow label="官网目录总价">
               ¥{(currentOrder.originalPrice ?? 0).toFixed(2)}
