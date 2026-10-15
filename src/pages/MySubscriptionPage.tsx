@@ -825,7 +825,6 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               </span>
               <code
                 style={{
-                  flex: 1,
                   fontSize: 13,
                   color: '#334155',
                   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
@@ -848,11 +847,12 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                     )
                   }
                   style={{
-                    color: '#94a3b8',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    flexShrink: 0,
-                  }}
+                        marginLeft: 16,
+                        color: PRIMARY,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        flexShrink: 0,
+                      }}
                 >
                   <CopyOutlined />
                 </span>
@@ -890,7 +890,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                       onClick={() => copyToClipboard(endpoint, 'API Endpoint')}
                       style={{
                         marginLeft: 16,
-                        color: '#94a3b8',
+                        color: PRIMARY,
                         cursor: 'pointer',
                         display: 'inline-flex',
                       }}
