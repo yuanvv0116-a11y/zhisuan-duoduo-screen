@@ -2,13 +2,9 @@ import { useMemo, useState } from 'react'
 import { Button, Card, Checkbox, Divider, Table, Tabs, Tag, Tooltip, message } from 'antd'
 import {
   ArrowLeftOutlined,
-  BookFilled,
-  CodeFilled,
   InfoCircleOutlined,
   MinusOutlined,
   PlusOutlined,
-  StarFilled,
-  TagFilled,
   WechatOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -45,14 +41,6 @@ const PACKS: Pack[] = [
   { id: 'p6', name: 'Wan-Image 3折尝鲜包', desc: DESC_WAN, price: 5.9, originalPrice: 19.9, benefit: '包含100张Wan-Image图像（有效期1个月）' },
   { id: 'p7', name: 'HappyHorse 视频8折特惠包', desc: DESC_HORSE, price: 28, originalPrice: 35, benefit: '包含10次HappyHorse视频生成（有效期1个月）' },
   { id: 'p8', name: 'GLM-5.2 3折尝鲜包', desc: DESC_GLM, price: 2.9, originalPrice: 9.9, benefit: '包含100万GLM-5.2（有效期1个月）' },
-]
-
-/** 加油包卡片左上角图标（按顺序循环使用） */
-const PACK_ICONS = [
-  { icon: <StarFilled />, bg: 'linear-gradient(135deg, #8a7bff, #4a5bf0)' },
-  { icon: <BookFilled />, bg: 'linear-gradient(135deg, #35e0b0, #0db39a)' },
-  { icon: <CodeFilled />, bg: 'linear-gradient(135deg, #5b8cff, #2f6bff)' },
-  { icon: <TagFilled />, bg: 'linear-gradient(135deg, #ffbe4a, #ff8a2f)' },
 ]
 
 const BUY_NOTES = [
@@ -648,8 +636,7 @@ export default function ResourcePackPage() {
                       marginTop: 8,
                     }}
                   >
-                    {PACKS.map((p, i) => {
-                      const it = PACK_ICONS[i % PACK_ICONS.length]
+                    {PACKS.map((p) => {
                       return (
                         <div
                           key={p.id}
@@ -664,22 +651,6 @@ export default function ResourcePackPage() {
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div
-                              style={{
-                                width: 42,
-                                height: 42,
-                                borderRadius: 10,
-                                background: it.bg,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#fff',
-                                fontSize: 20,
-                                flexShrink: 0,
-                              }}
-                            >
-                              {it.icon}
-                            </div>
                             <span style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>
                               {p.name}
                             </span>
