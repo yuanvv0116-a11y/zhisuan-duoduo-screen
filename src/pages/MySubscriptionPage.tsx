@@ -789,6 +789,68 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
           Key。您也可以随时重置以生成新的密钥。
         </div>
 
+        {/* Base URL */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '10px 16px',
+            marginBottom: 20,
+            background: '#f8fafc',
+            border: '1px solid #eef0f4',
+            borderRadius: 8,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 13,
+              color: '#64748b',
+              whiteSpace: 'nowrap',
+              fontWeight: 500,
+              width: 70,
+              flexShrink: 0,
+            }}
+          >
+            Base URL
+          </span>
+          <Tooltip title="服务接入根地址，调用 API 时拼接在 Endpoint 之前">
+            <code
+              style={{
+                fontSize: 13,
+                color: '#334155',
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                background: 'transparent',
+                padding: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+            </code>
+          </Tooltip>
+          <Tooltip title="复制">
+            <span
+              onClick={() =>
+                copyToClipboard(
+                  'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
+                  'Base URL',
+                )
+              }
+              style={{
+                marginLeft: 16,
+                color: PRIMARY,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                flexShrink: 0,
+              }}
+            >
+              <CopyOutlined />
+            </span>
+          </Tooltip>
+        </div>
+
         {/* API Key 列表上方：新增 */}
         <div
           style={{
