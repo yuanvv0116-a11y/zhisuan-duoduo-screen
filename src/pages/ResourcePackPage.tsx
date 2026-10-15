@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Button, Card, Checkbox, Divider, Popover, Table, Tabs, Tag, Tooltip, message } from 'antd'
+import { Button, Card, Checkbox, Divider, Modal, Table, Tabs, Tag, Tooltip, Typography, message } from 'antd'
 import {
   ArrowLeftOutlined,
   CalendarOutlined,
@@ -60,6 +60,19 @@ const BUY_NOTES = [
 ]
 
 const BUY_NOTE_TAGS = ['生效规则', '有效期规则', '退款规则']
+
+const { Text } = Typography
+
+/** 加油包支持模型（样式与 Token Plan 套餐一致） */
+const PACK_MODELS: { name: string; type: string }[] = [
+  { name: 'Qwen3.6-27B', type: '文本' },
+  { name: 'DODO-AC-Ultra-5', type: '文本' },
+  { name: 'Doubao-Seedream-5.0', type: '图像' },
+  { name: 'DeepSeek-V4-Flash', type: '文本' },
+  { name: 'GLM-5.2', type: '文本' },
+  { name: 'Wan-Image', type: '图像' },
+  { name: 'HappyHorse', type: '视频' },
+]
 
 type MyPack = {
   id: string
@@ -154,6 +167,8 @@ export default function ResourcePackPage() {
     qty: number
   } | null>(null)
   const [agreementView, setAgreementView] = useState<AgreementType | null>(null)
+  /** 支持模型「+N」弹窗（与 Token Plan 套餐一致） */
+  const [modelModalOpen, setModelModalOpen] = useState(false)
 
   const visibleMyPacks = useMemo(
     () => (onlyAvailable ? MY_PACKS.filter((p) => p.status === '可用') : MY_PACKS),
@@ -374,22 +389,36 @@ export default function ResourcePackPage() {
                     <span>有效期：{packValidity}</span>
                   </div>
                 </div>
-                <div style={{ marginTop: 16, fontSize: 13, color: '#4b5563', lineHeight: 1.8 }}>
-                  <div>支持模型（为优化使用，期间可能有部分调整）</div>
-                  <div>
-                    Qwen3.6-27B,DODO-AC-Ultra-5,Doubao-Seedream-5.0,DeepSeek-V4-Flash，
-                    <Popover
-                      trigger="click"
-                      content={
-                        <div style={{ fontSize: 13, lineHeight: 2 }}>
-                          <div>GLM-5.2</div>
-                          <div>Wan-Image</div>
-                          <div>HappyHorse</div>
-                        </div>
-                      }
-                    >
-                      <a style={{ borderBottom: '1px dashed #2f6bff', borderRadius: 0 }}>+3</a>
-                    </Popover>
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 13, color: '#4b5563', marginBottom: 8 }}>
+                    支持模型（为优化使用，期间可能有部分调整）
+                  </div>
+                  <div style={{ fontSize: 13, color: '#333', lineHeight: 1.8 }}>
+                    {(() => {
+                      const MAX_SHOW = 4
+                      const showModels = PACK_MODELS.slice(0, MAX_SHOW)
+                      const hasMore = PACK_MODELS.length > MAX_SHOW
+                      return (
+                        <>
+                          {showModels.map((m, i) => (
+                            <span key={m.name}>
+                              <span style={{ color: '#111827' }}>{m.name}</span>
+                              {(i < showModels.length - 1 || hasMore) && (
+                                <span style={{ color: '#c0c4cc', margin: '0 4px' }}>,</span>
+                              )}
+                            </span>
+                          ))}
+                          {hasMore && (
+                            <a
+                              onClick={() => setModelModalOpen(true)}
+                              style={{ color: '#2f6bff', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                            >
+                              +{PACK_MODELS.length - MAX_SHOW}
+                            </a>
+                          )}
+                        </>
+                      )
+                    })()}
                   </div>
                 </div>
               </Card>
@@ -634,6 +663,67 @@ export default function ResourcePackPage() {
             </div>
           </div>
         </div>
+
+        {/* 可使用模型弹窗（与 Token Plan 套餐一致） */}
+        <Modal
+          title={buyPack.name}
+          open={modelModalOpen}
+          onCancel={() => setModelModalOpen(false)}
+          footer={null}
+          width={520}
+          centered
+        >
+          <div
+            style={{
+              marginBottom: 12,
+              fontSize: 12,
+              color: '#8b93a5',
+              lineHeight: 1.7,
+              background: '#f8f9fb',
+              padding: '8px 12px',
+              borderRadius: 6,
+            }}
+          >
+            为持续优化用户体验，平台将不定期上架新模型并下架低效模型。购买加油包即视为同意本规则。
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              maxHeight: 400,
+              overflowY: 'auto',
+            }}
+          >
+            {PACK_MODELS.map((m, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: '#f8f9fb',
+                  borderRadius: 8,
+                }}
+              >
+                <Text strong style={{ fontSize: 13 }}>
+                  {m.name}
+                </Text>
+                <Tag
+                  style={{
+                    margin: 0,
+                    borderRadius: 4,
+                    fontSize: 11,
+                  }}
+                  color={m.type === '文本' ? 'blue' : m.type === '图像' ? 'purple' : 'orange'}
+                >
+                  {m.type}
+                </Tag>
+              </div>
+            ))}
+          </div>
+        </Modal>
       </div>
     )
   }
