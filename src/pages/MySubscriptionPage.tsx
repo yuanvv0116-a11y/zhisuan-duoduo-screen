@@ -265,7 +265,6 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
     return { ...r, _brandRowSpan: 0 }
   })
 
-  const editionLabel = edition === 'personal' ? '个人版' : '企业版'
   const isEmptyState = variant === 'noPlan'
 
   return (
@@ -316,15 +315,15 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                 padding: '0 28px',
                 fontSize: 15,
                 fontWeight: 600,
-                background: '#111827',
-                borderColor: '#111827',
+                background: '#2f6bff',
+                borderColor: '#2f6bff',
                 color: '#fff',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
               }}
             >
-              立即购买个人版
+              立即购买
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M7 17L17 7" />
                 <path d="M9 7h8v8" />
@@ -621,7 +620,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               }}
             >
               <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 14 }}>
-                暂无可用{editionLabel}资源包，请先购买
+                暂无可用资源包，请先购买
               </div>
               <Button
                 type="primary"

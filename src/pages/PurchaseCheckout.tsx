@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Card, Checkbox, Button, Tag, Divider, message } from 'antd'
+import { Card, Checkbox, Button, Tag, Divider, message, Modal, Typography } from 'antd'
 import {
   WechatOutlined,
   ArrowLeftOutlined,
@@ -12,6 +12,8 @@ import {
   PLAN_DURATION_UNIT_META,
 } from '../types'
 import type { AgreementType } from './AgreementPage'
+
+const { Text } = Typography
 
 interface PayData {
   /** 选中的订阅时长索引，对应 plan.durations 中的位置 */
@@ -92,6 +94,8 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
   const [durationIdx, setDurationIdx] = useState<number>(0)
 
   const [agreeTerms, setAgreeTerms] = useState(false)
+  /** 支持模型「+N」弹窗（与 Token Plan 概览一致） */
+  const [modelModalOpen, setModelModalOpen] = useState(false)
 
   const currentDuration = durations[Math.min(durationIdx, durations.length - 1)]
   const monthsPerUnit = PLAN_DURATION_UNIT_META[plan.validityUnit]?.monthsPerUnit ?? 1
@@ -110,8 +114,6 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
   const originalTotal = +(plan.price * totalCount).toFixed(2)
   const savings = Math.max(0, +(originalTotal - total).toFixed(2))
 
-  const levelLabel = plan.level === 'lite' ? '入门' : plan.level === 'standard' ? '标准' : '专业'
-  const levelColor = plan.level === 'lite' ? 'green' : plan.level === 'standard' ? 'blue' : 'purple'
   const models: { name: string; type: string }[] = PLAN_MODELS[plan.level ?? ''] || []
 
   const durationText = formatDurationText(totalMonths, plan.validityUnit)
@@ -178,7 +180,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
             <ArrowLeftOutlined />
             返回
           </a>
-          <span style={{ fontSize: 14, color: '#111827', fontWeight: 500 }}>{isRenew ? 'Token Plan 个人版套餐 续费' : '购买 Token Plan 个人版套餐'}</span>
+          <span style={{ fontSize: 14, color: '#111827', fontWeight: 500 }}>{isRenew ? 'Token Plan 个人版套餐 续费' : '购买 Token Plan 套餐'}</span>
         </div>
       </div>
 
@@ -193,8 +195,8 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
         {/* 页面标题 */}
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 22, fontWeight: 600, color: '#111827', margin: 0 }}>
-            {isRenew ? 'Token Plan 个人版套餐 续费' : '购买 Token Plan 个人版套餐'}
-          </h2>
+            {isRenew ? 'Token Plan 个人版套餐 续费' : '购买 Token Plan 套餐'}
+           </h2>
         </div>
 
         {/* 购买须知提示 */}
@@ -218,7 +220,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
           <span>
             {isRenew
               ? `续费后，将在现有结束日期（到期时间：${renewEndDate ?? '—'}）后，延续本次订阅时长，一经续订，不支退换，请谨慎操作`
-              : '一个账号仅支持购买一个个人版套餐。Token 套餐一经订阅开通，不支持退费、降配，请您确认需求后再下单支付。'}
+              : '一个账号仅支持购买一个套餐。Token 套餐一经订阅开通，不支持退费、降配，请您确认需求后再下单支付。'}
           </span>
         </div>
 
@@ -246,7 +248,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderBottom: '1px dashed #f0f0f0' }}>
-                <Tag color="blue" style={{ margin: 0, flexShrink: 0 }}>变更规则</Tag>
+                <Tag color="blue" style={{ margin: 0, flexShrink: 0 }}>使用规则</Tag>
                 <span style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.6 }}>
                   订阅套餐在用量或周期未结束之前，不支持修改。套餐结束后，可重新选择套餐。超出总额度后调用将被阻断，可购买资源包补充额度。
                 </span>
@@ -272,12 +274,31 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
             <div style={{ marginBottom: 18 }}>
               <div style={{ fontSize: 13, color: '#4b5563', marginBottom: 8 }}>支持模型（为优化使用，期间可能有部分调整）</div>
               <div style={{ fontSize: 13, color: '#333', lineHeight: 1.8 }}>
-                {models.map((m, i) => (
-                  <span key={m.name}>
-                    <span style={{ color: '#111827' }}>{m.name}</span>
-                    {i < models.length - 1 && <span style={{ color: '#c0c4cc', margin: '0 4px' }}>,</span>}
-                  </span>
-                ))}
+                {(() => {
+                  const MAX_SHOW = 4
+                  const showModels = models.slice(0, MAX_SHOW)
+                  const hasMore = models.length > MAX_SHOW
+                  return (
+                    <>
+                      {showModels.map((m, i) => (
+                        <span key={m.name}>
+                          <span style={{ color: '#111827' }}>{m.name}</span>
+                          {(i < showModels.length - 1 || hasMore) && (
+                            <span style={{ color: '#c0c4cc', margin: '0 4px' }}>,</span>
+                          )}
+                        </span>
+                      ))}
+                      {hasMore && (
+                        <a
+                          onClick={() => setModelModalOpen(true)}
+                          style={{ color: '#2f6bff', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          +{models.length - MAX_SHOW}
+                        </a>
+                      )}
+                    </>
+                  )
+                })()}
               </div>
             </div>
 
@@ -308,16 +329,6 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                       {plan.productTag}
                     </Tag>
                   )}
-                  <Tag
-                    color={levelColor as any}
-                    style={{
-                      marginLeft: 8,
-                      fontSize: 11,
-                      padding: '1px 6px',
-                    }}
-                  >
-                    {levelLabel}
-                  </Tag>
                 </div>
 
                 <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
@@ -376,7 +387,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
 
                 {/* 限制说明 */}
                 <div style={{ fontSize: 12, color: '#8b93a5', lineHeight: 1.8 }}>
-                  个人套餐为订阅人独享，禁止共享。一经订阅开通，不支持退费、降配，请谨慎选择。
+                  套餐为订阅人独享，禁止共享。一经订阅开通，不支持退费、降配，请谨慎选择。
                 </div>
               </div>
             </div>
@@ -666,6 +677,47 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
           </div>
         </div>
       </div>
+
+      {/* 可使用模型弹窗（与 Token Plan 概览一致） */}
+      <Modal
+        title={plan.name}
+        open={modelModalOpen}
+        onCancel={() => setModelModalOpen(false)}
+        footer={null}
+        width={520}
+        centered
+      >
+        <div style={{ marginBottom: 12, fontSize: 12, color: '#8b93a5', lineHeight: 1.7, background: '#f8f9fb', padding: '8px 12px', borderRadius: 6 }}>
+          为持续优化用户体验，平台将不定期上架新模型并下架低效模型。订阅套餐即视为同意本规则。
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto' }}>
+          {models.map((m, idx) => (
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                background: '#f8f9fb',
+                borderRadius: 8,
+              }}
+            >
+              <Text strong style={{ fontSize: 13 }}>{m.name}</Text>
+              <Tag
+                style={{
+                  margin: 0,
+                  borderRadius: 4,
+                  fontSize: 11,
+                }}
+                color={m.type === '文本' ? 'blue' : m.type === '图像' ? 'purple' : 'orange'}
+              >
+                {m.type}
+              </Tag>
+            </div>
+          ))}
+        </div>
+      </Modal>
     </div>
     </div>
   )

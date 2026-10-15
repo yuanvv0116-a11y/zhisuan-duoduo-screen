@@ -13,6 +13,9 @@ import {
   PictureOutlined,
   AudioOutlined,
   SoundOutlined,
+  DollarOutlined,
+  SafetyCertificateOutlined,
+  ArrowRightOutlined,
 } from '@ant-design/icons'
 import { useTokenPlans } from '../store'
 import { calcPlanDiscountedPrice } from '../types'
@@ -31,6 +34,8 @@ const AI_TOOLS = [
   { name: 'Codex', icon: '🧬' },
   { name: 'Kilo CLI', icon: '🔧' },
   { name: 'OpenClaw', icon: '🐙' },
+  { name: 'LangChain', icon: '🔗' },
+  { name: 'Llamaindex', icon: '🦙' },
 ]
 
 /** 资源包（按设计图 8 个） */
@@ -118,14 +123,20 @@ const RESOURCE_PACKS = [
 ]
 
 interface Props {
-  onNavigateTokenPlan?: () => void
+  /** 点击「立即订阅」：由外层决定跳转（原型里先进登录页，登录后落控制台 Token Plan 概览） */
+  onSubscribe?: () => void
+  /** 资源包「立即购买」：先进登录页，登录后落控制台 · 资源包管理 */
+  onBuyResourcePack?: () => void
 }
 
-export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
+export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Props) {
   const { plans } = useTokenPlans()
   const [subTab, setSubTab] = useState<'personal' | 'team'>('personal')
 
   const displayedPlans = useMemo(() => plans.filter((p) => p.status === 'on' && p.level !== 'max'), [plans])
+
+  /** 卡片悬浮态：套餐区与资源包区共用 */
+  const [hoverPlanId, setHoverPlanId] = useState<string | null>(null)
 
   const heroFeatures = [
     {
@@ -135,6 +146,14 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
       title: '全模型一站式体验',
       desc: '一个 API Key，畅用无限可能。在统一订阅体系下，无缝调用文本、语音、图像等全域 AI 能力。',
       tags: ['qwen3.6-flash', 'glm-5.2', 'deepseek-v4-pro', 'wan2.7-image-pro'],
+      deco: (
+        <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+          <rect x="14" y="30" width="28" height="8" rx="3" fill="#c7daff" />
+          <rect x="17" y="21" width="22" height="8" rx="3" fill="#9cbcff" />
+          <rect x="20" y="12" width="16" height="8" rx="3" fill="#2f6bff" opacity="0.85" />
+          <rect x="14" y="42" width="28" height="6" rx="3" fill="#e3ecff" />
+        </svg>
+      ),
     },
     {
       icon: <ToolOutlined />,
@@ -142,6 +161,15 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
       iconColor: '#13b58a',
       title: '兼容主流 Coding/Agent 工具',
       desc: '无缝对接你常用的开发工具与 Agent 框架，开箱即用。',
+      deco: (
+        <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+          <rect x="8" y="14" width="40" height="28" rx="4" fill="#e3ecff" />
+          <rect x="8" y="14" width="40" height="7" rx="4" fill="#c7daff" />
+          <circle cx="13" cy="17.5" r="1.4" fill="#2f6bff" opacity="0.6" />
+          <rect x="13" y="26" width="18" height="3" rx="1.5" fill="#9cbcff" />
+          <rect x="13" y="32" width="26" height="3" rx="1.5" fill="#c7daff" />
+        </svg>
+      ),
     },
     {
       icon: <ThunderboltFilled />,
@@ -149,14 +177,21 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
       iconColor: '#ff8f1f',
       title: '极致性价比，预算可控',
       desc: '透明计费，无隐藏费用，按量使用，成本精准可控。',
+      deco: (
+        <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+          <rect x="10" y="28" width="8" height="18" rx="2" fill="#c7daff" />
+          <rect x="24" y="20" width="8" height="26" rx="2" fill="#9cbcff" />
+          <rect x="38" y="10" width="8" height="36" rx="2" fill="#2f6bff" opacity="0.85" />
+        </svg>
+      ),
     },
   ]
 
   const pricingFeatures = (plan: (typeof displayedPlans)[number]) => {
     const credits = plan.usageLimit >= 10000 ? `${(plan.usageLimit / 10000).toFixed(0).replace(/\.0$/, '')}万` : plan.usageLimit
-    const base = [`${credits} Credits / 1天`]
+    const base = [`${credits} Credits / 天`]
     if (plan.level === 'lite') {
-      base.push('支持文本、语音等多模态模型', '无限调用频率，90+ 模型与 harness 工具', '可同时支持 1-2 个 Agent 并发')
+      base.push('支持文本、语音等基础模型', '无限调用频率，90+ 模型与 harness 工具', '可同时支持 1-2 个 Agent 并发')
     } else if (plan.level === 'standard') {
       base.push('4 倍于 Lite 套餐用量', '享受 Lite 套餐的所有权益', '可同时支持 3-4 个 Agent 并发')
     } else {
@@ -184,22 +219,47 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
       }}
     >
       {/* ============ Hero ============ */}
-      <section style={{ height: 240 }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '150px 40px 0', position: 'relative', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <section style={{ height: 290 }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '118px 40px 0', position: 'relative', height: '100%', display: 'flex', flexDirection: 'column' }}>
           <Title level={1} style={{ fontSize: 46, fontWeight: 700, color: '#1a1a1a', margin: 0, lineHeight: 1.25 }}>
-            Token Plan <span style={{ color: '#2f6bff' }}>重磅上线</span>
+            Token Plan{' '}
+            <span
+              style={{
+                background: 'linear-gradient(90deg, #2f6bff 0%, #7b5cff 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              重磅上线
+            </span>
           </Title>
           <Paragraph style={{ fontSize: 15, color: '#4e5969', margin: '16px 0 0' }}>
-            低成本畅用主流大模型，AI 创作与开放更高效。
-            <a style={{ color: '#2f6bff', marginLeft: 8, cursor: 'pointer' }} onClick={onNavigateTokenPlan}>
-              Token Plan ↗
+            低成本畅用主流大模型，AI 创作与开发更高效。
+            <a
+              onClick={() => onSubscribe?.()}
+              style={{ marginLeft: 12, color: '#2f6bff', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              立即体验 Token Plan <ArrowRightOutlined style={{ transform: 'rotate(-45deg)', fontSize: 12 }} />
             </a>
           </Paragraph>
+          <div style={{ display: 'flex', gap: 32, marginTop: 22 }}>
+            {[
+              { icon: <DollarOutlined />, text: '低成本调用' },
+              { icon: <SafetyCertificateOutlined />, text: '稳定可靠' },
+              { icon: <ThunderboltFilled />, text: '极速响应' },
+              { icon: <GlobalOutlined />, text: '全面兼容' },
+            ].map((it) => (
+              <span key={it.text} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#4e5969' }}>
+                <span style={{ color: '#2f6bff', fontSize: 15 }}>{it.icon}</span>
+                {it.text}
+              </span>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* ============ 特性手风琴（浅蓝底） ============ */}
-      <section style={{ padding: '88px 24px 16px' }}>
+      <section style={{ padding: '68px 24px 16px' }}>
         <div
           style={{
             maxWidth: 1200,
@@ -237,6 +297,7 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
                     <div style={{ fontSize: 17, fontWeight: 600, color: '#1a1a1a', marginBottom: 4 }}>{f.title}</div>
                     <div style={{ fontSize: 13, color: '#86909c' }}>{f.desc}</div>
                   </div>
+                  <span style={{ flexShrink: 0, marginLeft: 16 }}>{f.deco}</span>
                 </div>
                 {f.tags && (
                   <div style={{ padding: '0 0 16px 56px', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -256,11 +317,11 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
         </div>
 
         {/* ============ 定价区 ============ */}
-        <div id="tp-section-tokenPlan" style={{ maxWidth: 1200, margin: '0 auto', padding: '100px 0 28px', scrollMarginTop: 80 }}>
+        <div id="tp-section-tokenPlan" style={{ maxWidth: 1200, margin: '0 auto', padding: '100px 0 0', scrollMarginTop: 80 }}>
           <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 32, color: '#1a1a1a', fontWeight: 700 }}>
-            Token Plan <span style={{ color: '#2f6bff' }}>限时优惠</span>
+            首发 · 限时优惠
           </Title>
-          <Paragraph style={{ textAlign: 'center', color: '#86909c', margin: '10px 0 16px', fontSize: 14 }}>
+          <Paragraph style={{ textAlign: 'center', color: '#86909c', margin: '10px 0 36px', fontSize: 14 }}>
             请根据自身需求和团队规模灵活订阅
           </Paragraph>
 
@@ -353,7 +414,7 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
                       <Button
                         block
                         size="large"
-                        onClick={() => message.success(tp.contactSales ? '已提交咨询，销售将尽快联系您' : `已选择 ${tp.name}，即将前往订阅`)}
+                        onClick={() => { if (tp.contactSales) { message.success('已提交咨询，销售将尽快联系您') } else { onSubscribe?.() } }}
                         style={{
                           height: 40,
                           borderRadius: 8,
@@ -369,20 +430,49 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
                   )
                 })
               : displayedPlans.map((plan) => {
-              const originalPrice = plan.price
+              const originalPrice = plan.originalPrice ?? plan.price
               const discounted = calcPlanDiscountedPrice(plan.price, plan.discount ?? 100)
+              const isHot = plan.level === 'standard'
               const isPro = plan.level === 'pro'
+              // 默认高亮中间热销卡；套餐区内有悬浮卡时切换为悬浮卡，移开后回到默认
+              const planAreaHover = hoverPlanId !== null && !hoverPlanId.startsWith('pack-')
+              const isHighlighted = planAreaHover ? hoverPlanId === plan.id : isHot
               return (
                 <div
                   key={plan.id}
+                  onMouseEnter={() => setHoverPlanId(plan.id)}
+                  onMouseLeave={() => setHoverPlanId(null)}
                   style={{
                     position: 'relative',
                     borderRadius: 16,
                     padding: 24,
-                    background: isPro ? '#161a26' : '#fff',
-                    boxShadow: isPro ? '0 16px 40px rgba(20,24,38,0.25)' : '0 10px 30px rgba(31,45,80,0.08)',
+                    background: isHighlighted ? '#f0f6ff' : '#fff',
+                    border: isHighlighted ? '2px solid #2f6bff' : '2px solid #eef0f4',
+                    boxShadow: isHighlighted
+                      ? '0 0 0 4px rgba(47,107,255,0.14), 0 22px 52px rgba(47,107,255,0.28)'
+                      : '0 10px 30px rgba(31,45,80,0.08)',
+                    transform: isHighlighted ? 'translateY(-12px) scale(1.02)' : 'none',
+                    transition: 'transform .25s ease, box-shadow .25s ease, border-color .25s ease, background .25s ease',
+                    cursor: 'pointer',
                   }}
                 >
+                  {isHot && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: -13,
+                        right: 24,
+                        background: '#2f6bff',
+                        color: '#fff',
+                        borderRadius: 10,
+                        padding: '3px 14px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                    >
+                      热销
+                    </span>
+                  )}
                   {isPro && (
                     <span
                       style={{
@@ -400,31 +490,30 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
                       Hot
                     </span>
                   )}
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: isPro ? '#fff' : '#2f6bff', marginRight: 8 }} />
-                    <span style={{ fontSize: 16, fontWeight: 600, color: isPro ? '#fff' : '#1a1a1a' }}>{plan.name} 套餐</span>
+                  <div style={{ marginBottom: 14 }}>
+                    <span style={{ fontSize: 16, fontWeight: 600, color: '#1a1a1a' }}>{plan.name}</span>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
-                    <span style={{ fontSize: 38, fontWeight: 700, color: isPro ? '#fff' : '#1a1a1a', lineHeight: 1.1 }}>
+                    <span style={{ fontSize: 38, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.1 }}>
                       ¥{discounted.toFixed(2)}
                     </span>
-                    {isPro && <span style={{ fontSize: 15, color: 'rgba(255,255,255,0.85)' }}>/月</span>}
-                    <span style={{ fontSize: 14, color: isPro ? 'rgba(255,255,255,0.4)' : '#a9b0bd', textDecoration: 'line-through' }}>
+                    <span style={{ fontSize: 15, color: '#86909c' }}>/月</span>
+                    <span style={{ fontSize: 14, color: '#a9b0bd', textDecoration: 'line-through' }}>
                       ¥{originalPrice.toFixed(2)}/月
                     </span>
                   </div>
 
-                  <div style={{ borderTop: `1px solid ${isPro ? 'rgba(255,255,255,0.1)' : '#f0f2f5'}`, paddingTop: 14, marginBottom: 20 }}>
+                  <div style={{ borderTop: '1px solid #f0f2f5', paddingTop: 14, marginBottom: 20 }}>
                     {pricingFeatures(plan).map((feat, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: 12, fontSize: 13, color: isPro ? 'rgba(255,255,255,0.85)' : '#4e5969' }}>
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: 12, fontSize: 13, color: '#4e5969' }}>
                         <span
                           style={{
                             width: 18,
                             height: 18,
                             borderRadius: '50%',
-                            background: isPro ? 'rgba(217,181,106,0.2)' : '#e6f6ee',
-                            color: isPro ? '#d9b56a' : '#34b580',
+                            background: '#e6f6ee',
+                            color: '#34b580',
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -443,14 +532,16 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
                   <Button
                     block
                     size="large"
-                    onClick={() => message.success(`已选择 ${plan.name}，即将前往订阅`)}
+                    onClick={() => onSubscribe?.()}
                     style={{
                       height: 40,
                       borderRadius: 8,
                       fontWeight: 500,
                       border: 'none',
-                      background: isPro ? '#fff' : '#2f6bff',
-                      color: isPro ? '#1a1a1a' : '#fff',
+                      background: isHighlighted ? 'linear-gradient(90deg, #2f6bff 0%, #5b8cff 100%)' : '#e8efff',
+                      color: isHighlighted ? '#fff' : '#2f6bff',
+                      boxShadow: isHighlighted ? '0 8px 20px rgba(47,107,255,0.35)' : 'none',
+                      transition: 'background .25s ease, color .25s ease, box-shadow .25s ease',
                     }}
                   >
                     立即订阅
@@ -463,7 +554,7 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
       </section>
 
       {/* ============ 蓝色 Banner ============ */}
-      <section style={{ padding: '88px 24px 12px' }}>
+      <section style={{ padding: '64px 24px 12px' }}>
         <div
           style={{
             maxWidth: 1200,
@@ -474,10 +565,11 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexWrap: 'wrap',
             gap: 32,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flex: '1 1 280px' }}>
             <span
               style={{
                 width: 64,
@@ -495,19 +587,21 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
               <AppstoreOutlined style={{ transform: 'rotate(-45deg)', color: '#fff', fontSize: 30 }} />
             </span>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', marginBottom: 10 }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }}>
                 模型普惠，创新到位
               </div>
-              <Button type="primary" size="large" style={{ borderRadius: 8, height: 40, padding: '0 28px', fontWeight: 500 }}>
+              <div style={{ fontSize: 13, color: '#86909c', marginBottom: 12 }}>高性能模型资源，低价即可畅用</div>
+              <Button type="primary" size="large" onClick={() => onSubscribe?.()} style={{ borderRadius: 8, height: 40, padding: '0 28px', fontWeight: 500 }}>
                 立即体验
               </Button>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 16, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {[
               { icon: <AppstoreOutlined />, name: '主流模型' },
               { icon: <LineChartOutlined />, name: '极致性能' },
               { icon: <ThunderboltOutlined />, name: '便捷接入' },
+              { icon: <SafetyCertificateOutlined />, name: '安全稳定' },
             ].map((item) => (
               <div
                 key={item.name}
@@ -522,7 +616,7 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
       </section>
 
       {/* ============ 资源包 ============ */}
-      <section id="tp-section-resourcePack" style={{ padding: '100px 24px 0', scrollMarginTop: 80 }}>
+      <section id="tp-section-resourcePack" style={{ padding: '68px 24px 0', scrollMarginTop: 80 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 30, color: '#1a1a1a', fontWeight: 700 }}>
             低价大额度资源包，赋能业务高效落地
@@ -531,16 +625,24 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
             精选多款旗舰模型，限时优惠进行中！
           </Paragraph>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
-            {RESOURCE_PACKS.map((pack) => (
+            {RESOURCE_PACKS.map((pack) => {
+              const isPackHover = hoverPlanId === `pack-${pack.name}`
+              return (
               <div
                 key={pack.name}
+                onMouseEnter={() => setHoverPlanId(`pack-${pack.name}`)}
+                onMouseLeave={() => setHoverPlanId(null)}
                 style={{
-                  border: '1px solid #eef0f4',
+                  border: isPackHover ? '1px solid #2f6bff' : '1px solid #eef0f4',
                   borderRadius: 12,
                   padding: 16,
                   background: '#fff',
                   display: 'flex',
                   flexDirection: 'column',
+                  boxShadow: isPackHover ? '0 18px 44px rgba(47,107,255,0.18)' : 'none',
+                  transform: isPackHover ? 'translateY(-6px)' : 'none',
+                  transition: 'transform .25s ease, box-shadow .25s ease, border-color .25s ease',
+                  cursor: 'pointer',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
@@ -579,12 +681,13 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
                   type="primary"
                   block
                   style={{ height: 32, borderRadius: 8, marginTop: 'auto' }}
-                  onClick={() => message.success(`已选择 ${pack.name}，即将跳转购买`)}
+                  onClick={() => (onBuyResourcePack ? onBuyResourcePack() : onSubscribe?.())}
                 >
                   立即购买
                 </Button>
               </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>
@@ -604,7 +707,7 @@ export default function OfficialWebPage({ onNavigateTokenPlan }: Props) {
           <Paragraph style={{ textAlign: 'center', color: '#86909c', margin: '10px 0 20px', fontSize: 14 }}>
             Token Plan 支持兼容 OpenAI / Anthropic 协议的主流工具
           </Paragraph>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
             {AI_TOOLS.map((tool) => (
               <div
                 key={tool.name}

@@ -39,7 +39,7 @@ interface PlanBillRow {
   userEmail: string
   productName: string
   productType: 'tokenPlan' | 'resourcePack'
-  orderType: 'new' | 'renew' | 'gift'
+  orderType: 'new' | 'renew'
   amount: number
   discount: number
   originalAmount: number
@@ -96,7 +96,6 @@ const PRODUCT_TYPE_LABEL: Record<string, string> = {
 const ORDER_TYPE_LABEL: Record<string, string> = {
   new: '新购',
   renew: '续费',
-  gift: '赠送',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -294,30 +293,6 @@ const rows: PlanBillRow[] = [
     paymentMethod: '支付宝',
     paymentChannel: '支付宝',
   },
-  {
-    id: '8',
-    orderNo: 'ORD20260824008',
-    userNickname: 'AI初学者',
-    userPhone: '151****6677',
-    userAccount: 'ACC202608250020',
-    userEmail: 'beginner@example.com',
-    productName: '新手套餐（Lite）',
-    productType: 'tokenPlan',
-    orderType: 'gift',
-    amount: 0,
-    discount: 0,
-    originalAmount: 60,
-    status: 'paid',
-    createdAt: '2026-08-24 10:00:00',
-    grantedAt: '2026-08-24 10:00:02',
-    expireAt: '2026-09-24 10:00:02',
-    resourceStatus: 'expired',
-    totalTokens: '3,500,000',
-    remainingTokens: '0',
-    operator: '活动系统',
-    paymentMethod: '赠送',
-    paymentChannel: '系统赠送',
-  },
 ]
 
 interface SearchForm {
@@ -473,12 +448,9 @@ export default function PlanBill() {
       key: 'amount',
       width: 110,
       align: 'right',
-      render: (v: number) =>
-        v === 0 ? (
-          <Tag color="blue">赠送</Tag>
-        ) : (
-          <span style={{ fontWeight: 600, color: '#2f6bff' }}>¥{v.toFixed(2)}</span>
-        ),
+      render: (v: number) => (
+        <span style={{ fontWeight: 600, color: '#2f6bff' }}>¥{v.toFixed(2)}</span>
+      ),
     },
     {
       title: '支付状态',
@@ -665,7 +637,7 @@ export default function PlanBill() {
               style={{ width: 180 }}
               value={search.orderType}
               onChange={(v) => {
-                const allVals = ['new', 'renew', 'gift']
+                const allVals = ['new', 'renew']
                 setSearch({
                   ...search,
                   orderType: v.includes('all')
@@ -677,7 +649,6 @@ export default function PlanBill() {
                 { value: 'all', label: '全部' },
                 { value: 'new', label: '新购' },
                 { value: 'renew', label: '续费' },
-                { value: 'gift', label: '赠送' },
               ]}
             />
           </div>
@@ -836,7 +807,7 @@ export default function PlanBill() {
               )}
               <Descriptions.Item label="实付金额" span={2}>
                 <Text style={{ fontWeight: 600, fontSize: 18, color: '#2f6bff' }}>
-                  {currentRow.amount === 0 ? '赠送' : `¥${currentRow.amount.toFixed(2)}`}
+                  ¥{currentRow.amount.toFixed(2)}
                 </Text>
               </Descriptions.Item>
               <Descriptions.Item label="支付方式">{currentRow.paymentMethod}</Descriptions.Item>

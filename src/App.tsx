@@ -567,6 +567,9 @@ export default function App() {
     }
   }
 
+  /** 登录页成功后的回流目标：官网「立即订阅」登录后直达控制台 Token Plan 概览；null 走默认逻辑 */
+  const [loginReturn, setLoginReturn] = useState<'tokenPlanOverview' | 'resourcePack' | null>(null)
+
   if (loginMode) {
     return (
       <PromoLoginPage
@@ -574,6 +577,7 @@ export default function App() {
         inviteCode={shareInviteCode}
         onBack={() => {
           dropQueryParams('login')
+          setLoginReturn(null)
           setLoginMode(false)
         }}
         onSuccess={(invitee) => {
@@ -581,6 +585,26 @@ export default function App() {
           setLoginMode(false)
           setShareCampaignId(null)
           setShareInviteCode(null)
+          if (loginReturn === 'tokenPlanOverview') {
+            /** 官网「立即订阅」入口：登录后直达控制台 · Token Plan 概览 */
+            setLoginReturn(null)
+            setViewMode('console')
+            setConsoleSubPage('tokenPlan')
+            setTokenPlanSub('overview')
+            setCheckoutPlan(null)
+            setPaymentData(null)
+            return
+          }
+          if (loginReturn === 'resourcePack') {
+            /** 官网资源包「立即购买」入口：登录后直达控制台 · 资源包管理 */
+            setLoginReturn(null)
+            setViewMode('console')
+            setConsoleSubPage('tokenPlan')
+            setTokenPlanSub('resourcePack')
+            setCheckoutPlan(null)
+            setPaymentData(null)
+            return
+          }
           /** 登录成功统一进入控制台：被邀请用户直达「Token工厂 › 概览」（Token工厂默认首页即概览），分销商直达推广合伙人 */
           setViewMode('console')
           if (invitee) {
@@ -1379,7 +1403,20 @@ export default function App() {
               </span>
             </Space>
           </div>
-          {websitePage === 'tokenPlan' && <OfficialWebPage />}
+          {websitePage === 'tokenPlan' && (
+            <OfficialWebPage
+              onSubscribe={() => {
+                /** 未登录先过登录页，登录成功后落到控制台 · Token Plan 概览 */
+                setLoginReturn('tokenPlanOverview')
+                setLoginMode(true)
+              }}
+              onBuyResourcePack={() => {
+                /** 未登录先过登录页，登录成功后落到控制台 · 资源包管理 */
+                setLoginReturn('resourcePack')
+                setLoginMode(true)
+              }}
+            />
+          )}
           {websitePage === 'promo' && (
             <PromoLandingPage
               onGoConsole={() => {

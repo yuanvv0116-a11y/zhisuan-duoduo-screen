@@ -215,7 +215,6 @@ function OrderDetailSection() {
   const statusTagColor = (s: OrderStatus) => {
     if (s === 'paid') return 'success'
     if (s === 'pending') return 'warning'
-    if (s === 'refunded') return 'default'
     return 'error'
   }
 

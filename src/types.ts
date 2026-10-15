@@ -661,22 +661,20 @@ export const ORDER_DETAIL_TAB_LABEL: Record<OrderDetailTab, string> = {
 }
 
 /** 订单类型 */
-export type OrderType = 'gift' | 'purchase' | 'renew' | 'refund'
+export type OrderType = 'purchase' | 'renew' | 'refund'
 
 export const ORDER_TYPE_LABEL: Record<OrderType, string> = {
-  gift: '赠送',
   purchase: '新购',
   renew: '续费',
   refund: '退款',
 }
 
 /** 订单状态 */
-export type OrderStatus = 'paid' | 'pending' | 'refunded' | 'cancelled'
+export type OrderStatus = 'paid' | 'pending' | 'cancelled'
 
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   paid: '已支付',
   pending: '待支付',
-  refunded: '已退款',
   cancelled: '已取消',
 }
 
