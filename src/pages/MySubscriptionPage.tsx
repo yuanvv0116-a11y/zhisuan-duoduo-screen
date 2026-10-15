@@ -625,7 +625,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               }}
             >
               <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 14 }}>
-                暂无可用资源包，请先购买
+                暂无可用加油包，请先购买
               </div>
               <Button
                 type="primary"
