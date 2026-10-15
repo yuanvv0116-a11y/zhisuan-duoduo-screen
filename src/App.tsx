@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Layout, Menu, Typography, Space, Avatar, Dropdown, Segmented } from 'antd'
+import { Layout, Menu, Typography, Space, Avatar, Dropdown, Segmented, message } from 'antd'
 import { ApiOutlined, AppstoreOutlined, BarChartOutlined, DownOutlined, UserOutlined, TeamOutlined, WalletOutlined, MoreOutlined, DesktopOutlined, RocketOutlined, GlobalOutlined, UnorderedListOutlined, GiftOutlined, MoneyCollectOutlined, LoginOutlined } from '@ant-design/icons'
 import UserList from './pages/UserList'
 import UserTag from './pages/UserTag'
@@ -47,7 +47,7 @@ import PromoCommissionDetail, { type CommissionDetailFilter } from './pages/Prom
 import PromoRebateConfig from './pages/PromoRebateConfig'
 import PromoSettleAudit from './pages/PromoSettleAudit'
 import PromoStats from './pages/PromoStats'
-import TokenFactoryPage, { type FactoryMenu } from './pages/TokenFactoryPage'
+import TokenFactoryPage, { resolvePlazaModelId, type FactoryMenu } from './pages/TokenFactoryPage'
 import VersionChangelog from './pages/VersionChangelog'
 import { RELEASES, parseConsoleScope } from './releases'
 import { getActiveScope, getScopeFromUrl, getScopeRouteKeys, isInScope, SCOPES } from './scope'
@@ -287,6 +287,8 @@ export default function App() {
   const [websitePage, setWebsitePage] = useState<WebsitePage>('tokenPlan')
   /** 控制台默认落在费用管理，顶部导航点击「控制台」时也回到费用管理 */
   const [consoleSubPage, setConsoleSubPage] = useState<string>('billing')
+  /** 「查看模型详情」跳转：进入 Token工厂时直达模型广场的模型详情 */
+  const [factoryDetailId, setFactoryDetailId] = useState<string | null>(null)
   const [tokenPlanSub, setTokenPlanSub] = useState<
     'overview' | 'mySubscription' | 'resourcePack' | 'mySubscriptionNoPlan' | 'mySubscriptionNoPack'
   >('overview')
@@ -334,6 +336,16 @@ export default function App() {
     setIsRenewMode(false)
     setConsoleSubPage('billing')
     setBillingSub('orderDetail')
+  }
+  /** 「查看模型详情」：跳转到 Token工厂模型广场对应模型的详情页 */
+  const handleViewModelDetail = (model: string) => {
+    const id = resolvePlazaModelId(model)
+    if (!id) {
+      message.info('该模型暂无详情数据')
+      return
+    }
+    setFactoryDetailId(id)
+    setConsoleSubPage('tokenFactory')
   }
   const [paymentData, setPaymentData] = useState<{
     plan: TokenPlan
@@ -607,6 +619,7 @@ export default function App() {
           }
           /** 登录成功统一进入控制台：被邀请用户直达「Token工厂 › 概览」（Token工厂默认首页即概览），分销商直达推广合伙人 */
           setViewMode('console')
+          setFactoryDetailId(null)
           if (invitee) {
             setConsoleSubPage('tokenFactory')
           } else {
@@ -750,6 +763,7 @@ export default function App() {
             /** 点击「控制台」默认直接进入费用管理，并退出可能残留的套餐结算 / 支付流程 */
             if (next === 'console') {
               setConsoleSubPage(consoleLandingSub)
+              setFactoryDetailId(null)
               if (consoleLandingSub === 'billing') setBillingSub(defaultBillingSub)
               if (consoleLandingSub === 'tokenPlan') setTokenPlanSub('overview')
               setCheckoutPlan(null)
@@ -966,7 +980,7 @@ export default function App() {
                     fontWeight: consoleSubPage === 'tokenFactory' ? 600 : 400,
                     cursor: 'pointer',
                   }}
-                  onClick={() => { setConsoleSubPage('tokenFactory'); setCheckoutPlan(null); setPaymentData(null) }}
+                  onClick={() => { setConsoleSubPage('tokenFactory'); setFactoryDetailId(null); setCheckoutPlan(null); setPaymentData(null) }}
                 >
                   Token工厂
                 </span>
@@ -1231,11 +1245,11 @@ export default function App() {
                 ) : tokenPlanSub === 'resourcePack' ? (
                   <ResourcePackPage />
                 ) : tokenPlanSub === 'mySubscriptionNoPlan' ? (
-                  <MySubscriptionPage variant="noPlan" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} />
+                  <MySubscriptionPage variant="noPlan" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} onViewModelDetail={handleViewModelDetail} />
                 ) : tokenPlanSub === 'mySubscriptionNoPack' ? (
-                  <MySubscriptionPage variant="noPack" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} />
+                  <MySubscriptionPage variant="noPack" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} onViewModelDetail={handleViewModelDetail} />
                 ) : (
-                  <MySubscriptionPage variant="normal" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} />
+                  <MySubscriptionPage variant="normal" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} onViewModelDetail={handleViewModelDetail} />
                 )}
               </div>
             </div>
@@ -1259,6 +1273,7 @@ export default function App() {
           ) : consoleSubPage === 'tokenFactory' ? (
             <TokenFactoryPage
               allowedMenus={allowedFactoryMenus}
+              initialDetailId={factoryDetailId}
               onGoRecharge={
                 showConsoleBilling
                   ? () => {

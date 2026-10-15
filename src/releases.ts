@@ -344,7 +344,7 @@ export const RELEASES: Record<string, ReleaseItem> = {
   '2.7': {
     title: '2.7 Token Plan 迭代',
     routeKeys: ['tokenPlan', 'resourcePack', 'planStats'],
-    consoleKeys: ['plan', 'login', 'billing:orderDetail'],
+    consoleKeys: ['plan', 'login', 'billing:orderDetail', 'tf:plaza'],
     websiteKeys: ['tokenPlan'],
     views: ['admin', 'console', 'website'],
     publishedAt: '',

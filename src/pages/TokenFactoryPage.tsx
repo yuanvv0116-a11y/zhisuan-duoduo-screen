@@ -4998,6 +4998,24 @@ function UsageStats() {
   )
 }
 
+/**
+ * 外部页面（如 Token Plan 我的订阅）的模型名 → 广场模型 id。
+ * 名称体系不同（qwen3.8-max ↔ qwen3-8-max / Qwen3.8-Max），先做去符号归一化精确匹配，
+ * 再按「广场 id/名称是查询前缀」取最长匹配（deepseek-v4-pro-0813 → deepseek-v4），无命中返回 null。
+ */
+export function resolvePlazaModelId(modelName: string): string | null {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const q = norm(modelName)
+  if (!q) return null
+  const candidates = MODELS.map((m) => ({ id: m.id, keys: [norm(m.id), norm(m.name)] }))
+  const exact = candidates.find((c) => c.keys.includes(q))
+  if (exact) return exact.id
+  const prefixed = candidates
+    .flatMap((c) => [...new Set(c.keys)].filter((k) => k.length >= 6 && q.startsWith(k)).map((k) => ({ id: c.id, len: k.length })))
+    .sort((a, b) => b.len - a.len)[0]
+  return prefixed?.id ?? null
+}
+
 /* ---------------- Token 工厂 ---------------- */
 
 interface TokenFactoryPageProps {
@@ -5005,9 +5023,11 @@ interface TokenFactoryPageProps {
   allowedMenus?: FactoryMenu[]
   /** 概览页「充值余额」跳转到费用管理，未传时回落到 Token 工厂内部提示 */
   onGoRecharge?: () => void
+  /** 外部跳转直达模型详情（如订阅页「查看模型详情」），挂载时定位到广场对应模型 */
+  initialDetailId?: string | null
 }
 
-export default function TokenFactoryPage({ allowedMenus, onGoRecharge }: TokenFactoryPageProps) {
+export default function TokenFactoryPage({ allowedMenus, onGoRecharge, initialDetailId }: TokenFactoryPageProps) {
   /** 评审范围裁剪后的菜单组：组内无可见项时整组隐藏 */
   const groups = useMemo(() => {
     if (!allowedMenus || allowedMenus.length === 0) return MENU_GROUPS
@@ -5019,9 +5039,10 @@ export default function TokenFactoryPage({ allowedMenus, onGoRecharge }: TokenFa
   /** 不在评审范围内的菜单（含页面内跳转）统一回落到第一个可见项；「概览」是菜单首项，进入 Token 工厂默认即概览页 */
   const fallbackMenu = groups[0]?.items[0]?.key ?? 'plaza'
 
-  const [menu, setMenu] = useState<FactoryMenu>(fallbackMenu)
+  /** 外部跳转直达模型详情（如订阅页「查看模型详情」）：挂载时直接定位到广场的详情态 */
+  const [menu, setMenu] = useState<FactoryMenu>(initialDetailId ? 'plaza' : fallbackMenu)
   /** 详情态提升到菜单层：点击左侧「模型广场」可从详情页跳回广场 */
-  const [detailId, setDetailId] = useState<string | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(initialDetailId ?? null)
   /** 密钥列表提升到菜单层：切换左侧菜单不丢失本次会话的增删改 */
   const [accountKeys, setAccountKeys] = useState<ApiKeyRow[]>(INITIAL_ACCOUNT_KEYS)
 

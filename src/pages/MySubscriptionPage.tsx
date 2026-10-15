@@ -168,9 +168,11 @@ interface Props {
   onSubscribe?: (edition: 'personal' | 'team') => void
   onRenew?: () => void
   onViewOrders?: () => void
+  /** 「查看模型详情」：跳转到 Token工厂模型广场对应模型的详情页 */
+  onViewModelDetail?: (model: string) => void
 }
 
-export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal', onSubscribe, onRenew, onViewOrders }: Props) {
+export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal', onSubscribe, onRenew, onViewOrders, onViewModelDetail }: Props) {
   const [edition, setEdition] = useState<'personal' | 'team'>('personal')
   const [packDetailOpen, setPackDetailOpen] = useState(false)
   const [guideModel, setGuideModel] = useState<string | null>(null)
@@ -1154,6 +1156,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                   </a>
                   <a
                     style={{ color: PRIMARY, cursor: 'pointer' }}
+                    onClick={() => onViewModelDetail?.(record.model)}
                   >
                     查看模型详情
                   </a>
