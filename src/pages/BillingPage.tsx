@@ -483,6 +483,16 @@ function OrderDetailSection() {
               {ORDER_PRODUCT_TYPE_LABEL[currentOrder.productType]}
             </OrderDetailRow>
             <OrderDetailRow label="订单类型">{ORDER_TYPE_LABEL[currentOrder.orderType]}</OrderDetailRow>
+            <OrderDetailRow label="支付状态">
+              <Tag
+                color={statusTagColor(currentOrder.status)}
+                style={{ borderRadius: 4, marginInlineEnd: 0 }}
+              >
+                {ORDER_STATUS_LABEL[currentOrder.status]}
+              </Tag>
+            </OrderDetailRow>
+            <OrderDetailRow label="交易时间">{currentOrder.createdAt}</OrderDetailRow>
+            <OrderDetailRow label="支付时间">{currentOrder.payAt ?? '—'}</OrderDetailRow>
             <OrderDetailRow label="资源状态">
               {currentOrder.resourceStatus ? (
                 <Tag
