@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Button, Card, Checkbox, Divider, Table, Tabs, Tag, Tooltip, message } from 'antd'
+import { Button, Card, Checkbox, Divider, Popover, Table, Tabs, Tag, Tooltip, message } from 'antd'
 import {
   ArrowLeftOutlined,
   CalendarOutlined,
@@ -376,7 +376,21 @@ export default function ResourcePackPage() {
                 </div>
                 <div style={{ marginTop: 16, fontSize: 13, color: '#4b5563', lineHeight: 1.8 }}>
                   <div>支持模型（为优化使用，期间可能有部分调整）</div>
-                  <div>Qwen3.6-27B,DODO-AC-Ultra-5,Doubao-Seedream-5.0,DeepSeek-V4-Flash，+3</div>
+                  <div>
+                    Qwen3.6-27B,DODO-AC-Ultra-5,Doubao-Seedream-5.0,DeepSeek-V4-Flash，
+                    <Popover
+                      trigger="click"
+                      content={
+                        <div style={{ fontSize: 13, lineHeight: 2 }}>
+                          <div>GLM-5.2</div>
+                          <div>Wan-Image</div>
+                          <div>HappyHorse</div>
+                        </div>
+                      }
+                    >
+                      <a style={{ borderBottom: '1px dashed #2f6bff', borderRadius: 0 }}>+3</a>
+                    </Popover>
+                  </div>
                 </div>
               </Card>
 
