@@ -270,38 +270,6 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
             style={{ borderRadius: 10, border: '1px solid #e8ecf0' }}
             styles={{ body: { padding: '20px' } }}
           >
-            {/* 支持模型 */}
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 13, color: '#4b5563', marginBottom: 8 }}>支持模型（为优化使用，期间可能有部分调整）</div>
-              <div style={{ fontSize: 13, color: '#333', lineHeight: 1.8 }}>
-                {(() => {
-                  const MAX_SHOW = 4
-                  const showModels = models.slice(0, MAX_SHOW)
-                  const hasMore = models.length > MAX_SHOW
-                  return (
-                    <>
-                      {showModels.map((m, i) => (
-                        <span key={m.name}>
-                          <span style={{ color: '#111827' }}>{m.name}</span>
-                          {(i < showModels.length - 1 || hasMore) && (
-                            <span style={{ color: '#c0c4cc', margin: '0 4px' }}>,</span>
-                          )}
-                        </span>
-                      ))}
-                      {hasMore && (
-                        <a
-                          onClick={() => setModelModalOpen(true)}
-                          style={{ color: '#2f6bff', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                        >
-                          +{models.length - MAX_SHOW}
-                        </a>
-                      )}
-                    </>
-                  )
-                })()}
-              </div>
-            </div>
-
             {/* 套餐卡片 */}
             <div>
               <div
@@ -389,6 +357,38 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                 <div style={{ fontSize: 12, color: '#8b93a5', lineHeight: 1.8 }}>
                   套餐为订阅人独享，禁止共享。一经订阅开通，不支持退费、降配，请谨慎选择。
                 </div>
+              </div>
+            </div>
+
+            {/* 支持模型 */}
+            <div style={{ marginTop: 18 }}>
+              <div style={{ fontSize: 13, color: '#4b5563', marginBottom: 8 }}>支持模型（为优化使用，期间可能有部分调整）</div>
+              <div style={{ fontSize: 13, color: '#333', lineHeight: 1.8 }}>
+                {(() => {
+                  const MAX_SHOW = 4
+                  const showModels = models.slice(0, MAX_SHOW)
+                  const hasMore = models.length > MAX_SHOW
+                  return (
+                    <>
+                      {showModels.map((m, i) => (
+                        <span key={m.name}>
+                          <span style={{ color: '#111827' }}>{m.name}</span>
+                          {(i < showModels.length - 1 || hasMore) && (
+                            <span style={{ color: '#c0c4cc', margin: '0 4px' }}>,</span>
+                          )}
+                        </span>
+                      ))}
+                      {hasMore && (
+                        <a
+                          onClick={() => setModelModalOpen(true)}
+                          style={{ color: '#2f6bff', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          +{models.length - MAX_SHOW}
+                        </a>
+                      )}
+                    </>
+                  )
+                })()}
               </div>
             </div>
           </Card>
