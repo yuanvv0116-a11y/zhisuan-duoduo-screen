@@ -1043,6 +1043,9 @@ export default function ConsolePromo() {
             >
               <Tooltip title={`可兑券或提现的金额，满 ${PROMO_WITHDRAW_MIN} 元可申请提现`}>
                 <div style={{ fontSize: 13, opacity: 0.9 }}>
+                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 4 }}>
+                    当日返佣于每日 23:59 统一结算更新，以避免单次计佣误差带来的收入损失
+                  </div>
                   <div>
                     <WalletOutlined style={{ marginRight: 6 }} />
                     可提现余额（元）
