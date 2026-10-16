@@ -72,17 +72,20 @@ export default function PromoSettleAudit() {
   interface WithdrawQuery {
     partner: string
     phone: string
+    wechat: string
     status: 'all' | WithdrawStatus
     dateRange: [string, string] | null
   }
   const EMPTY_WITHDRAW_QUERY: WithdrawQuery = {
     partner: '',
     phone: '',
+    wechat: '',
     status: 'all',
     dateRange: null,
   }
   const [wPartner, setWPartner] = useState('')
   const [wPhone, setWPhone] = useState('')
+  const [wWechat, setWWechat] = useState('')
   const [wStatus, setWStatus] = useState<'all' | WithdrawStatus>('all')
   const [wRange, setWRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [wQuery, setWQuery] = useState<WithdrawQuery>(EMPTY_WITHDRAW_QUERY)
@@ -130,6 +133,7 @@ export default function PromoSettleAudit() {
     setWQuery({
       partner: wPartner.trim(),
       phone: wPhone.trim(),
+      wechat: wWechat.trim(),
       status: wStatus,
       dateRange: toRange(wRange),
     })
@@ -138,6 +142,7 @@ export default function PromoSettleAudit() {
   const handleReset = () => {
     setWPartner('')
     setWPhone('')
+    setWWechat('')
     setWStatus('all')
     setWRange(null)
     setWQuery(EMPTY_WITHDRAW_QUERY)
@@ -153,9 +158,10 @@ export default function PromoSettleAudit() {
         const partnerPhone = phoneByPartnerId.get(w.partnerId) ?? ''
         const matchPartner = !wQuery.partner || w.partnerName.includes(wQuery.partner)
         const matchPhone = !wQuery.phone || partnerPhone.includes(wQuery.phone)
+        const matchWechat = !wQuery.wechat || WITHDRAW_WECHAT_MASKED.includes(wQuery.wechat)
         const matchStatus = wQuery.status === 'all' || w.status === wQuery.status
         const matchRange = inRange(w.appliedAt, wQuery.dateRange)
-        return matchPartner && matchPhone && matchStatus && matchRange
+        return matchPartner && matchPhone && matchWechat && matchStatus && matchRange
       })
       .slice()
       .sort((a, b) => b.appliedAt.localeCompare(a.appliedAt))
@@ -449,6 +455,16 @@ export default function PromoSettleAudit() {
           style={{ width: 160 }}
           value={wPhone}
           onChange={(e) => setWPhone(e.target.value)}
+          onPressEnter={handleSearch}
+        />
+      </SearchField>
+      <SearchField label="收款微信">
+        <Input
+          placeholder="请输入收款微信"
+          allowClear
+          style={{ width: 160 }}
+          value={wWechat}
+          onChange={(e) => setWWechat(e.target.value)}
           onPressEnter={handleSearch}
         />
       </SearchField>
