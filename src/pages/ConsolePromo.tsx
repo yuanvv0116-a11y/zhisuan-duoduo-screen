@@ -1016,7 +1016,7 @@ export default function ConsolePromo() {
               ))}
             </div>
             <div style={{ fontSize: 8, opacity: 0.75, marginTop: 16 }}>
-              当日返佣于每日 23:59 统一结算更新，以避免单次计佣误差带来的收入损失
+              每日 23:59 统一结算更新当日返佣，以避免单次计佣误差带来的收入损失
             </div>
             <div
               style={{
