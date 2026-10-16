@@ -4,7 +4,6 @@ import { DownloadOutlined, SearchOutlined } from '@ant-design/icons'
 import {
   Button,
   Card,
-  Checkbox,
   Col,
   DatePicker,
   Descriptions,
@@ -103,10 +102,9 @@ export default function PromoSettleAudit() {
 
   const [rejectTarget, setRejectTarget] = useState<WithdrawRequest | null>(null)
   const [rejectReason, setRejectReason] = useState('')
-  /** 通过提现弹窗：勾选「已打款」后录入实际扣税，确认后才置为已通过 */
+  /** 通过提现弹窗：录入实际扣税后确认打款，确认后才置为已通过 */
   const [approveTarget, setApproveTarget] = useState<WithdrawRequest | null>(null)
-  const [approvePaid, setApprovePaid] = useState(false)
-  /** 实际扣税（元），默认 0，勾选「已打款」后在弹窗中录入 */
+  /** 实际扣税（元），默认 0，在弹窗中录入 */
   const [approveTax, setApproveTax] = useState<number | null>(0)
 
   /** 分销人 id -> 手机号，用于按「分销人手机」过滤（提现/兑券记录只存 partnerId + 昵称） */
@@ -253,14 +251,9 @@ export default function PromoSettleAudit() {
 
   const handleApprove = () => {
     if (!approveTarget) return
-    if (!approvePaid) {
-      message.error('请先完成打款并勾选「已打款」')
-      return
-    }
     const res = reviewWithdraw(approveTarget.id, true, undefined, approveTax ?? 0)
     message.success(res.ok ? res.msg : res.msg)
     setApproveTarget(null)
-    setApprovePaid(false)
     setApproveTax(0)
   }
 
@@ -355,7 +348,6 @@ export default function PromoSettleAudit() {
               size="small"
               style={{ padding: 0 }}
               onClick={() => {
-                setApprovePaid(false)
                 setApproveTax(0)
                 setApproveTarget(row)
               }}
@@ -681,42 +673,49 @@ export default function PromoSettleAudit() {
         width={520}
         title="通过提现申请"
         open={!!approveTarget}
-        okText="确认通过"
+        okText="确认打款"
         cancelText="取消"
         onOk={handleApprove}
         onCancel={() => {
           setApproveTarget(null)
-          setApprovePaid(false)
           setApproveTax(0)
         }}
       >
         <Descriptions column={1} size="small" labelStyle={{ width: 110 }}>
-          <Descriptions.Item label="申请提现金额">
+          <Descriptions.Item
+            label={
+              <Space size={6}>
+                申请提现
+                <RequirementDot
+                  title="通过提现申请 · 需求说明"
+                  sections={[
+                    {
+                      label: '需求内容',
+                      items: [
+                        '扣税金额默认为0，支持输入小数，保留2位。点击确认通过后，调用微信打款，打款到对方账户。 如打款成功，提示“打款成功”返回列表，本条申请状态为已通过。 如打款失败，则提示失败理由。待审核状态不变。',
+                      ],
+                    },
+                  ]}
+                />
+              </Space>
+            }
+          >
             <Text strong>{approveTarget ? money(approveTarget.amount) : '—'}</Text>
           </Descriptions.Item>
-          <Descriptions.Item label="是否已打款">
-            <Checkbox checked={approvePaid} onChange={(e) => setApprovePaid(e.target.checked)}>
-              已打款
-            </Checkbox>
+          <Descriptions.Item label="收款微信">{WITHDRAW_WECHAT_MASKED}</Descriptions.Item>
+          <Descriptions.Item label="扣税">
+            <InputNumber
+              min={0}
+              precision={2}
+              value={approveTax}
+              onChange={(v) => setApproveTax(v)}
+              addonBefore="¥"
+              style={{ width: 160 }}
+            />
           </Descriptions.Item>
-          {approvePaid && (
-            <>
-              <Descriptions.Item label="扣税">
-                <InputNumber
-                  min={0}
-                  precision={2}
-                  value={approveTax}
-                  onChange={(v) => setApproveTax(v)}
-                  addonBefore="¥"
-                  style={{ width: 160 }}
-                />
-              </Descriptions.Item>
-              <Descriptions.Item label="实际打款">
-                <Text strong>{money((approveTarget?.amount ?? 0) - (approveTax ?? 0))}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="收款微信">{WITHDRAW_WECHAT_MASKED}</Descriptions.Item>
-            </>
-          )}
+          <Descriptions.Item label="实际打款">
+            <Text strong>{money((approveTarget?.amount ?? 0) - (approveTax ?? 0))}</Text>
+          </Descriptions.Item>
         </Descriptions>
       </Modal>
     </>
