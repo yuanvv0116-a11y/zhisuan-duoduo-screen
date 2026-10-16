@@ -154,7 +154,8 @@ const ACTIVITY_RULES: { title: string; items: string[] }[] = [
   },
 ]
 
-const maskAccountNo = (no: string) => (no.length > 8 ? `${no.slice(0, 4)} **** **** ${no.slice(-4)}` : no)
+/** 绑定打款微信号（演示数据，脱敏展示） */
+const WITHDRAW_WECHAT_MASKED = 'wx_****8866'
 
 const copyText = async (value: string) => {
   if (navigator.clipboard && window.isSecureContext) {
@@ -675,22 +676,10 @@ export default function ConsolePromo() {
         ),
     },
     {
-      title: '收款人',
-      dataIndex: 'accountName',
-      width: 100,
-      render: (v?: string) => (v ? <Text>{maskName(v)}</Text> : <Text type="secondary">—</Text>),
-    },
-    {
-      title: '开户行',
-      dataIndex: 'bankName',
-      width: 120,
-      render: (v?: string) => (v ? <Text>{v}</Text> : <Text type="secondary">—</Text>),
-    },
-    {
-      title: '收款账号',
-      dataIndex: 'accountNo',
-      width: 150,
-      render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{maskAccountNo(v)}</Text>,
+      title: '收款微信号',
+      key: 'wechat',
+      width: 130,
+      render: () => <Text>{WITHDRAW_WECHAT_MASKED}</Text>,
     },
     {
       title: '状态',
@@ -1273,7 +1262,7 @@ export default function ConsolePromo() {
           审核通过后 1-3 个工作日打款，审核未通过时金额自动退回佣金账户。平台按税务要求代扣个税（实际以发放时核算为准）。
         </Text>
         <div style={{ marginTop: 12 }}>
-          收款微信号：<span style={{ fontWeight: 600, color: '#1f2d4d' }}>wx_****8866</span>
+          收款微信号：<span style={{ fontWeight: 600, color: '#1f2d4d' }}>{WITHDRAW_WECHAT_MASKED}</span>
         </div>
         <div style={{ marginTop: 24, marginBottom: 12, fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
           <span>
