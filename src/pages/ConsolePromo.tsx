@@ -1275,7 +1275,7 @@ export default function ConsolePromo() {
         <div style={{ marginTop: 12 }}>
           收款微信号：<span style={{ fontWeight: 600, color: '#1f2d4d' }}>wx_****8866</span>
         </div>
-        <div style={{ margin: '12px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ marginTop: 24, marginBottom: 12, fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
           <span>
             可提现金额：<span style={{ fontWeight: 600, color: '#1f2d4d' }}>{money(me.availableCommission)}</span>
             <Text type="secondary">（最低提现金额 {PROMO_WITHDRAW_MIN} 元）</Text>
