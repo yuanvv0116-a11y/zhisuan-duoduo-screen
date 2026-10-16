@@ -1024,16 +1024,12 @@ export default function ConsolePromo() {
                     <span style={{ fontSize: 20, fontWeight: 600, marginRight: 4 }}>¥</span>
                     {numCn(m.amount)}
                   </div>
-                  {idx === 0 && (
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>月度收益包含已提现和已兑券金额</div>
-                  )}
                 </div>
               ))}
             </div>
             <div
               style={{
                 display: 'flex',
-                justifyContent: 'space-between',
                 alignItems: 'center',
                 gap: 16,
                 flexWrap: 'wrap',
@@ -1045,7 +1041,7 @@ export default function ConsolePromo() {
               <Tooltip title={`可兑券或提现的金额，满 ${PROMO_WITHDRAW_MIN} 元可申请提现`}>
                 <div style={{ fontSize: 13, opacity: 0.9 }}>
                   <WalletOutlined style={{ marginRight: 6 }} />
-                  可提现（元）
+                  可提现金额（元）
                   <span style={{ fontSize: 20, fontWeight: 700, marginLeft: 8 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, marginRight: 3 }}>¥</span>
                     {numCn(me.availableCommission)}
