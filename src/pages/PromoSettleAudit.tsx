@@ -25,7 +25,7 @@ import type { Dayjs } from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import PageShell from '../components/PageShell'
 import SearchField from '../components/SearchField'
-import SecretCell, { maskName } from '../components/SecretCell'
+import { maskName } from '../components/SecretCell'
 import RequirementDot from '../components/RequirementDot'
 import {
   liveVoucherStatus,
@@ -43,6 +43,9 @@ const { RangePicker } = DatePicker
 const { Text } = Typography
 
 const money = (n: number) => `¥${roundAmount(n, 2).toFixed(2)}`
+
+/** 绑定打款微信号（演示数据，脱敏展示） */
+const WITHDRAW_WECHAT_MASKED = 'wx_****8866'
 
 /** CSV 单元格：统一加引号并转义内部双引号 */
 function csvCell(value: string | number): string {
@@ -69,23 +72,17 @@ export default function PromoSettleAudit() {
   interface WithdrawQuery {
     partner: string
     phone: string
-    payee: string
-    accountNo: string
     status: 'all' | WithdrawStatus
     dateRange: [string, string] | null
   }
   const EMPTY_WITHDRAW_QUERY: WithdrawQuery = {
     partner: '',
     phone: '',
-    payee: '',
-    accountNo: '',
     status: 'all',
     dateRange: null,
   }
   const [wPartner, setWPartner] = useState('')
   const [wPhone, setWPhone] = useState('')
-  const [wPayee, setWPayee] = useState('')
-  const [wAccountNo, setWAccountNo] = useState('')
   const [wStatus, setWStatus] = useState<'all' | WithdrawStatus>('all')
   const [wRange, setWRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [wQuery, setWQuery] = useState<WithdrawQuery>(EMPTY_WITHDRAW_QUERY)
@@ -109,14 +106,14 @@ export default function PromoSettleAudit() {
   /** 实际扣税（元），默认 0，勾选「已打款」后在弹窗中录入 */
   const [approveTax, setApproveTax] = useState<number | null>(0)
 
-  /** 合伙人 id -> 手机号，用于按「合伙人手机号码」过滤（提现/兑券记录只存 partnerId + 昵称） */
+  /** 分销人 id -> 手机号，用于按「分销人手机」过滤（提现/兑券记录只存 partnerId + 昵称） */
   const phoneByPartnerId = useMemo(() => {
     const map = new Map<string, string>()
     partners.forEach((p) => map.set(p.id, p.phone))
     return map
   }, [partners])
 
-  /** 合伙人 id -> 账户ID，用于「合伙人」列昵称下方展示账户ID */
+  /** 分销人 id -> 账户ID，用于「分销人」列昵称下方展示账户ID */
   const accountIdByPartnerId = useMemo(() => {
     const map = new Map<string, string>()
     partners.forEach((p) => map.set(p.id, p.accountId))
@@ -133,8 +130,6 @@ export default function PromoSettleAudit() {
     setWQuery({
       partner: wPartner.trim(),
       phone: wPhone.trim(),
-      payee: wPayee.trim(),
-      accountNo: wAccountNo.trim(),
       status: wStatus,
       dateRange: toRange(wRange),
     })
@@ -143,8 +138,6 @@ export default function PromoSettleAudit() {
   const handleReset = () => {
     setWPartner('')
     setWPhone('')
-    setWPayee('')
-    setWAccountNo('')
     setWStatus('all')
     setWRange(null)
     setWQuery(EMPTY_WITHDRAW_QUERY)
@@ -160,11 +153,9 @@ export default function PromoSettleAudit() {
         const partnerPhone = phoneByPartnerId.get(w.partnerId) ?? ''
         const matchPartner = !wQuery.partner || w.partnerName.includes(wQuery.partner)
         const matchPhone = !wQuery.phone || partnerPhone.includes(wQuery.phone)
-        const matchPayee = !wQuery.payee || (w.accountName ?? '').includes(wQuery.payee)
-        const matchAccountNo = !wQuery.accountNo || w.accountNo.includes(wQuery.accountNo)
         const matchStatus = wQuery.status === 'all' || w.status === wQuery.status
         const matchRange = inRange(w.appliedAt, wQuery.dateRange)
-        return matchPartner && matchPhone && matchPayee && matchAccountNo && matchStatus && matchRange
+        return matchPartner && matchPhone && matchStatus && matchRange
       })
       .slice()
       .sort((a, b) => b.appliedAt.localeCompare(a.appliedAt))
@@ -220,7 +211,7 @@ export default function PromoSettleAudit() {
       message.warning('当前筛选结果为空，暂无可导出数据')
       return
     }
-    const header = ['兑换时间', '合伙人', '合伙人ID', '手机号码', '消耗佣金（元）', '券面额（元）', '券码', '券有效期至', '券状态']
+    const header = ['兑换时间', '分销人', '分销人ID', '手机号码', '消耗佣金（元）', '券面额（元）', '券码', '券有效期至', '券状态']
     const lines = [header.map(csvCell).join(',')]
     filteredExchanges.forEach((e) => {
       lines.push(
@@ -282,7 +273,7 @@ export default function PromoSettleAudit() {
   const withdrawColumns: ColumnsType<WithdrawRequest> = [
     { title: '申请时间', dataIndex: 'appliedAt', fixed: 'left', width: 170 },
     {
-      title: '合伙人',
+      title: '分销人',
       dataIndex: 'partnerName',
       width: 170,
       render: (v: string, row) => (
@@ -294,18 +285,11 @@ export default function PromoSettleAudit() {
         </Space>
       ),
     },
-    { title: '收款人', dataIndex: 'accountName', width: 100, render: (v?: string) => (v ? maskName(v) : <Text type="secondary">—</Text>) },
     {
-      title: '开户行',
-      dataIndex: 'bankName',
-      width: 120,
-      render: (v?: string) => (v ? <Text>{v}</Text> : <Text type="secondary">—</Text>),
-    },
-    {
-      title: '收款账号',
-      dataIndex: 'accountNo',
-      width: 220,
-      render: (v: string) => <SecretCell value={v} maxWidth={150} />,
+      title: '收款微信',
+      key: 'wechat',
+      width: 140,
+      render: () => <Text>{WITHDRAW_WECHAT_MASKED}</Text>,
     },
     {
       title: '提现金额',
@@ -394,7 +378,7 @@ export default function PromoSettleAudit() {
   const exchangeColumns: ColumnsType<ExchangeRecord> = [
     { title: '兑换时间', dataIndex: 'at', fixed: 'left', width: 170 },
     {
-      title: '合伙人',
+      title: '分销人',
       dataIndex: 'partnerName',
       width: 170,
       render: (v: string, row) => (
@@ -448,9 +432,9 @@ export default function PromoSettleAudit() {
 
   const withdrawSearchBar = (
     <div style={searchBarStyle}>
-      <SearchField label="合伙人">
+      <SearchField label="分销人">
         <Input
-          placeholder="请输入合伙人昵称"
+          placeholder="请输入分销人昵称"
           allowClear
           style={{ width: 160 }}
           value={wPartner}
@@ -458,33 +442,13 @@ export default function PromoSettleAudit() {
           onPressEnter={handleSearch}
         />
       </SearchField>
-      <SearchField label="合伙人手机号码">
+      <SearchField label="分销人手机">
         <Input
           placeholder="请输入手机号码"
           allowClear
           style={{ width: 160 }}
           value={wPhone}
           onChange={(e) => setWPhone(e.target.value)}
-          onPressEnter={handleSearch}
-        />
-      </SearchField>
-      <SearchField label="收款人">
-        <Input
-          placeholder="请输入收款人"
-          allowClear
-          style={{ width: 140 }}
-          value={wPayee}
-          onChange={(e) => setWPayee(e.target.value)}
-          onPressEnter={handleSearch}
-        />
-      </SearchField>
-      <SearchField label="收款人账号">
-        <Input
-          placeholder="请输入收款人账号"
-          allowClear
-          style={{ width: 180 }}
-          value={wAccountNo}
-          onChange={(e) => setWAccountNo(e.target.value)}
           onPressEnter={handleSearch}
         />
       </SearchField>
@@ -515,9 +479,9 @@ export default function PromoSettleAudit() {
 
   const exchangeSearchBar = (
     <div style={searchBarStyle}>
-      <SearchField label="合伙人">
+      <SearchField label="分销人">
         <Input
-          placeholder="请输入合伙人昵称"
+          placeholder="请输入分销人昵称"
           allowClear
           style={{ width: 160 }}
           value={ePartner}
@@ -525,7 +489,7 @@ export default function PromoSettleAudit() {
           onPressEnter={handleSearch}
         />
       </SearchField>
-      <SearchField label="合伙人手机号码">
+      <SearchField label="分销人手机">
         <Input
           placeholder="请输入手机号码"
           allowClear
@@ -682,14 +646,14 @@ export default function PromoSettleAudit() {
       >
         <div style={{ marginBottom: 12 }}>
           <Text type="secondary">
-            合伙人 {rejectTarget ? maskName(rejectTarget.partnerName) : ''} · 提现 {rejectTarget ? money(rejectTarget.amount) : ''}，驳回后金额将退回其可用佣金余额。
+            分销人 {rejectTarget ? maskName(rejectTarget.partnerName) : ''} · 提现 {rejectTarget ? money(rejectTarget.amount) : ''}，驳回后金额将退回其可用佣金余额。
           </Text>
         </div>
         <Input.TextArea
           rows={3}
           maxLength={100}
           showCount
-          placeholder="请填写驳回原因，将同步展示给合伙人"
+          placeholder="请填写驳回原因，将同步展示给分销人"
           value={rejectReason}
           onChange={(e) => setRejectReason(e.target.value)}
         />
@@ -734,10 +698,7 @@ export default function PromoSettleAudit() {
               <Descriptions.Item label="实际打款">
                 <Text strong>{money((approveTarget?.amount ?? 0) - (approveTax ?? 0))}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="打款银行">{approveTarget?.bankName || '—'}</Descriptions.Item>
-              <Descriptions.Item label="打款账户">
-                <SecretCell value={approveTarget?.accountNo ?? ''} maxWidth={180} />
-              </Descriptions.Item>
+              <Descriptions.Item label="收款微信">{WITHDRAW_WECHAT_MASKED}</Descriptions.Item>
             </>
           )}
         </Descriptions>
