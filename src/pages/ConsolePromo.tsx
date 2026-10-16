@@ -1272,6 +1272,9 @@ export default function ConsolePromo() {
         <Text type="secondary" style={{ fontSize: 12 }}>
           审核通过后 1-3 个工作日打款，审核未通过时金额自动退回佣金账户。平台按税务要求代扣个税（实际以发放时核算为准）。
         </Text>
+        <div style={{ marginTop: 12 }}>
+          收款微信号：<span style={{ fontWeight: 600, color: '#1f2d4d' }}>wx_****8866</span>
+        </div>
         <div style={{ margin: '12px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
           <span>
             可提现金额：<span style={{ fontWeight: 600, color: '#1f2d4d' }}>{money(me.availableCommission)}</span>
