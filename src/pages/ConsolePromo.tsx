@@ -282,8 +282,6 @@ export default function ConsolePromo() {
         : [],
     [withdraws, me],
   )
-  /** 存在待审核提现申请时不再允许重复提交，与 store 层 applyWithdraw 校验保持一致 */
-  const hasPendingWithdraw = useMemo(() => myWithdraws.some((w) => w.status === 'pending'), [myWithdraws])
   const myExchanges = useMemo(
     () =>
       me
@@ -1038,15 +1036,13 @@ export default function ConsolePromo() {
                 >
                   兑换代金券
                 </Button>
-                <Tooltip title={hasPendingWithdraw ? '已有提现申请待审核，请等待处理' : undefined}>
-                  <Button
-                    style={{ background: '#fff', color: token.colorPrimary, fontWeight: 500, border: 'none' }}
-                    disabled={frozen || hasPendingWithdraw}
-                    onClick={() => setWithdrawOpen(true)}
-                  >
-                    申请提现
-                  </Button>
-                </Tooltip>
+                <Button
+                  style={{ background: '#fff', color: token.colorPrimary, fontWeight: 500, border: 'none' }}
+                  disabled={frozen}
+                  onClick={() => setWithdrawOpen(true)}
+                >
+                  申请提现
+                </Button>
               </Space>
             </div>
           </div>
