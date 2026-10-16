@@ -317,17 +317,6 @@ export default function ConsolePromo() {
     if (onCampaign.length === 0) return null
     return onCampaign.reduce((best, r) => (r.rate > best.rate ? r : best))
   }, [activeRules])
-  const monthPrefix = useMemo(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-  }, [])
-  const monthCommission = useMemo(
-    () =>
-      myCommissions
-        .filter((c) => c.at.startsWith(monthPrefix))
-        .reduce((acc, c) => acc + c.amount, 0),
-    [myCommissions, monthPrefix],
-  )
   useEffect(() => {
     if (!me) enrollPromoPartner(CURRENT_CONSOLE_USER)
   }, [me])
@@ -986,9 +975,12 @@ export default function ConsolePromo() {
                 收益明细 ›
               </Typography.Link>
             </div>
-            <div style={{ display: 'flex', marginTop: 12 }}>
+            <div style={{ fontSize: 12, opacity: 0.75, marginTop: 8 }}>
+              当日返佣于每日 23:59 统一结算更新，以避免单次计佣误差带来的收入损失
+            </div>
+            <div style={{ display: 'flex', marginTop: 8 }}>
               {[
-                { label: `${monthPrefix} 佣金（元）`, amount: monthCommission },
+                { label: '可提现金额（元）', amount: me.availableCommission },
                 { label: '累计佣金（元）', amount: me.totalCommission },
               ].map((m, idx) => (
                 <div
@@ -1023,16 +1015,12 @@ export default function ConsolePromo() {
                     <span style={{ fontSize: 20, fontWeight: 600, marginRight: 4 }}>¥</span>
                     {numCn(m.amount)}
                   </div>
-                  {idx === 0 && (
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>月度收益包含已提现和已兑券金额</div>
-                  )}
                 </div>
               ))}
             </div>
             <div
               style={{
                 display: 'flex',
-                justifyContent: 'space-between',
                 alignItems: 'center',
                 gap: 16,
                 flexWrap: 'wrap',
@@ -1041,21 +1029,6 @@ export default function ConsolePromo() {
                 borderTop: '1px solid rgba(255,255,255,0.24)',
               }}
             >
-              <Tooltip title={`可兑券或提现的金额，满 ${PROMO_WITHDRAW_MIN} 元可申请提现`}>
-                <div style={{ fontSize: 13, opacity: 0.9 }}>
-                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 4 }}>
-                    当日返佣于每日 23:59 统一结算更新，以避免单次计佣误差带来的收入损失
-                  </div>
-                  <div>
-                    <WalletOutlined style={{ marginRight: 6 }} />
-                    可提现余额（元）
-                  </div>
-                  <div style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.3, letterSpacing: 0.5, marginTop: 4 }}>
-                    <span style={{ fontSize: 18, fontWeight: 600, marginRight: 4 }}>¥</span>
-                    {numCn(me.availableCommission)}
-                  </div>
-                </div>
-              </Tooltip>
               <Space wrap>
                 <Button
                   style={{ background: '#fff', color: token.colorPrimary, fontWeight: 500, border: 'none' }}
