@@ -975,10 +975,7 @@ export default function ConsolePromo() {
                 收益明细 ›
               </Typography.Link>
             </div>
-            <div style={{ fontSize: 12, opacity: 0.75, marginTop: 8 }}>
-              当日返佣于每日 23:59 统一结算更新，以避免单次计佣误差带来的收入损失
-            </div>
-            <div style={{ display: 'flex', marginTop: 8 }}>
+            <div style={{ display: 'flex', marginTop: 12 }}>
               {[
                 { label: '可提现金额（元）', amount: me.availableCommission },
                 { label: '累计佣金（元）', amount: me.totalCommission },
@@ -1018,13 +1015,16 @@ export default function ConsolePromo() {
                 </div>
               ))}
             </div>
+            <div style={{ fontSize: 12, opacity: 0.75, marginTop: 16 }}>
+              当日返佣于每日 23:59 统一结算更新，以避免单次计佣误差带来的收入损失
+            </div>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 16,
                 flexWrap: 'wrap',
-                marginTop: 20,
+                marginTop: 8,
                 paddingTop: 16,
                 borderTop: '1px solid rgba(255,255,255,0.24)',
               }}
