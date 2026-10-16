@@ -43,8 +43,6 @@ import {
   exchangeCommissionToVoucher,
   isCampaignInPeriod,
   isPromoCampaignActive,
-  loadWithdrawAccountNo,
-  loadWithdrawBankName,
   promoEffectiveRate,
   usePromoCampaigns,
   usePromoCommissions,
@@ -211,9 +209,6 @@ export default function ConsolePromo() {
   const [withdrawAmount, setWithdrawAmount] = useState<number | null>(null)
   /** 提现 / 兑换记录弹窗（从申请提现弹窗内进入） */
   const [payoutRecordOpen, setPayoutRecordOpen] = useState(false)
-  /** 收款人固定为实名认证本人，不提供输入，防止提现到他人账户 */
-  const [accountNo, setAccountNo] = useState(loadWithdrawAccountNo)
-  const [bankName, setBankName] = useState(loadWithdrawBankName)
   /** 推广活动列表中，当前要生成海报的活动 */
   const [posterForCampaign, setPosterForCampaign] = useState<PromoCampaign | null>(null)
   /** 推广活动列表「查看返佣模型」：当前查看的活动 */
@@ -366,15 +361,7 @@ export default function ConsolePromo() {
 
   const handleWithdraw = () => {
     if (!me) return
-    if (!bankName.trim()) {
-      message.error('请填写开户行')
-      return
-    }
-    if (!accountNo.trim()) {
-      message.error('请填写收款银行账号')
-      return
-    }
-    const res = applyWithdraw(me.id, withdrawAmount ?? 0, CURRENT_CONSOLE_USER.nickname, accountNo.trim(), bankName.trim())
+    const res = applyWithdraw(me.id, withdrawAmount ?? 0, CURRENT_CONSOLE_USER.nickname, '', '')
     if (!res.ok) {
       message.error(res.msg)
       return
@@ -1312,13 +1299,6 @@ export default function ConsolePromo() {
           value={withdrawAmount}
           onChange={setWithdrawAmount}
         />
-        <Input
-          style={{ marginBottom: 12 }}
-          placeholder="开户行"
-          value={bankName}
-          onChange={(e) => setBankName(e.target.value)}
-        />
-        <Input placeholder="银行账号" value={accountNo} onChange={(e) => setAccountNo(e.target.value)} />
       </Modal>
 
       <Modal
