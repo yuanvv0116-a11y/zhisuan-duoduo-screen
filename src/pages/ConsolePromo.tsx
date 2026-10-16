@@ -317,6 +317,17 @@ export default function ConsolePromo() {
     if (onCampaign.length === 0) return null
     return onCampaign.reduce((best, r) => (r.rate > best.rate ? r : best))
   }, [activeRules])
+  const monthPrefix = useMemo(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  }, [])
+  const monthCommission = useMemo(
+    () =>
+      myCommissions
+        .filter((c) => c.at.startsWith(monthPrefix))
+        .reduce((acc, c) => acc + c.amount, 0),
+    [myCommissions, monthPrefix],
+  )
   useEffect(() => {
     if (!me) enrollPromoPartner(CURRENT_CONSOLE_USER)
   }, [me])
@@ -977,7 +988,7 @@ export default function ConsolePromo() {
             </div>
             <div style={{ display: 'flex', marginTop: 12 }}>
               {[
-                { label: '可提现金额（元）', amount: me.availableCommission },
+                { label: `${monthPrefix} 佣金（元）`, amount: monthCommission },
                 { label: '累计佣金（元）', amount: me.totalCommission },
               ].map((m, idx) => (
                 <div
@@ -1027,6 +1038,16 @@ export default function ConsolePromo() {
                 borderTop: '1px solid rgba(255,255,255,0.24)',
               }}
             >
+              <Tooltip title={`可兑券或提现的金额，满 ${PROMO_WITHDRAW_MIN} 元可申请提现`}>
+                <div style={{ fontSize: 13, opacity: 0.9 }}>
+                  <WalletOutlined style={{ marginRight: 6 }} />
+                  可提现金额（元）
+                  <span style={{ fontSize: 20, fontWeight: 700, marginLeft: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, marginRight: 3 }}>¥</span>
+                    {numCn(me.availableCommission)}
+                  </span>
+                </div>
+              </Tooltip>
               <Space wrap>
                 <Button
                   style={{ background: '#fff', color: token.colorPrimary, fontWeight: 500, border: 'none' }}
