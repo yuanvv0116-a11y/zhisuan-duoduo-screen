@@ -1040,11 +1040,11 @@ export default function ConsolePromo() {
                 </Button>
                 <Tooltip title={hasPendingWithdraw ? '已有提现申请待审核，请等待处理' : undefined}>
                   <Button
-                    style={{ background: '#fff', color: '#333', fontWeight: 500, border: 'none' }}
+                    style={{ background: '#fff', color: token.colorPrimary, fontWeight: 500, border: 'none' }}
                     disabled={frozen || hasPendingWithdraw}
                     onClick={() => setWithdrawOpen(true)}
                   >
-                    提现到银行卡
+                    申请提现
                   </Button>
                 </Tooltip>
               </Space>
