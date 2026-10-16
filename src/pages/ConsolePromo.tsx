@@ -371,7 +371,7 @@ export default function ConsolePromo() {
     setWithdrawAmount(null)
     Modal.success({
       title: '提现申请已提交，请等待审核',
-      content: '进度情况可在【收益明细】》【提现记录】中查看。',
+      content: '进度情况可在【提现申请】》【提现记录 / 兑换记录 ›】中查看。',
       okText: '知道了',
       centered: true,
     })
