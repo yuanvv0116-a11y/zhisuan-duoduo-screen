@@ -1312,15 +1312,6 @@ export default function ConsolePromo() {
           value={withdrawAmount}
           onChange={setWithdrawAmount}
         />
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          为保证提款安全，收款人须为实名认证本人。
-        </Text>
-        <Input
-          style={{ marginTop: 12, marginBottom: 12 }}
-          placeholder="姓名"
-          value={maskName(CURRENT_CONSOLE_USER.nickname)}
-          disabled
-        />
         <Input
           style={{ marginBottom: 12 }}
           placeholder="开户行"
