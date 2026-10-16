@@ -1044,12 +1044,14 @@ export default function ConsolePromo() {
             >
               <Tooltip title={`可兑券或提现的金额，满 ${PROMO_WITHDRAW_MIN} 元可申请提现`}>
                 <div style={{ fontSize: 13, opacity: 0.9 }}>
-                  <WalletOutlined style={{ marginRight: 6 }} />
-                  可提现（元）
-                  <span style={{ fontSize: 20, fontWeight: 700, marginLeft: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, marginRight: 3 }}>¥</span>
+                  <div>
+                    <WalletOutlined style={{ marginRight: 6 }} />
+                    可提现余额（元）
+                  </div>
+                  <div style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.3, letterSpacing: 0.5, marginTop: 4 }}>
+                    <span style={{ fontSize: 18, fontWeight: 600, marginRight: 4 }}>¥</span>
                     {numCn(me.availableCommission)}
-                  </span>
+                  </div>
                 </div>
               </Tooltip>
               <Space wrap>
@@ -1063,11 +1065,11 @@ export default function ConsolePromo() {
                 </Button>
                 <Tooltip title={hasPendingWithdraw ? '已有提现申请待审核，请等待处理' : undefined}>
                   <Button
-                    style={{ background: 'rgba(255,255,255,0.16)', color: '#fff', border: '1px solid rgba(255,255,255,0.65)', fontWeight: 500 }}
+                    style={{ background: '#fff', color: '#333', fontWeight: 500, border: 'none' }}
                     disabled={frozen || hasPendingWithdraw}
                     onClick={() => setWithdrawOpen(true)}
                   >
-                    申请提现
+                    提现到银行卡
                   </Button>
                 </Tooltip>
               </Space>
