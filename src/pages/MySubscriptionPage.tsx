@@ -310,7 +310,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
   })
 
   const isEmptyState = variant === 'noPlan'
-  /** 套餐不可用（额度已用完）但加油包可用 */
+  /** 套餐不可用（状态：已耗尽）但加油包可用 */
   const planOff = variant === 'planUnavailable'
   /** 用满时：套餐总量 = 总额度 = 已用额度（均为 12,000,000 tokens） */
   const usageLimit = planOff ? MONTHLY_TOTAL : WEEKLY_LIMIT
@@ -481,7 +481,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                   fontSize: 14,
                 }}
               >
-                {planOff ? '已用完' : PLAN_INFO.status}
+                {planOff ? '已耗尽' : PLAN_INFO.status}
               </Tag>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
