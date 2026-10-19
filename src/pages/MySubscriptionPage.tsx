@@ -69,7 +69,7 @@ const INITIAL_API_KEYS: ApiKeyItem[] = [
   },
 ]
 
-const MAX_API_KEYS = 10
+const MAX_API_KEYS = 1
 
 const API_KEYS_STORAGE_KEY = 'zsdd_api_keys_v1'
 
@@ -856,31 +856,29 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
           </Tooltip>
         </div>
 
-        {/* API Key 列表上方：新增 */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            marginBottom: 12,
-          }}
-        >
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              if (apiKeys.length >= MAX_API_KEYS) {
-                message.error(`每个账户最多可生成 ${MAX_API_KEYS} 个密钥`)
-                return
-              }
-              addForm.setFieldsValue({ permanent: true })
-              setAddModalOpen(true)
+        {/* API Key 列表上方：新增（专属 Key 仅允许一个，已有密钥时不展示） */}
+        {apiKeys.length === 0 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              marginBottom: 12,
             }}
-            style={{ borderRadius: 8, height: 36, padding: '0 16px' }}
           >
-            新增
-          </Button>
-        </div>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                addForm.setFieldsValue({ permanent: true })
+                setAddModalOpen(true)
+              }}
+              style={{ borderRadius: 8, height: 36, padding: '0 16px' }}
+            >
+              新增
+            </Button>
+          </div>
+        )}
 
         {/* API Key 表格 */}
         <Table<ApiKeyItem>
