@@ -3,8 +3,6 @@ import { Button, Card, Checkbox, Divider, Modal, Tag, Typography, message } from
 import {
   ArrowLeftOutlined,
   InfoCircleOutlined,
-  MinusOutlined,
-  PlusOutlined,
   WechatOutlined,
 } from '@ant-design/icons'
 import PaymentPage from './PaymentPage'
@@ -61,19 +59,17 @@ interface Props {
 }
 
 export default function ResourcePackPage({ onBack }: Props) {
-  const [qty, setQty] = useState(1)
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [packPayment, setPackPayment] = useState<{
     productName: string
     total: number
     orderNo: string
-    qty: number
   } | null>(null)
   const [agreementView, setAgreementView] = useState<AgreementType | null>(null)
   /** 支持模型「+N」弹窗（与 Token Plan 套餐一致） */
   const [modelModalOpen, setModelModalOpen] = useState(false)
 
-  const total = Math.round(FIXED_PACK.price * qty * 100) / 100
+  const total = FIXED_PACK.price
 
   const handlePay = () => {
     if (!agreeTerms) {
@@ -86,7 +82,6 @@ export default function ResourcePackPage({ onBack }: Props) {
       productName: FIXED_PACK.name,
       total,
       orderNo,
-      qty,
     })
   }
 
@@ -100,7 +95,6 @@ export default function ResourcePackPage({ onBack }: Props) {
         productName={packPayment.productName}
         total={packPayment.total}
         orderNo={packPayment.orderNo}
-        qty={packPayment.qty}
         onBack={() => setPackPayment(null)}
         onPaymentSuccess={() => {
           message.success('支付成功，加油包已到账')
@@ -127,8 +121,8 @@ export default function ResourcePackPage({ onBack }: Props) {
       : `${amountValue.toLocaleString('en-US')} Tokens`
     : packAmount
   const totalLabel = 'token总量'
-  const originalTotal = Math.round(FIXED_PACK.originalPrice * qty * 100) / 100
-  const savings = Math.round((FIXED_PACK.originalPrice - FIXED_PACK.price) * qty * 100) / 100
+  const originalTotal = FIXED_PACK.originalPrice
+  const savings = Math.round((FIXED_PACK.originalPrice - FIXED_PACK.price) * 100) / 100
 
   return (
     <div style={{ background: '#f0f2f5', minHeight: '100%' }}>
@@ -328,72 +322,6 @@ export default function ResourcePackPage({ onBack }: Props) {
                 </div>
               </div>
             </Card>
-
-            <Card
-              style={{ borderRadius: 10, border: '1px solid #e8ecf0' }}
-              styles={{ body: { padding: '20px 24px' } }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ width: 88, fontSize: 14, color: '#374151', flexShrink: 0 }}>
-                  购买数量
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'stretch',
-                    width: 320,
-                    height: 40,
-                    borderRadius: 8,
-                    border: '1px solid #e8ecf0',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    onClick={() => setQty((q) => Math.max(1, q - 1))}
-                    style={{
-                      width: 44,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: '#f5f7fa',
-                      borderRight: '1px solid #e8ecf0',
-                      color: qty <= 1 ? '#c9cdd4' : '#5a6474',
-                      cursor: qty <= 1 ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    <MinusOutlined />
-                  </div>
-                  <div
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '0 12px',
-                      background: '#fff',
-                      fontSize: 14,
-                      color: '#111827',
-                    }}
-                  >
-                    {qty}
-                  </div>
-                  <div
-                    onClick={() => setQty((q) => q + 1)}
-                    style={{
-                      width: 44,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: '#f5f7fa',
-                      borderLeft: '1px solid #e8ecf0',
-                      color: '#5a6474',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <PlusOutlined />
-                  </div>
-                </div>
-              </div>
-            </Card>
           </div>
 
           <div style={{ position: 'sticky', top: 20 }}>
@@ -429,11 +357,6 @@ export default function ResourcePackPage({ onBack }: Props) {
                     {packValidity}（到期：{expiryText}）
                   </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <span style={{ fontSize: 13, color: '#6b7280' }}>购买数量</span>
-                  <span style={{ fontSize: 13, color: '#111827' }}>{qty} 个</span>
-                </div>
-
                 <Divider style={{ margin: '12px 0' }} />
 
                 <div style={{ marginBottom: 8 }}>
