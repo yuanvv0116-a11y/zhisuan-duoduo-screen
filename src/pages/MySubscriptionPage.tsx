@@ -646,7 +646,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                 marginBottom: 20,
               }}
             >
-              <span style={{ fontSize: 16, fontWeight: 500, color: '#475569' }}>资源包补充额度</span>
+              <span style={{ fontSize: 16, fontWeight: 500, color: '#475569' }}>加油包补充额度</span>
               <a
                 onClick={() => setPackDetailOpen(true)}
                 style={{
