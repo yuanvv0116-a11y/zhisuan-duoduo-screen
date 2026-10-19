@@ -556,15 +556,18 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
           {/* 额度使用进度 */}
           <div style={{ marginBottom: 40 }}>
             <div style={{ marginBottom: 16, display: 'flex', alignItems: 'baseline', gap: 20, flexWrap: 'wrap' }}>
-              <span
-                style={{
-                  fontSize: 36,
-                  fontWeight: 700,
-                  color: planOff ? '#ef4444' : '#111827',
-                  lineHeight: 1,
-                }}
-              >
-                {usagePercent}%
+              <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ fontSize: 14, color: '#6b7280' }}>已消耗</span>
+                <span
+                  style={{
+                    fontSize: 36,
+                    fontWeight: 700,
+                    color: planOff ? '#ef4444' : '#111827',
+                    lineHeight: 1,
+                  }}
+                >
+                  {usagePercent}%
+                </span>
               </span>
               <span style={{ fontSize: 13, color: '#94a3b8' }}>
                 已用{' '}
