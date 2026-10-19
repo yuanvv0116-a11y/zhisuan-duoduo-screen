@@ -556,7 +556,14 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
           {/* 额度使用进度 */}
           <div style={{ marginBottom: 40 }}>
             <div style={{ marginBottom: 16, display: 'flex', alignItems: 'baseline', gap: 20, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 36, fontWeight: 700, color: '#111827', lineHeight: 1 }}>
+              <span
+                style={{
+                  fontSize: 36,
+                  fontWeight: 700,
+                  color: planOff ? '#ef4444' : '#111827',
+                  lineHeight: 1,
+                }}
+              >
                 {usagePercent}%
               </span>
               <span style={{ fontSize: 13, color: '#94a3b8' }}>
@@ -581,14 +588,35 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                 <Progress
                   percent={usagePercent}
                   showInfo={false}
-                  strokeColor={{
-                    '0%': '#6fa5ff',
-                    '100%': '#2f6bff',
-                  }}
-                  trailColor="#edf2ff"
+                  strokeColor={
+                    planOff
+                      ? { '0%': '#fca5a5', '100%': '#ef4444' }
+                      : { '0%': '#6fa5ff', '100%': '#2f6bff' }
+                  }
+                  trailColor={planOff ? '#fee2e2' : '#edf2ff'}
                   strokeLinecap="round"
                   strokeWidth={10}
                 />
+                {planOff && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      right: 4,
+                      top: '5px',
+                      transform: 'translateY(-50%)',
+                      zIndex: 1,
+                      background: '#ef4444',
+                      color: '#fff',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '0 8px',
+                      borderRadius: 10,
+                      lineHeight: '18px',
+                    }}
+                  >
+                    已用完
+                  </span>
+                )}
               {/* 刻度标签 0 50 90 100 */}
               <div
                 style={{
