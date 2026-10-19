@@ -135,7 +135,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
 
   const handleConfirm = () => {
     if (!agreeTerms) {
-      message.warning('请先阅读并同意服务协议')
+      message.warning('请先阅读并同意《套餐购买协议》')
       return
     }
     onPay({
@@ -589,26 +589,6 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                 />
                 <span>
                   我已阅读并同意
-                  <a
-                    onClick={(e) => {
-                      e.preventDefault()
-                      onOpenAgreement?.('subscription')
-                    }}
-                    style={{ color: '#2f6bff', cursor: 'pointer' }}
-                  >
-                    《服务协议》
-                  </a>
-                  与
-                  <a
-                    onClick={(e) => {
-                      e.preventDefault()
-                      onOpenAgreement?.('subscription')
-                    }}
-                    style={{ color: '#2f6bff', cursor: 'pointer' }}
-                  >
-                    《隐私政策》
-                  </a>
-                  ，确认订阅
                   <a
                     onClick={(e) => {
                       e.preventDefault()
