@@ -116,32 +116,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
     ],
   },
   {
-    title: '四、自动续费与取消',
-    blocks: [
-      {
-        type: 'p',
-        text: '如您主动勾选、确认或以其他页面展示方式选择连续包月/包季/包年的产品或服务，即视为您开通自动续费功能，您授权智算多多在您当前订阅期届满前 2 天，按下一续订周期的费用标准（以续订时平台或服务页面现时有效的价格、服务内容为准）从您的支付方式中自动扣费；如您未选择连续包月/包季/包年的产品或服务，或者您关闭自动续费的，则当前订阅期届满后不会自动扣费，如需继续使用，您可根据页面指引重新购买或主动续订。',
-      },
-      {
-        type: 'p',
-        text: '自动续费扣款失败的，视为订阅不成功。当期订阅到期后或套餐资源使用完毕且未自动续费的，订阅服务自动终止，您可通过重新手动订阅以恢复服务。平台对因支付账户余额不足、支付渠道异常等第三方原因导致的扣款失败不承担责任。您应在订阅期限内将资源包的服务数量使用完毕，如订阅服务期限届满，您已订购但未使用完毕的服务将被作废且智算多多将不提供其他替代或补充。',
-      },
-      {
-        type: 'p',
-        text: '如果您通过智算多多平台提供的方式关闭自动续费，须在订阅期届满至少 3 天前 取消订阅，否则当期订阅将正常扣费。如果您通过微信等第三方渠道购买产品或开启自动续费功能的，您需按第三方渠道自动续费的扣费要求提前关闭或再次开启。关闭自动续费后，您仍可继续使用已支付的订阅服务至当期结束。除法律法规另有规定或智算多多另有说明外，自动续费关闭前已经扣取的当期费用不予退还。',
-      },
-      {
-        type: 'p',
-        text: '智算多多平台可在自动续费扣费前 5 日，以短信、邮件或其他合理方式向您发送续费提醒。当您取消全部或部分通知渠道时，我们可能无法为您发送通知，相应后果由您自行承担。',
-      },
-      {
-        type: 'p',
-        text: '智算多多亦可以根据法律法规变化、监管要求、运营策略调整、核心商业成本变化、基础设施价格调整或其他不可预见的、不可控的情形等需要而单方面停止向您提供连续订阅产品或服务的自动续费服务，订阅服务期限自当前服务周期届满之日起终止。届时智算多多将以公告、通知、邮件、短信或其他合理方式通知您。该等情形下，您已支付并已生效的当前订阅周期不受影响。但下一周期是否继续提供服务、如何续订及适用何种规则，以届时页面展示或通知的内容为准。',
-      },
-    ],
-  },
-  {
-    title: '五、服务及费用调整',
+    title: '四、服务及费用调整',
     blocks: [
       {
         type: 'p',
@@ -158,7 +133,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
     ],
   },
   {
-    title: '六、使用规范',
+    title: '五、使用规范',
     blocks: [
       {
         type: 'p',
@@ -237,7 +212,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
     ],
   },
   {
-    title: '七、服务中止与终止',
+    title: '六、服务中止与终止',
     blocks: [
       {
         type: 'p',
@@ -266,7 +241,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
     ],
   },
   {
-    title: '八、技术支持与服务',
+    title: '七、技术支持与服务',
     blocks: [
       {
         type: 'p',
@@ -286,7 +261,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
     ],
   },
   {
-    title: '九、网络和数据安全',
+    title: '八、网络和数据安全',
     blocks: [
       {
         type: 'p',
@@ -299,7 +274,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
     ],
   },
   {
-    title: '十、知识产权',
+    title: '九、知识产权',
     blocks: [
       {
         type: 'p',
@@ -316,7 +291,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
     ],
   },
   {
-    title: '十一、保密条款',
+    title: '十、保密条款',
     blocks: [
       {
         type: 'p',
@@ -338,7 +313,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
     ],
   },
   {
-    title: '十二、违约责任',
+    title: '十一、违约责任',
     blocks: [
       {
         type: 'p',
@@ -366,7 +341,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
     ],
   },
   {
-    title: '十三、不可抗力',
+    title: '十二、不可抗力',
     blocks: [
       {
         type: 'p',
@@ -379,7 +354,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
     ],
   },
   {
-    title: '十四、出口管制',
+    title: '十三、出口管制',
     blocks: [
       {
         type: 'p',
@@ -388,7 +363,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
     ],
   },
   {
-    title: '十五、通知与送达',
+    title: '十四、通知与送达',
     blocks: [
       {
         type: 'p',
@@ -409,7 +384,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
     ],
   },
   {
-    title: '十六、协议修改',
+    title: '十五、协议修改',
     blocks: [
       {
         type: 'p',
@@ -422,7 +397,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
     ],
   },
   {
-    title: '十七、法律适用及争议解决',
+    title: '十六、法律适用及争议解决',
     blocks: [
       {
         type: 'p',
