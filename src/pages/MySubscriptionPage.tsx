@@ -635,7 +635,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                 <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
                   50%
                 </span>
-                <span style={{ position: 'absolute', left: '90%', transform: 'translateX(-50%)', color: PRIMARY, fontWeight: 500 }}>
+                <span style={{ position: 'absolute', left: '90%', transform: 'translateX(-50%)', color: '#ef4444', fontWeight: 500 }}>
                   90%
                 </span>
                 <span style={{ position: 'absolute', right: 0 }}>100%</span>
@@ -648,7 +648,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                   top: -6,
                   bottom: -26,
                   width: 0,
-                  borderLeft: `2px dashed ${PRIMARY}`,
+                  borderLeft: '2px dashed #ef4444',
                 }}
               />
             </div>
