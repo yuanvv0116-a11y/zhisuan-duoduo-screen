@@ -1204,7 +1204,7 @@ export default function App() {
                       { key: 'overview', label: 'Token Plan 概览' },
                       { key: 'mySubscriptionNoPlan', label: '我的订阅（未购买套餐）' },
                       { key: 'mySubscriptionNoPack', label: '我的订阅（未购买加油包）' },
-                      { key: 'mySubscription', label: '我的订阅' },
+                      { key: 'mySubscription', label: '我的订阅（套餐+加油包）' },
                       { key: 'resourcePack', label: '购买加油包' },
                     ] as const
                   ).map((it) => (
