@@ -8,7 +8,6 @@ import {
   Popconfirm,
   Progress,
   Radio,
-  Segmented,
   Space,
   Table,
   Tag,
@@ -176,7 +175,6 @@ interface Props {
 }
 
 export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal', onSubscribe, onRenew, onViewOrders, onViewModelDetail, onGoResourcePack }: Props) {
-  const [edition, setEdition] = useState<'personal' | 'team'>('personal')
   const [packDetailOpen, setPackDetailOpen] = useState(false)
   const [guideModel, setGuideModel] = useState<string | null>(null)
 
@@ -304,24 +302,6 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
 
   return (
     <div style={{ padding: 24, background: '#f0f2f5', minHeight: '100%' }}>
-      {/* 顶部 Tab（仅正常订阅状态展示，未购买套餐/未购买资源包状态不展示） */}
-      {variant === 'normal' && (
-        <div style={{ marginBottom: 16 }}>
-          <Segmented
-            value={edition}
-            onChange={(v) => setEdition(v as 'personal' | 'team')}
-            options={
-              SHOW_ENTERPRISE
-                ? [
-                    { label: '个人版', value: 'personal' },
-                    { label: '企业版', value: 'team' },
-                  ]
-                : [{ label: '个人版', value: 'personal' }]
-            }
-          />
-        </div>
-      )}
-
       {/* 空状态 */}
       {isEmptyState ? (
         <div
