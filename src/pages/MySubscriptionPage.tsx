@@ -720,8 +720,11 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 20, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 36, fontWeight: 700, color: '#111827', lineHeight: 1 }}>
-                    4%
+                  <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 14 }}>
+                    <span style={{ fontSize: 14, color: '#6b7280' }}>已消耗</span>
+                    <span style={{ fontSize: 36, fontWeight: 700, color: '#111827', lineHeight: 1 }}>
+                      4%
+                    </span>
                   </span>
                   <span style={{ fontSize: 13, color: '#94a3b8' }}>
                     已用{' '}
