@@ -22,7 +22,6 @@ import PlanModelConfig from './PlanModelConfig'
 import { useTokenPlans } from '../store'
 import {
   type PlanDurationOption,
-  type PlanUsagePeriod,
   type PlanValidityUnit,
   type TokenPlan,
   calcPlanDiscountedPrice,
@@ -42,21 +41,6 @@ const VALIDITY_UNIT_LABEL: Record<PlanValidityUnit, string> = {
   quarter: '个季度',
   year: '年',
 }
-const USAGE_PERIOD_LABEL: Record<PlanUsagePeriod, string> = {
-  daily: '每天',
-  weekly: '每周',
-  monthly: '每月',
-  quarterly: '每季',
-  yearly: '每年',
-}
-
-/** 格式化 Token 用量：自动转万/亿 */
-const formatTokens = (n: number): string => {
-  if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(2)} 亿 Token`
-  if (n >= 10_000) return `${(n / 10_000).toFixed(2)} 万 Token`
-  return `${n.toLocaleString()} Token`
-}
-
 /** 折扣显示：100 = 不打折，90 = 9折，0 = 1折，>100 = 溢价 */
 const formatDiscount = (d: number): string => {
   if (d <= 0) return '1折'
@@ -369,24 +353,10 @@ export default function TokenPlanListPage() {
       key: 'totalTokens',
       width: 140,
       align: 'right',
-      render: (_, r) => formatTokens((r as any).totalTokens ?? r.usageLimit),
+      render: (_, r) => ((r as any).totalTokens ?? r.usageLimit).toLocaleString(),
     },
     {
-      title: '用量限制',
-      key: 'usage',
-      width: 200,
-      render: (_, r) => {
-        const enabled = (r as any).usageLimitEnabled ?? true
-        if (!enabled) return <Tag>不限</Tag>
-        return (
-          <Text>
-            {USAGE_PERIOD_LABEL[r.usagePeriod]} {formatTokens(r.usageLimit)}
-          </Text>
-        )
-      },
-    },
-    {
-      title: '有效期',
+      title: '基础有效期',
       key: 'validity',
       width: 120,
       render: (_, r) => `${r.validityValue} ${VALIDITY_UNIT_LABEL[r.validityUnit]}`,
