@@ -569,6 +569,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                   {usagePercent}%
                 </span>
               </span>
+              <span style={{ width: 1, height: 22, background: '#eef0f4', alignSelf: 'center' }} />
               <span style={{ fontSize: 13, color: '#94a3b8' }}>
                 已用{' '}
                 <span style={{ color: '#1f2937', fontWeight: 500 }}>
@@ -726,6 +727,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                       4%
                     </span>
                   </span>
+                  <span style={{ width: 1, height: 22, background: '#eef0f4', alignSelf: 'center' }} />
                   <span style={{ fontSize: 13, color: '#94a3b8' }}>
                     已用{' '}
                     <span style={{ color: '#1f2937', fontWeight: 500 }}>400,000 tokens</span>
