@@ -244,6 +244,8 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
       ? `${target.key.slice(0, 13)}****${target.key.slice(-15)}`
       : ''
     Modal.confirm({
+      centered: true,
+      width: 520,
       icon: <ExclamationCircleFilled style={{ color: '#ef4444' }} />,
       title: '确定要重置该 API Key？',
       content: (
@@ -264,7 +266,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             {masked}
           </div>
           <div style={{ color: '#ef4444', fontSize: 13, lineHeight: 1.7 }}>
-            重置后，您需要将新的 API Key 更新到所有使用的工具中，否则将会导致工具不可用。该操作无法撤回，请谨慎确认。
+            重置后，您需要将新的 API Key 更新到所有使用的工具中，否则将会导致工具不可用。请谨慎确认。
           </div>
         </div>
       ),
