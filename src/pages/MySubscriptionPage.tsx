@@ -310,8 +310,10 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
   })
 
   const isEmptyState = variant === 'noPlan'
-  /** 套餐不可用（已失效）但加油包可用 */
+  /** 套餐不可用（额度已用完）但加油包可用 */
   const planOff = variant === 'planUnavailable'
+  const usagePercent = planOff ? 100 : WEEKLY_USAGE_PERCENT
+  const usageUsed = planOff ? WEEKLY_LIMIT : WEEKLY_USED
 
   return (
     <div style={{ padding: 24, background: '#f0f2f5', minHeight: '100%' }}>
@@ -477,7 +479,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                   fontSize: 14,
                 }}
               >
-                {planOff ? '已失效' : PLAN_INFO.status}
+                {planOff ? '已用完' : PLAN_INFO.status}
               </Tag>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -489,7 +491,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <span style={{ color: '#94a3b8', width: 74 }}>剩余天数</span>
               <Text strong style={{ fontSize: 16, color: '#111827' }}>
-                {planOff ? '0 天' : `${PLAN_INFO.remainingDays} 天`}
+                {PLAN_INFO.remainingDays} 天
               </Text>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -549,42 +551,16 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             </Space>
           </div>
 
-          {/* 额度使用进度（套餐失效时展示占位提示） */}
-          {planOff ? (
-            <div
-              style={{
-                marginBottom: 40,
-                height: 120,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#fafbfc',
-                border: '1px dashed #e5e7eb',
-                borderRadius: 10,
-              }}
-            >
-              <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 14 }}>
-                套餐已失效，额度不可用
-              </div>
-              <Button
-                type="primary"
-                onClick={() => onRenew?.()}
-                style={{ height: 40, borderRadius: 8, padding: '0 24px' }}
-              >
-                立即续费
-              </Button>
-            </div>
-          ) : (
+          {/* 额度使用进度 */}
           <div style={{ marginBottom: 40 }}>
             <div style={{ marginBottom: 16, display: 'flex', alignItems: 'baseline', gap: 20, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 36, fontWeight: 700, color: '#111827', lineHeight: 1 }}>
-                {WEEKLY_USAGE_PERCENT}%
+                {usagePercent}%
               </span>
               <span style={{ fontSize: 13, color: '#94a3b8' }}>
                 已用{' '}
                 <span style={{ color: '#1f2937', fontWeight: 500 }}>
-                  {WEEKLY_USED.toLocaleString()} tokens
+                  {usageUsed.toLocaleString()} tokens
                 </span>
               </span>
               <span style={{ fontSize: 13, color: '#94a3b8' }}>
@@ -596,12 +572,12 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             </div>
             {/* 进度条 + 刻度 */}
             <Tooltip
-              title={`已用量：${WEEKLY_USED.toLocaleString()} tokens`}
+              title={`已用量：${usageUsed.toLocaleString()} tokens`}
               placement="top"
             >
               <div style={{ position: 'relative' }}>
                 <Progress
-                  percent={WEEKLY_USAGE_PERCENT}
+                  percent={usagePercent}
                   showInfo={false}
                   strokeColor={{
                     '0%': '#6fa5ff',
@@ -644,7 +620,6 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             </div>
             </Tooltip>
           </div>
-          )}
 
           <div
             style={{
