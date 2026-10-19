@@ -79,7 +79,7 @@ const emptyForm: FormState = {
   subtitle: '',
   summaryItems: [],
   price: 0,
-  highlight: false,
+  highlight: true,
   discountPrice: 0,
   discount: 100,
   durations: [{ label: '月付', months: 1, discount: 100, finalPrice: 0 }],
