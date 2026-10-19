@@ -494,15 +494,6 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               </Text>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <span style={{ color: '#94a3b8', width: 74 }}>限额</span>
-              <Text strong style={{ fontSize: 16, color: '#111827' }}>
-                {WEEKLY_LIMIT.toLocaleString()} tokens/周
-              </Text>
-              <Tooltip title="限额周期内，达到对应额度上限后，需等待到下一个限额周期方可重置额度；周期内未用完的额度不作结转。">
-                <InfoCircleOutlined style={{ color: '#94a3b8', cursor: 'pointer' }} />
-              </Tooltip>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <span style={{ color: '#94a3b8', width: 74 }}>剩余天数</span>
               <Text strong style={{ fontSize: 16, color: '#111827' }}>
                 {PLAN_INFO.remainingDays} 天
