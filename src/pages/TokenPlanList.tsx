@@ -11,7 +11,6 @@ import {
   InputNumber,
   Button,
   Form,
-  Radio,
   message,
 } from 'antd'
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons'
@@ -21,7 +20,6 @@ import SearchField from '../components/SearchField'
 import RequirementDot from '../components/RequirementDot'
 import PlanModelConfig from './PlanModelConfig'
 import { useTokenPlans } from '../store'
-import { SHOW_ENTERPRISE } from '../constants'
 import {
   type PlanType,
   type PlanDurationOption,
@@ -53,15 +51,6 @@ const USAGE_PERIOD_LABEL: Record<PlanUsagePeriod, string> = {
   yearly: '每年',
 }
 
-/** 有效期单位对应的可用用量周期（周期范围必须小于有效期范围，如有效期为季度则只可选天/周/月） */
-const VALIDITY_TO_USAGE_PERIODS: Record<PlanValidityUnit, PlanUsagePeriod[]> = {
-  day: ['daily'],
-  week: ['daily'],
-  month: ['daily', 'weekly'],
-  quarter: ['daily', 'weekly', 'monthly'],
-  year: ['daily', 'weekly', 'monthly'],
-}
-
 /** 格式化 Token 用量：自动转万/亿 */
 const formatTokens = (n: number): string => {
   if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(2)} 亿 Token`
@@ -81,7 +70,6 @@ const formatDiscount = (d: number): string => {
 interface FormState {
   name: string
   subtitle: string
-  planType: PlanType
   summaryItems: string[]
   price: number
   /** 前台黑色高亮卡片 */
@@ -93,10 +81,6 @@ interface FormState {
   productTag: string
   /** 套餐总 Token 量 */
   totalTokens: number
-  /** 是否启用用量限制 */
-  usageLimitEnabled: boolean
-  usageLimit: number
-  usagePeriod: PlanUsagePeriod
   validityValue: number
   validityUnit: PlanValidityUnit
   autoRenew: boolean
@@ -110,7 +94,6 @@ interface FormState {
 const emptyForm: FormState = {
   name: '',
   subtitle: '',
-  planType: 'personal',
   summaryItems: [],
   price: 0,
   highlight: false,
@@ -119,9 +102,6 @@ const emptyForm: FormState = {
   durations: [{ label: '月付', months: 1, discount: 100, finalPrice: 0 }],
   productTag: '',
   totalTokens: 0,
-  usageLimitEnabled: true,
-  usageLimit: 0,
-  usagePeriod: 'daily',
   validityValue: 1,
   validityUnit: 'month',
   autoRenew: false,
@@ -211,7 +191,6 @@ export default function TokenPlanListPage() {
     setForm({
       name: plan.name,
       subtitle: plan.subtitle ?? '',
-      planType: plan.planType ?? 'personal',
       summaryItems: plan.summaryItems ?? [],
       price: plan.price,
       highlight: plan.highlight ?? false,
@@ -226,12 +205,6 @@ export default function TokenPlanListPage() {
         : [{ label: '月付', months: 1, discount: 100, finalPrice: 0 }],
       productTag: plan.productTag ?? '',
       totalTokens: (plan as any).totalTokens ?? plan.usageLimit ?? 0,
-      usageLimitEnabled: (plan as any).usageLimitEnabled ?? true,
-      usageLimit: plan.usageLimit,
-      // 旧数据可能用量周期不小于有效期范围，编辑时校正到可用范围内
-      usagePeriod: VALIDITY_TO_USAGE_PERIODS[plan.validityUnit].includes(plan.usagePeriod)
-        ? plan.usagePeriod
-        : VALIDITY_TO_USAGE_PERIODS[plan.validityUnit][0],
       validityValue: plan.validityValue,
       validityUnit: plan.validityUnit,
       autoRenew: plan.autoRenew,
@@ -263,19 +236,17 @@ export default function TokenPlanListPage() {
       message.error('套餐总Token量必须大于 0')
       return
     }
-    if (form.usageLimitEnabled && form.usageLimit <= 0) {
-      message.error('用量限制必须大于 0')
-      return
-    }
     if (form.validityValue <= 0) {
       message.error('有效期必须大于 0')
       return
     }
 
+    const editingPlan = editingId ? plans.find((p) => p.id === editingId) : undefined
     const payload = {
       name: form.name.trim(),
       subtitle: form.subtitle.trim() || undefined,
-      planType: form.planType,
+      // 套餐版本字段已从表单移除：编辑保留原值，新增默认个人版
+      planType: editingPlan?.planType ?? 'personal',
       summaryItems: form.summaryItems.filter((s) => s.trim()),
       price: form.price,
       highlight: form.highlight,
@@ -284,15 +255,16 @@ export default function TokenPlanListPage() {
       durations: form.durations,
       productTag: form.productTag.trim(),
       totalTokens: form.totalTokens,
-      usageLimitEnabled: form.usageLimitEnabled,
-      usageLimit: form.usageLimitEnabled ? form.usageLimit : 0,
-      usagePeriod: form.usagePeriod,
+      // 用量限制已从表单移除：编辑保留原值，新增不限量
+      usageLimitEnabled: editingPlan ? (editingPlan as any).usageLimitEnabled ?? true : false,
+      usageLimit: editingPlan?.usageLimit ?? 0,
+      usagePeriod: editingPlan?.usagePeriod ?? 'monthly',
       validityValue: form.validityValue,
       validityUnit: form.validityUnit,
       autoRenew: form.autoRenew,
       status: form.status,
       // 包含模型改由列表「配置模型」页维护，表单不再配置：编辑保留原值，新增置空
-      modelIds: editingId ? plans.find((p) => p.id === editingId)?.modelIds ?? [] : [],
+      modelIds: editingPlan?.modelIds ?? [],
       showOriginalPrice: form.showOriginalPrice,
       originalPrice: form.originalPrice,
     }
@@ -701,17 +673,6 @@ export default function TokenPlanListPage() {
             </div>
           </Form.Item>
 
-          {/* 套餐版本 */}
-          <Form.Item label="套餐版本" style={{ marginBottom: 16 }}>
-            <Radio.Group
-              value={form.planType}
-              onChange={(e) => setForm({ ...form, planType: e.target.value })}
-            >
-              <Radio value="personal">个人版</Radio>
-              {SHOW_ENTERPRISE && <Radio value="enterprise">企业版</Radio>}
-            </Radio.Group>
-          </Form.Item>
-
           {/* 售价（单独一行） */}
           <Form.Item label="售价（元）" required style={{ marginBottom: 16 }}>
             <InputNumber
@@ -793,7 +754,6 @@ export default function TokenPlanListPage() {
                   style={{ width: 120 }}
                   value={form.validityUnit}
                   onChange={(v: PlanValidityUnit) => {
-                    const allowed = VALIDITY_TO_USAGE_PERIODS[v]
                     // 有效期单位变化时，同步订阅时长的周期/月数
                     const templates = VALIDITY_UNIT_DURATION_TEMPLATES[v]
                     const durations: PlanDurationOption[] = templates.map((t) => ({
@@ -805,7 +765,6 @@ export default function TokenPlanListPage() {
                     setForm({
                       ...form,
                       validityUnit: v,
-                      usagePeriod: allowed.includes(form.usagePeriod) ? form.usagePeriod : allowed[0],
                       durations,
                     })
                   }}
@@ -816,45 +775,6 @@ export default function TokenPlanListPage() {
                   ]}
                 />
               </Space.Compact>
-            </Form.Item>
-            <Form.Item
-              label={
-                <Space size={8}>
-                  用量限制
-                  <Switch
-                    size="small"
-                    checked={form.usageLimitEnabled}
-                    onChange={(v) => setForm({ ...form, usageLimitEnabled: v })}
-                  />
-                </Space>
-              }
-              required={false}
-              style={{ flex: 1, marginBottom: 16 }}
-            >
-              {form.usageLimitEnabled ? (
-                <Space.Compact style={{ width: '100%' }}>
-                  <Select
-                    style={{ width: 90 }}
-                    value={form.usagePeriod}
-                    onChange={(v) => setForm({ ...form, usagePeriod: v })}
-                    options={VALIDITY_TO_USAGE_PERIODS[form.validityUnit].map((p) => ({
-                      value: p,
-                      label: USAGE_PERIOD_LABEL[p],
-                    }))}
-                  />
-                  <InputNumber
-                    style={{ flex: 1 }}
-                    value={form.usageLimit}
-                    onChange={(v) => setForm({ ...form, usageLimit: v ?? 0 })}
-                    min={0}
-                    precision={0}
-                    placeholder="数量"
-                    suffix="Token"
-                  />
-                </Space.Compact>
-              ) : (
-                <Tag style={{ borderRadius: 6 }}>不限</Tag>
-              )}
             </Form.Item>
           </Space>
 
@@ -1001,7 +921,7 @@ export default function TokenPlanListPage() {
             </div>
           </Form.Item>
 
-          {/* 开关项：产品标签 / 上下架 / 前台设为主推 */}
+          {/* 开关项：产品标签 / 上下架 / 官网主推 */}
           <div
             style={{
               display: 'flex',
@@ -1036,7 +956,7 @@ export default function TokenPlanListPage() {
             </div>
             <div style={{ width: 1, background: '#f0f0f0' }} />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 16 }}>
-              <span style={{ fontSize: 13, color: '#333' }}>前台设为主推</span>
+              <span style={{ fontSize: 13, color: '#333' }}>官网主推</span>
               <Switch
                 checked={form.highlight}
                 onChange={(v) => setForm({ ...form, highlight: v })}

@@ -433,7 +433,6 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
               const originalPrice = plan.originalPrice ?? plan.price
               const discounted = calcPlanDiscountedPrice(plan.price, plan.discount ?? 100)
               const isHot = plan.level === 'standard'
-              const isPro = plan.level === 'pro'
               // 默认高亮中间热销卡；套餐区内有悬浮卡时切换为悬浮卡，移开后回到默认
               const planAreaHover = hoverPlanId !== null && !hoverPlanId.startsWith('pack-')
               const isHighlighted = planAreaHover ? hoverPlanId === plan.id : isHot
@@ -456,7 +455,7 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
                     cursor: 'pointer',
                   }}
                 >
-                  {isHot && (
+                  {plan.productTag && (
                     <span
                       style={{
                         position: 'absolute',
@@ -470,24 +469,7 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
                         fontWeight: 600,
                       }}
                     >
-                      热销
-                    </span>
-                  )}
-                  {isPro && (
-                    <span
-                      style={{
-                        position: 'absolute',
-                        top: -12,
-                        right: 20,
-                        background: '#ff4d4f',
-                        color: '#fff',
-                        borderRadius: 10,
-                        padding: '3px 12px',
-                        fontSize: 12,
-                        fontWeight: 600,
-                      }}
-                    >
-                      Hot
+                      {plan.productTag}
                     </span>
                   )}
                   <div style={{ marginBottom: 14 }}>
