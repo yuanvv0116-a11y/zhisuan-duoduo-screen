@@ -312,8 +312,10 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
   const isEmptyState = variant === 'noPlan'
   /** 套餐不可用（额度已用完）但加油包可用 */
   const planOff = variant === 'planUnavailable'
+  /** 用满时：套餐总量 = 总额度 = 已用额度（均为 12,000,000 tokens） */
+  const usageLimit = planOff ? MONTHLY_TOTAL : WEEKLY_LIMIT
+  const usageUsed = planOff ? MONTHLY_TOTAL : WEEKLY_USED
   const usagePercent = planOff ? 100 : WEEKLY_USAGE_PERCENT
-  const usageUsed = planOff ? WEEKLY_LIMIT : WEEKLY_USED
 
   return (
     <div style={{ padding: 24, background: '#f0f2f5', minHeight: '100%' }}>
@@ -566,7 +568,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               <span style={{ fontSize: 13, color: '#94a3b8' }}>
                 总额度{' '}
                 <span style={{ color: '#1f2937', fontWeight: 500 }}>
-                  {WEEKLY_LIMIT.toLocaleString()} tokens
+                  {usageLimit.toLocaleString()} tokens
                 </span>
               </span>
             </div>
