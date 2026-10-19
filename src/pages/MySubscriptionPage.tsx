@@ -1181,10 +1181,10 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '8px 4px 4px' }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: '#1f2937' }}>Qwen-Max 特价尊享包</div>
           {[
-            { label: '可用模型', value: 'Qwen-Max' },
             { label: '额度', value: '100,000,000 Tokens' },
             { label: '订阅时间', value: '2026-09-11' },
             { label: '订阅时长', value: '3个月（到期：2026-11-25）' },
+            { label: '可用模型', value: 'Qwen-Max' },
           ].map((it) => (
             <div key={it.label} style={{ display: 'flex', fontSize: 14, lineHeight: 1.6 }}>
               <span style={{ width: 84, color: '#94a3b8', flexShrink: 0 }}>{it.label}</span>
