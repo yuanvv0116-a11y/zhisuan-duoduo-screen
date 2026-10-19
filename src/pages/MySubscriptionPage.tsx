@@ -543,7 +543,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             <div>
               <div style={{ fontSize: 20, fontWeight: 600, color: '#1f2937' }}>套餐额度</div>
               <div style={{ marginTop: 4, fontSize: 12, color: '#94a3b8' }}>
-                限额周期：2026-10-12 ~ 2026-10-18，周期内未用完的额度不作结转
+                套餐周期内未用完的额度不作结转
               </div>
             </div>
             <Space size={16}>
