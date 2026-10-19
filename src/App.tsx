@@ -347,7 +347,7 @@ export default function App() {
     setFactoryDetailId(id)
     setConsoleSubPage('tokenFactory')
   }
-  /** 未购买资源包时的「去购买」：跳转到资源包管理页 */
+  /** 未购买加油包时的「去购买」：直达固定档位的购买加油包页 */
   const handleGoResourcePack = () => {
     setTokenPlanSub('resourcePack')
   }
@@ -1206,7 +1206,6 @@ export default function App() {
                       { key: 'mySubscriptionNoPack', label: '我的订阅（未购买加油包）' },
                       { key: 'mySubscription', label: '我的订阅（套餐+加油包）' },
                       { key: 'mySubscriptionPlanUnavailable', label: '我的订阅（套餐不可用+加油包可用）' },
-                      { key: 'resourcePack', label: '购买加油包' },
                     ] as const
                   ).map((it) => (
                   <div
@@ -1248,7 +1247,7 @@ export default function App() {
                     onOpenUsageGuide={() => setShowUsageGuide(true)}
                   />
                 ) : tokenPlanSub === 'resourcePack' ? (
-                  <ResourcePackPage />
+                  <ResourcePackPage onBack={() => setTokenPlanSub('mySubscriptionNoPack')} />
                 ) : tokenPlanSub === 'mySubscriptionNoPlan' ? (
                   <MySubscriptionPage variant="noPlan" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} onViewModelDetail={handleViewModelDetail} />
                 ) : tokenPlanSub === 'mySubscriptionNoPack' ? (

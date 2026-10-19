@@ -1,16 +1,12 @@
-import { useMemo, useState } from 'react'
-import { Button, Card, Checkbox, Divider, Modal, Table, Tabs, Tag, Tooltip, Typography, message } from 'antd'
+import { useState } from 'react'
+import { Button, Card, Checkbox, Divider, Modal, Tag, Typography, message } from 'antd'
 import {
   ArrowLeftOutlined,
-  CalendarOutlined,
-  CodeSandboxOutlined,
-  DatabaseOutlined,
   InfoCircleOutlined,
   MinusOutlined,
   PlusOutlined,
   WechatOutlined,
 } from '@ant-design/icons'
-import type { ColumnsType } from 'antd/es/table'
 import PaymentPage from './PaymentPage'
 import AgreementPage from './AgreementPage'
 import type { AgreementType } from './AgreementPage'
@@ -27,30 +23,16 @@ type Pack = {
 
 const DESC_QWEN =
   '千问旗舰模型，支持 1M 无损上下文，长程任务执行更稳定，工程规范遵循更可靠。'
-const DESC_DEEPSEEK =
-  'DeepSeek-V4 是旗舰模型，拥有卓越的编程能力与更稳定的多步骤推理/执行能力。在执行复杂智能体任务提升明显，同时对话更自然。'
-const DESC_WAN =
-  '最新图像生成模型，文字渲染效果出众，兼顾全局指令理解与局部细节刻画，在海报、PPT、科普图等知识密集型场景效果佳。'
-const DESC_HORSE =
-  'HappyHorse 全新视频生成模型，支持文生视频、图生视频的高质量视频生成，画面流畅、细节丰富。'
-const DESC_GLM =
-  '智谱旗舰模型，支持 1M 无损上下文，长程任务执行更稳定，工程规范遵循更可靠。'
 
-const PACKS: Pack[] = [
-  { id: 'p1', name: 'Qwen-Max 特价尊享包', model: 'Qwen-Max', desc: DESC_QWEN, price: 189.9, originalPrice: 259.9, benefit: '包含1亿 Tokens（有效期3个月）' },
-  { id: 'p2', name: 'Qwen-Max 特价尝鲜包', model: 'Qwen-Max', desc: DESC_QWEN, price: 39.9, originalPrice: 59.9, benefit: '包含2000万 Tokens（有效期1个月）' },
-  { id: 'p3', name: 'DeepSeek-V4 8折特惠包', model: 'DeepSeek-V4', desc: DESC_DEEPSEEK, price: 56, originalPrice: 70, benefit: '包含3000万 Tokens（有效期1个月）' },
-  { id: 'p4', name: 'DeepSeek-V4 3折尊享包', model: 'DeepSeek-V4', desc: DESC_DEEPSEEK, price: 199.9, originalPrice: 666, benefit: '包含1亿 Tokens（有效期3个月）' },
-  { id: 'p5', name: 'Wan-Image 8折特惠包', model: 'Wan-Image', desc: DESC_WAN, price: 40, originalPrice: 50, benefit: '包含1000张图像（有效期1个月）' },
-  { id: 'p6', name: 'Wan-Image 3折尝鲜包', model: 'Wan-Image', desc: DESC_WAN, price: 5.9, originalPrice: 19.9, benefit: '包含100张图像（有效期1个月）' },
-  { id: 'p7', name: 'HappyHorse 视频8折特惠包', model: 'HappyHorse', desc: DESC_HORSE, price: 28, originalPrice: 35, benefit: '包含10次视频生成（有效期1个月）' },
-  { id: 'p8', name: 'GLM-5.2 3折尝鲜包', model: 'GLM-5.2', desc: DESC_GLM, price: 2.9, originalPrice: 9.9, benefit: '包含100万 Tokens（有效期1个月）' },
-]
-
-/** 从 benefit 文案拆出「额度」与「有效期」，用于卡片内展示 */
-function splitBenefit(benefit: string): { amount: string; validity: string } {
-  const m = /^包含(.+?)（有效期(.+?)）$/.exec(benefit)
-  return m ? { amount: m[1], validity: m[2] } : { amount: benefit, validity: '—' }
+/** 加油包为固定单一档位，不可选择 */
+const FIXED_PACK: Pack = {
+  id: 'p1',
+  name: 'Qwen-Max 特价尊享包',
+  model: 'Qwen-Max',
+  desc: DESC_QWEN,
+  price: 189.9,
+  originalPrice: 259.9,
+  benefit: '包含1亿 Tokens（有效期3个月）',
 }
 
 const BUY_NOTES = [
@@ -73,90 +55,12 @@ const PACK_MODELS: { name: string; type: string }[] = [
   { name: 'HappyHorse', type: '视频' },
 ]
 
-type MyPack = {
-  id: string
-  name: string
-  source: string
-  status: '可用' | '已失效'
-  scene: string
-  balance: string
-  availableBalance: string
-  purchaseAt: string
-  startAt: string
-  endAt: string
+interface Props {
+  /** 返回上一页（我的订阅）；不传则不展示返回入口 */
+  onBack?: () => void
 }
 
-const MY_PACKS: MyPack[] = []
-
-function InfoTitle({ label, tip }: { label: string; tip: string }) {
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      {label}
-      <Tooltip title={tip}>
-        <InfoCircleOutlined style={{ color: '#b0b6bf' }} />
-      </Tooltip>
-    </span>
-  )
-}
-
-const MY_PACK_COLUMNS: ColumnsType<MyPack> = [
-  {
-    title: '资源包名称',
-    dataIndex: 'name',
-    width: 200,
-    fixed: 'left',
-    ellipsis: { showTitle: false },
-    render: (v: string) => (
-      <Tooltip title={v} placement="topLeft">
-        <span style={{ color: '#111827', fontWeight: 500 }}>{v}</span>
-      </Tooltip>
-    ),
-  },
-  { title: '获取方式', dataIndex: 'source', width: 100 },
-  {
-    title: '资源包状态',
-    dataIndex: 'status',
-    width: 110,
-    render: (v: MyPack['status']) =>
-      v === '可用' ? (
-        <Tag bordered={false} style={{ margin: 0, color: '#16a34a', background: '#f0fdf4' }}>
-          可用
-        </Tag>
-      ) : (
-        <Tag bordered={false} style={{ margin: 0, color: '#8c8c8c', background: '#f2f3f5' }}>
-          已失效
-        </Tag>
-      ),
-  },
-  {
-    title: <InfoTitle label="适用场景" tip="资源包可抵扣的使用场景" />,
-    dataIndex: 'scene',
-    width: 220,
-    ellipsis: { showTitle: false },
-    render: (v: string) => (
-      <Tooltip title={v} placement="topLeft">
-        <span>{v}</span>
-      </Tooltip>
-    ),
-  },
-  {
-    title: <InfoTitle label="当前余额" tip="资源包当前剩余的总量" />,
-    dataIndex: 'balance',
-    width: 160,
-  },
-  {
-    title: <InfoTitle label="当前可用余额" tip="资源包当前状态下实际可使用的余额" />,
-    dataIndex: 'availableBalance',
-    width: 170,
-  },
-  { title: '购买时间', dataIndex: 'purchaseAt', width: 160 },
-  { title: '生效时间', dataIndex: 'startAt', width: 170 },
-  { title: '到期时间', dataIndex: 'endAt', width: 170 },
-]
-
-export default function ResourcePackPage() {
-  const [onlyAvailable, setOnlyAvailable] = useState(false)
-  const [buyPack, setBuyPack] = useState<Pack | null>(null)
+export default function ResourcePackPage({ onBack }: Props) {
   const [qty, setQty] = useState(1)
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [packPayment, setPackPayment] = useState<{
@@ -169,21 +73,9 @@ export default function ResourcePackPage() {
   /** 支持模型「+N」弹窗（与 Token Plan 套餐一致） */
   const [modelModalOpen, setModelModalOpen] = useState(false)
 
-  const visibleMyPacks = useMemo(
-    () => (onlyAvailable ? MY_PACKS.filter((p) => p.status === '可用') : MY_PACKS),
-    [onlyAvailable]
-  )
-
-  const openCheckout = (pack: Pack) => {
-    setBuyPack(pack)
-    setQty(1)
-    setAgreeTerms(false)
-  }
-
-  const total = buyPack ? Math.round(buyPack.price * qty * 100) / 100 : 0
+  const total = Math.round(FIXED_PACK.price * qty * 100) / 100
 
   const handlePay = () => {
-    if (!buyPack) return
     if (!agreeTerms) {
       message.warning('请先阅读并同意购买协议')
       return
@@ -191,7 +83,7 @@ export default function ResourcePackPage() {
     const now = new Date()
     const orderNo = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${now.getHours()}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`
     setPackPayment({
-      productName: buyPack.name,
+      productName: FIXED_PACK.name,
       total,
       orderNo,
       qty,
@@ -211,53 +103,49 @@ export default function ResourcePackPage() {
         qty={packPayment.qty}
         onBack={() => setPackPayment(null)}
         onPaymentSuccess={() => {
-          message.success('支付成功，资源包已到账')
+          message.success('支付成功，加油包已到账')
           setPackPayment(null)
-          setBuyPack(null)
         }}
       />
     )
   }
 
-  if (buyPack) {
-    const benefitMatch = /^包含(.+?)（有效期(.+?)）$/.exec(buyPack.benefit)
-    const packAmount = benefitMatch ? benefitMatch[1] : buyPack.benefit
-    const packValidity = benefitMatch ? benefitMatch[2] : '—'
-    const validityMonths = parseInt(packValidity, 10) || 0
-    const expiryDate = new Date()
-    expiryDate.setMonth(expiryDate.getMonth() + validityMonths)
-    const expiryText = `${expiryDate.getFullYear()}-${String(expiryDate.getMonth() + 1).padStart(2, '0')}-${String(expiryDate.getDate()).padStart(2, '0')}`
-    const amountMatch = /^([\d.]+)(万|亿)?(张|次)?/.exec(packAmount)
-    const amountValue = amountMatch
-      ? parseFloat(amountMatch[1]) * (amountMatch[2] === '亿' ? 100000000 : amountMatch[2] === '万' ? 10000 : 1)
-      : 0
-    const quotaText = amountMatch
-      ? amountMatch[3]
-        ? `${amountValue.toLocaleString('en-US')} ${amountMatch[3]}`
-        : `${amountValue.toLocaleString('en-US')} Tokens`
-      : packAmount
-    const totalLabel = buyPack.benefit.includes('图像')
-      ? '图像总量'
-      : buyPack.benefit.includes('视频')
-        ? '视频总量'
-        : 'token总量'
-    const originalTotal = Math.round(buyPack.originalPrice * qty * 100) / 100
-    const savings = Math.round((buyPack.originalPrice - buyPack.price) * qty * 100) / 100
-    return (
-      <div style={{ background: '#f0f2f5', minHeight: '100%' }}>
-        <div style={{ width: '100%', background: '#fff', borderBottom: '1px solid #e8ecf0' }}>
-          <div
-            style={{
-              maxWidth: 1120,
-              margin: '0 auto',
-              padding: '14px 24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
+  const benefitMatch = /^包含(.+?)（有效期(.+?)）$/.exec(FIXED_PACK.benefit)
+  const packAmount = benefitMatch ? benefitMatch[1] : FIXED_PACK.benefit
+  const packValidity = benefitMatch ? benefitMatch[2] : '—'
+  const validityMonths = parseInt(packValidity, 10) || 0
+  const expiryDate = new Date()
+  expiryDate.setMonth(expiryDate.getMonth() + validityMonths)
+  const expiryText = `${expiryDate.getFullYear()}-${String(expiryDate.getMonth() + 1).padStart(2, '0')}-${String(expiryDate.getDate()).padStart(2, '0')}`
+  const amountMatch = /^([\d.]+)(万|亿)?(张|次)?/.exec(packAmount)
+  const amountValue = amountMatch
+    ? parseFloat(amountMatch[1]) * (amountMatch[2] === '亿' ? 100000000 : amountMatch[2] === '万' ? 10000 : 1)
+    : 0
+  const quotaText = amountMatch
+    ? amountMatch[3]
+      ? `${amountValue.toLocaleString('en-US')} ${amountMatch[3]}`
+      : `${amountValue.toLocaleString('en-US')} Tokens`
+    : packAmount
+  const totalLabel = 'token总量'
+  const originalTotal = Math.round(FIXED_PACK.originalPrice * qty * 100) / 100
+  const savings = Math.round((FIXED_PACK.originalPrice - FIXED_PACK.price) * qty * 100) / 100
+
+  return (
+    <div style={{ background: '#f0f2f5', minHeight: '100%' }}>
+      <div style={{ width: '100%', background: '#fff', borderBottom: '1px solid #e8ecf0' }}>
+        <div
+          style={{
+            maxWidth: 1120,
+            margin: '0 auto',
+            padding: '14px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          {onBack ? (
             <span
-              onClick={() => setBuyPack(null)}
+              onClick={onBack}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -271,600 +159,462 @@ export default function ResourcePackPage() {
               <ArrowLeftOutlined />
               返回
             </span>
-            <div style={{ fontSize: 13, color: '#8b93a5' }}>安全支付 · 实时到账</div>
-          </div>
+          ) : (
+            <span />
+          )}
+          <div style={{ fontSize: 13, color: '#8b93a5' }}>安全支付 · 实时到账</div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 1120, margin: '0 auto', padding: 24 }}>
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0 }}>
+            购买加油包
+          </h1>
         </div>
 
-        <div style={{ maxWidth: 1120, margin: '0 auto', padding: 24 }}>
-          <div style={{ marginBottom: 24 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0 }}>
-              购买加油包
-            </h1>
-          </div>
+        <div
+          style={{
+            background: '#fffbe6',
+            border: '1px solid #ffe58f',
+            borderRadius: 8,
+            padding: '12px 16px',
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            fontSize: 13,
+            color: '#6b4e00',
+          }}
+        >
+          <Tag color="gold" style={{ margin: 0, flexShrink: 0 }}>
+            购买须知
+          </Tag>
+          <span style={{ flex: 1 }}>
+            加油包购买成功后立即生效，一经购买不支持退款，请您确认需求后再下单支付。
+          </span>
+        </div>
 
-          <div
-            style={{
-              background: '#fffbe6',
-              border: '1px solid #ffe58f',
-              borderRadius: 8,
-              padding: '12px 16px',
-              marginBottom: 20,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              fontSize: 13,
-              color: '#6b4e00',
-            }}
-          >
-            <Tag color="gold" style={{ margin: 0, flexShrink: 0 }}>
-              购买须知
-            </Tag>
-            <span style={{ flex: 1 }}>
-              加油包购买成功后立即生效，一经购买不支持退款，请您确认需求后再下单支付。
-            </span>
-          </div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 360px',
+            gap: 24,
+            alignItems: 'start',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <Card
+              title={
+                <span style={{ fontWeight: 600, color: '#111827', fontSize: 15 }}>购买说明</span>
+              }
+              style={{ borderRadius: 10, border: '1px solid #e8ecf0' }}
+              styles={{ body: { padding: '4px 20px' } }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {BUY_NOTE_TAGS.map((t, i) => (
+                  <div
+                    key={t}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10,
+                      padding: '10px 0',
+                      borderBottom:
+                        i < BUY_NOTE_TAGS.length - 1 ? '1px dashed #f0f0f0' : undefined,
+                    }}
+                  >
+                    <Tag color="blue" style={{ margin: 0, flexShrink: 0 }}>
+                      {t}
+                    </Tag>
+                    <span style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.6 }}>
+                      {BUY_NOTES[i]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 360px',
-              gap: 24,
-              alignItems: 'start',
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <Card
-                title={
-                  <span style={{ fontWeight: 600, color: '#111827', fontSize: 15 }}>购买说明</span>
-                }
-                style={{ borderRadius: 10, border: '1px solid #e8ecf0' }}
-                styles={{ body: { padding: '4px 20px' } }}
+            <Card
+              title={
+                <span style={{ fontWeight: 600, color: '#111827', fontSize: 15 }}>加油包配置</span>
+              }
+              style={{ borderRadius: 10, border: '1px solid #e8ecf0' }}
+              styles={{ body: { padding: 20 } }}
+            >
+              <div
+                style={{
+                  padding: 20,
+                  borderRadius: 12,
+                  border: '1px solid #2f6bff',
+                  background: 'linear-gradient(135deg, #f0f7ff 0%, #e0ecff 100%)',
+                }}
               >
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {BUY_NOTE_TAGS.map((t, i) => (
-                    <div
-                      key={t}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: 10,
-                        padding: '10px 0',
-                        borderBottom:
-                          i < BUY_NOTE_TAGS.length - 1 ? '1px dashed #f0f0f0' : undefined,
-                      }}
-                    >
-                      <Tag color="blue" style={{ margin: 0, flexShrink: 0 }}>
-                        {t}
-                      </Tag>
-                      <span style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.6 }}>
-                        {BUY_NOTES[i]}
-                      </span>
-                    </div>
-                  ))}
+                <div style={{ marginBottom: 4 }}>
+                  <span style={{ fontSize: 16, fontWeight: 600, color: '#111827' }}>
+                    {FIXED_PACK.name}
+                  </span>
                 </div>
-              </Card>
-
-              <Card
-                title={
-                  <span style={{ fontWeight: 600, color: '#111827', fontSize: 15 }}>资源包配置</span>
-                }
-                style={{ borderRadius: 10, border: '1px solid #e8ecf0' }}
-                styles={{ body: { padding: 20 } }}
-              >
+                <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
+                  {FIXED_PACK.desc}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  <span style={{ fontSize: 26, fontWeight: 700, color: '#ff6b35' }}>
+                    ¥{FIXED_PACK.price.toFixed(2)}
+                  </span>
+                </div>
                 <div
                   style={{
-                    padding: 20,
-                    borderRadius: 12,
-                    border: '1px solid #2f6bff',
-                    background: 'linear-gradient(135deg, #f0f7ff 0%, #e0ecff 100%)',
+                    marginTop: 10,
+                    display: 'flex',
+                    gap: 24,
+                    fontSize: 13,
+                    color: '#4b5563',
                   }}
                 >
-                  <div style={{ marginBottom: 4 }}>
-                    <span style={{ fontSize: 16, fontWeight: 600, color: '#111827' }}>
-                      {buyPack.name}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
-                    {buyPack.desc}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                    <span style={{ fontSize: 26, fontWeight: 700, color: '#ff6b35' }}>
-                      ¥{buyPack.price.toFixed(2)}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      marginTop: 10,
-                      display: 'flex',
-                      gap: 24,
-                      fontSize: 13,
-                      color: '#4b5563',
-                    }}
-                  >
-                    <span>
-                      {totalLabel}：{packAmount}
-                    </span>
-                    <span>有效期：{packValidity}</span>
-                  </div>
+                  <span>
+                    {totalLabel}：{packAmount}
+                  </span>
+                  <span>有效期：{packValidity}</span>
                 </div>
-                <div style={{ marginTop: 16 }}>
-                  <div style={{ fontSize: 13, color: '#4b5563', marginBottom: 8 }}>
-                    支持模型（{PACK_MODELS.length}个，为优化使用，期间可能有部分调整）
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {(() => {
-                      const MAX_SHOW = 3
-                      const showModels = PACK_MODELS.slice(0, MAX_SHOW)
-                      const hasMore = PACK_MODELS.length > MAX_SHOW
-                      return (
-                        <>
-                          {showModels.map((m) => (
-                            <Tag
-                              key={m.name}
-                              style={{
-                                margin: 0,
-                                borderRadius: 4,
-                                fontSize: 11,
-                                padding: '2px 8px',
-                                background: '#f5f7fa',
-                                borderColor: '#e5e7eb',
-                                color: '#4b5563',
-                              }}
-                            >
-                              {m.name}
-                            </Tag>
-                          ))}
-                          {hasMore && (
-                            <Tag
-                              onClick={() => setModelModalOpen(true)}
-                              style={{
-                                margin: 0,
-                                borderRadius: 4,
-                                fontSize: 11,
-                                padding: '2px 8px',
-                                background: 'transparent',
-                                borderColor: '#e5e7eb',
-                                color: '#2f6bff',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              +{PACK_MODELS.length - MAX_SHOW} 更多
-                            </Tag>
-                          )}
-                        </>
-                      )
-                    })()}
-                  </div>
+              </div>
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 13, color: '#4b5563', marginBottom: 8 }}>
+                  支持模型（{PACK_MODELS.length}个，为优化使用，期间可能有部分调整）
                 </div>
-              </Card>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {(() => {
+                    const MAX_SHOW = 3
+                    const showModels = PACK_MODELS.slice(0, MAX_SHOW)
+                    const hasMore = PACK_MODELS.length > MAX_SHOW
+                    return (
+                      <>
+                        {showModels.map((m) => (
+                          <Tag
+                            key={m.name}
+                            style={{
+                              margin: 0,
+                              borderRadius: 4,
+                              fontSize: 11,
+                              padding: '2px 8px',
+                              background: '#f5f7fa',
+                              borderColor: '#e5e7eb',
+                              color: '#4b5563',
+                            }}
+                          >
+                            {m.name}
+                          </Tag>
+                        ))}
+                        {hasMore && (
+                          <Tag
+                            onClick={() => setModelModalOpen(true)}
+                            style={{
+                              margin: 0,
+                              borderRadius: 4,
+                              fontSize: 11,
+                              padding: '2px 8px',
+                              background: 'transparent',
+                              borderColor: '#e5e7eb',
+                              color: '#2f6bff',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            +{PACK_MODELS.length - MAX_SHOW} 更多
+                          </Tag>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              </div>
+            </Card>
 
-              <Card
-                style={{ borderRadius: 10, border: '1px solid #e8ecf0' }}
-                styles={{ body: { padding: '20px 24px' } }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{ width: 88, fontSize: 14, color: '#374151', flexShrink: 0 }}>
-                    购买数量
+            <Card
+              style={{ borderRadius: 10, border: '1px solid #e8ecf0' }}
+              styles={{ body: { padding: '20px 24px' } }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ width: 88, fontSize: 14, color: '#374151', flexShrink: 0 }}>
+                  购买数量
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'stretch',
+                    width: 320,
+                    height: 40,
+                    borderRadius: 8,
+                    border: '1px solid #e8ecf0',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    style={{
+                      width: 44,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: '#f5f7fa',
+                      borderRight: '1px solid #e8ecf0',
+                      color: qty <= 1 ? '#c9cdd4' : '#5a6474',
+                      cursor: qty <= 1 ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    <MinusOutlined />
                   </div>
                   <div
                     style={{
+                      flex: 1,
                       display: 'flex',
-                      alignItems: 'stretch',
-                      width: 320,
-                      height: 40,
-                      borderRadius: 8,
-                      border: '1px solid #e8ecf0',
-                      overflow: 'hidden',
+                      alignItems: 'center',
+                      padding: '0 12px',
+                      background: '#fff',
+                      fontSize: 14,
+                      color: '#111827',
                     }}
                   >
-                    <div
-                      onClick={() => setQty((q) => Math.max(1, q - 1))}
-                      style={{
-                        width: 44,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: '#f5f7fa',
-                        borderRight: '1px solid #e8ecf0',
-                        color: qty <= 1 ? '#c9cdd4' : '#5a6474',
-                        cursor: qty <= 1 ? 'not-allowed' : 'pointer',
-                      }}
-                    >
-                      <MinusOutlined />
-                    </div>
-                    <div
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '0 12px',
-                        background: '#fff',
-                        fontSize: 14,
-                        color: '#111827',
-                      }}
-                    >
-                      {qty}
-                    </div>
-                    <div
-                      onClick={() => setQty((q) => q + 1)}
-                      style={{
-                        width: 44,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: '#f5f7fa',
-                        borderLeft: '1px solid #e8ecf0',
-                        color: '#5a6474',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <PlusOutlined />
-                    </div>
+                    {qty}
+                  </div>
+                  <div
+                    onClick={() => setQty((q) => q + 1)}
+                    style={{
+                      width: 44,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: '#f5f7fa',
+                      borderLeft: '1px solid #e8ecf0',
+                      color: '#5a6474',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <PlusOutlined />
                   </div>
                 </div>
-              </Card>
+              </div>
+            </Card>
+          </div>
+
+          <div style={{ position: 'sticky', top: 20 }}>
+            <div
+              style={{
+                borderRadius: 12,
+                border: '1px solid #e8ecf0',
+                background: '#fff',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #f0f0f0' }}>
+                <div style={{ fontWeight: 600, color: '#111827', fontSize: 15 }}>订单摘要</div>
+              </div>
+
+              <div style={{ padding: '16px 20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>加油包</span>
+                  <span style={{ fontSize: 13, color: '#111827', fontWeight: 500, textAlign: 'right' }}>
+                    {FIXED_PACK.name}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>额度</span>
+                  <span style={{ fontSize: 13, color: '#111827', fontWeight: 500, textAlign: 'right' }}>
+                    {quotaText}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>有效期</span>
+                  <span style={{ fontSize: 13, color: '#111827', textAlign: 'right' }}>
+                    {packValidity}（到期：{expiryText}）
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>购买数量</span>
+                  <span style={{ fontSize: 13, color: '#111827' }}>{qty} 个</span>
+                </div>
+
+                <Divider style={{ margin: '12px 0' }} />
+
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, color: '#6b7280' }}>原价</span>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: '#9ca3af',
+                        textDecoration: 'line-through',
+                      }}
+                    >
+                      ¥{originalTotal.toFixed(2)}
+                    </span>
+                  </div>
+                  {savings > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, color: '#6b7280' }}>优惠</span>
+                      <span style={{ fontSize: 13, color: '#52c41a' }}>-¥{savings.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+
+                <Divider style={{ margin: '12px 0' }} />
+
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    marginBottom: 16,
+                  }}
+                >
+                  <span style={{ fontSize: 14, color: '#111827', fontWeight: 500 }}>应付</span>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: 26, fontWeight: 700, color: '#ff6b35' }}>
+                      ¥{total.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>支付方式</div>
+                  <div
+                    style={{
+                      padding: 12,
+                      borderRadius: 8,
+                      border: '1px solid #09bb07',
+                      background: '#f0fff4',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                    }}
+                  >
+                    <WechatOutlined style={{ color: '#09bb07', fontSize: 16 }} />
+                    <span style={{ fontSize: 13, color: '#111827', fontWeight: 500 }}>微信支付</span>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <Checkbox
+                    checked={agreeTerms}
+                    onChange={(e) => setAgreeTerms(e.target.checked)}
+                  >
+                    <span style={{ fontSize: 12, color: '#6b7280' }}>
+                      我已阅读并同意
+                      <a
+                        onClick={() => setAgreementView('subscription')}
+                        style={{ color: '#2f6bff', margin: '0 2px', cursor: 'pointer' }}
+                      >
+                        《套餐购买协议》
+                      </a>
+                    </span>
+                  </Checkbox>
+                </div>
+              </div>
             </div>
 
-            <div style={{ position: 'sticky', top: 20 }}>
-              <div
+            <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
+              <Button
+                block
+                type="primary"
+                size="large"
+                onClick={handlePay}
                 style={{
-                  borderRadius: 12,
-                  border: '1px solid #e8ecf0',
-                  background: '#fff',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
-                  overflow: 'hidden',
-                }}
-              >
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid #f0f0f0' }}>
-                  <div style={{ fontWeight: 600, color: '#111827', fontSize: 15 }}>订单摘要</div>
-                </div>
-
-                <div style={{ padding: '16px 20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, color: '#6b7280' }}>资源包</span>
-                    <span style={{ fontSize: 13, color: '#111827', fontWeight: 500, textAlign: 'right' }}>
-                      {buyPack.name}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, color: '#6b7280' }}>额度</span>
-                    <span style={{ fontSize: 13, color: '#111827', fontWeight: 500, textAlign: 'right' }}>
-                      {quotaText}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, color: '#6b7280' }}>有效期</span>
-                    <span style={{ fontSize: 13, color: '#111827', textAlign: 'right' }}>
-                      {packValidity}（到期：{expiryText}）
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, color: '#6b7280' }}>购买数量</span>
-                    <span style={{ fontSize: 13, color: '#111827' }}>{qty} 个</span>
-                  </div>
-
-                  <Divider style={{ margin: '12px 0' }} />
-
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontSize: 13, color: '#6b7280' }}>原价</span>
-                      <span
-                        style={{
-                          fontSize: 13,
-                          color: '#9ca3af',
-                          textDecoration: 'line-through',
-                        }}
-                      >
-                        ¥{originalTotal.toFixed(2)}
-                      </span>
-                    </div>
-                    {savings > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <span style={{ fontSize: 13, color: '#6b7280' }}>优惠</span>
-                        <span style={{ fontSize: 13, color: '#52c41a' }}>-¥{savings.toFixed(2)}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <Divider style={{ margin: '12px 0' }} />
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'baseline',
-                      marginBottom: 16,
-                    }}
-                  >
-                    <span style={{ fontSize: 14, color: '#111827', fontWeight: 500 }}>应付</span>
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ fontSize: 26, fontWeight: 700, color: '#ff6b35' }}>
-                        ¥{total.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>支付方式</div>
-                    <div
-                      style={{
-                        padding: 12,
-                        borderRadius: 8,
-                        border: '1px solid #09bb07',
-                        background: '#f0fff4',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                      }}
-                    >
-                      <WechatOutlined style={{ color: '#09bb07', fontSize: 16 }} />
-                      <span style={{ fontSize: 13, color: '#111827', fontWeight: 500 }}>微信支付</span>
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom: 14 }}>
-                    <Checkbox
-                      checked={agreeTerms}
-                      onChange={(e) => setAgreeTerms(e.target.checked)}
-                    >
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>
-                        我已阅读并同意
-                        <a
-                          onClick={() => setAgreementView('subscription')}
-                          style={{ color: '#2f6bff', margin: '0 2px', cursor: 'pointer' }}
-                        >
-                          《套餐购买协议》
-                        </a>
-                      </span>
-                    </Checkbox>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
-                <Button
-                  block
-                  type="primary"
-                  size="large"
-                  onClick={handlePay}
-                  style={{
-                    height: 46,
-                    borderRadius: 8,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    background: agreeTerms ? '#2f6bff' : '#d9d9d9',
-                    borderColor: agreeTerms ? '#2f6bff' : '#d9d9d9',
-                    cursor: agreeTerms ? 'pointer' : 'not-allowed',
-                  }}
-                >
-                  去支付
-                </Button>
-              </div>
-
-              <div
-                style={{
-                  marginTop: 16,
-                  padding: '10px 14px',
+                  height: 46,
                   borderRadius: 8,
-                  background: '#f8f9fb',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 8,
-                  fontSize: 12,
-                  color: '#6b7280',
-                  lineHeight: 1.6,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  background: agreeTerms ? '#2f6bff' : '#d9d9d9',
+                  borderColor: agreeTerms ? '#2f6bff' : '#d9d9d9',
+                  cursor: agreeTerms ? 'pointer' : 'not-allowed',
                 }}
               >
-                <InfoCircleOutlined style={{ flexShrink: 0, marginTop: 2 }} />
-                <span>
-                  点击“去支付”即表示同意资源包购买规则，资源包一经购买开通不支持退款。实际扣费以账单为准。
-                </span>
-              </div>
+                去支付
+              </Button>
+            </div>
+
+            <div
+              style={{
+                marginTop: 16,
+                padding: '10px 14px',
+                borderRadius: 8,
+                background: '#f8f9fb',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 8,
+                fontSize: 12,
+                color: '#6b7280',
+                lineHeight: 1.6,
+              }}
+            >
+              <InfoCircleOutlined style={{ flexShrink: 0, marginTop: 2 }} />
+              <span>
+                点击“去支付”即表示同意加油包购买规则，加油包一经购买开通不支持退款。实际扣费以账单为准。
+              </span>
             </div>
           </div>
         </div>
-
-        {/* 可使用模型弹窗（与 Token Plan 套餐一致） */}
-        <Modal
-          title={buyPack.name}
-          open={modelModalOpen}
-          onCancel={() => setModelModalOpen(false)}
-          footer={null}
-          width={520}
-          centered
-        >
-          <div
-            style={{
-              marginBottom: 12,
-              fontSize: 12,
-              color: '#8b93a5',
-              lineHeight: 1.7,
-              background: '#f8f9fb',
-              padding: '8px 12px',
-              borderRadius: 6,
-            }}
-          >
-            为持续优化用户体验，平台将不定期上架新模型并下架低效模型。购买加油包即视为同意本规则。
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              maxHeight: 400,
-              overflowY: 'auto',
-            }}
-          >
-            {PACK_MODELS.map((m, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  background: '#f8f9fb',
-                  borderRadius: 8,
-                }}
-              >
-                <Text strong style={{ fontSize: 13 }}>
-                  {m.name}
-                </Text>
-                <Tag
-                  style={{
-                    margin: 0,
-                    borderRadius: 4,
-                    fontSize: 11,
-                  }}
-                  color={m.type === '文本' ? 'blue' : m.type === '图像' ? 'purple' : 'orange'}
-                >
-                  {m.type}
-                </Tag>
-              </div>
-            ))}
-          </div>
-        </Modal>
       </div>
-    )
-  }
 
-  return (
-    <div style={{ padding: 24, background: '#f0f2f5', minHeight: '100%' }}>
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          border: '1px solid #eef0f4',
-          padding: '4px 24px 24px',
-        }}
+      {/* 可使用模型弹窗（与 Token Plan 套餐一致） */}
+      <Modal
+        title={FIXED_PACK.name}
+        open={modelModalOpen}
+        onCancel={() => setModelModalOpen(false)}
+        footer={null}
+        width={520}
+        centered
       >
-        <Tabs
-          defaultActiveKey="buy"
-          items={[
-            {
-              key: 'buy',
-              label: '购买加油包',
-              children: (
-                <div>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(4, 1fr)',
-                      gap: 16,
-                      marginTop: 8,
-                    }}
-                  >
-                    {PACKS.map((p) => {
-                      const { amount, validity } = splitBenefit(p.benefit)
-                      return (
-                        <div
-                          key={p.id}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            borderRadius: 12,
-                            border: '1px solid #eef0f4',
-                            background: '#fff',
-                            boxShadow: '0 2px 8px rgba(15, 35, 95, 0.06)',
-                            padding: 20,
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <span style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>
-                              {p.name}
-                            </span>
-                          </div>
-                          <div
-                            style={{
-                              marginTop: 12,
-                              fontSize: 13,
-                              color: '#6b7280',
-                              lineHeight: 1.8,
-                            }}
-                          >
-                            {p.desc}
-                          </div>
-                          <div
-                            style={{
-                              marginTop: 10,
-                              marginBottom: 12,
-                              fontSize: 13,
-                              color: '#1d2129',
-                              lineHeight: 2.1,
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                              <CodeSandboxOutlined style={{ color: '#86909c', marginRight: 8 }} />
-                              <span style={{ color: '#86909c' }}>支持模型：</span>
-                              <span style={{ fontWeight: 600 }}>{p.model}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                              <DatabaseOutlined style={{ color: '#86909c', marginRight: 8 }} />
-                              <span style={{ color: '#86909c' }}>包含额度：</span>
-                              <span style={{ fontWeight: 600 }}>{amount}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                              <CalendarOutlined style={{ color: '#86909c', marginRight: 8 }} />
-                              <span style={{ color: '#86909c' }}>有效期：</span>
-                              <span style={{ fontWeight: 600 }}>{validity}</span>
-                            </div>
-                          </div>
-                          <div style={{ borderTop: '1px solid #f0f0f0', marginBottom: 14 }} />
-                          <div style={{ marginBottom: 14 }}>
-                            <span style={{ fontSize: 26, fontWeight: 700, color: '#f5222d' }}>
-                              {p.price}
-                            </span>
-                            <span style={{ fontSize: 13, color: '#f5222d', marginLeft: 4 }}>元</span>
-                          </div>
-                          <Button type="primary" block onClick={() => openCheckout(p)}>
-                            去购买
-                          </Button>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ),
-            },
-            {
-              key: 'mine',
-              label: '我的加油包',
-              children: (
-                <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'flex-end',
-                      alignItems: 'center',
-                      margin: '8px 0 12px',
-                    }}
-                  >
-                    <Checkbox
-                      checked={onlyAvailable}
-                      onChange={(e) => setOnlyAvailable(e.target.checked)}
-                    >
-                      仅展示可用资源包
-                    </Checkbox>
-                    <Tooltip title="勾选后仅展示状态为「可用」的资源包">
-                      <InfoCircleOutlined style={{ marginLeft: 6, color: '#b0b6bf' }} />
-                    </Tooltip>
-                  </div>
-                  <Table<MyPack>
-                    rowKey="id"
-                    columns={MY_PACK_COLUMNS}
-                    dataSource={visibleMyPacks}
-                    scroll={{ x: 'max-content' }}
-                    pagination={{
-                      pageSize: 10,
-                      showTotal: (t) => `共 ${t} 条记录`,
-                    }}
-                  />
-                </div>
-              ),
-            },
-          ]}
-        />
-      </div>
+        <div
+          style={{
+            marginBottom: 12,
+            fontSize: 12,
+            color: '#8b93a5',
+            lineHeight: 1.7,
+            background: '#f8f9fb',
+            padding: '8px 12px',
+            borderRadius: 6,
+          }}
+        >
+          为持续优化用户体验，平台将不定期上架新模型并下架低效模型。购买加油包即视为同意本规则。
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            maxHeight: 400,
+            overflowY: 'auto',
+          }}
+        >
+          {PACK_MODELS.map((m, idx) => (
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                background: '#f8f9fb',
+                borderRadius: 8,
+              }}
+            >
+              <Text strong style={{ fontSize: 13 }}>
+                {m.name}
+              </Text>
+              <Tag
+                style={{
+                  margin: 0,
+                  borderRadius: 4,
+                  fontSize: 11,
+                }}
+                color={m.type === '文本' ? 'blue' : m.type === '图像' ? 'purple' : 'orange'}
+              >
+                {m.type}
+              </Tag>
+            </div>
+          ))}
+        </div>
+      </Modal>
     </div>
   )
 }

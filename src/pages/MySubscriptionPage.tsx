@@ -180,7 +180,7 @@ interface Props {
   onViewOrders?: () => void
   /** 「查看模型详情」：跳转到 Token工厂模型广场对应模型的详情页 */
   onViewModelDetail?: (model: string) => void
-  /** 未购买资源包时的「去购买」：跳转到资源包管理 */
+  /** 未购买加油包时的「去购买」：直达固定档位的购买加油包页 */
   onGoResourcePack?: () => void
 }
 
