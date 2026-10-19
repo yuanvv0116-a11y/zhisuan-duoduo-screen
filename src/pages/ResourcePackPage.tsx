@@ -30,7 +30,7 @@ const FIXED_PACK: Pack = {
   desc: DESC_QWEN,
   price: 189.9,
   originalPrice: 259.9,
-  benefit: '包含1亿 Tokens（有效期3个月）',
+  benefit: '包含1亿 Tokens（有效期1个月）',
 }
 
 const BUY_NOTES = [
