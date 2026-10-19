@@ -21,7 +21,6 @@ import RequirementDot from '../components/RequirementDot'
 import PlanModelConfig from './PlanModelConfig'
 import { useTokenPlans } from '../store'
 import {
-  type PlanType,
   type PlanDurationOption,
   type PlanUsagePeriod,
   type PlanValidityUnit,
@@ -297,15 +296,6 @@ export default function TokenPlanListPage() {
           ) : null}
         </Space>
       ),
-    },
-    {
-      title: '版本',
-      dataIndex: 'planType',
-      key: 'planType',
-      width: 90,
-      align: 'center',
-      render: (v: PlanType) =>
-        v === 'enterprise' ? <Tag color="purple">企业版</Tag> : <Tag color="blue">个人版</Tag>,
     },
     {
       title: '套餐内容',
