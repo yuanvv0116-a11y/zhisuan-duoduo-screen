@@ -34,6 +34,16 @@ const { Text } = Typography
 
 const PRIMARY = '#2f6bff'
 
+/** 加油包可用模型（演示数据，详情弹窗默认展示 3 个，其余收起为「+N 更多」） */
+const PACK_AVAILABLE_MODELS = [
+  'qwen3.8-max',
+  'qwen3.7-plus',
+  'qwen3.7-max',
+  'qwen3.6-flash',
+  'deepseek-v4-pro',
+  'glm-5.2',
+]
+
 /** ====== 通用工具 ====== */
 /** API Key 脱敏：统一复用 SecretCell 的规则（首 4 位 + **** + 尾 4 位） */
 function maskKey(key: string): string {
@@ -176,6 +186,7 @@ interface Props {
 
 export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal', onSubscribe, onRenew, onViewOrders, onViewModelDetail, onGoResourcePack }: Props) {
   const [packDetailOpen, setPackDetailOpen] = useState(false)
+  const [packModelsExpanded, setPackModelsExpanded] = useState(false)
   const [guideModel, setGuideModel] = useState<string | null>(null)
 
   /** ====== API Key 列表管理 ====== */
@@ -1184,13 +1195,38 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             { label: '额度', value: '100,000,000 Tokens' },
             { label: '订阅时间', value: '2026-09-11' },
             { label: '订阅时长', value: '3个月（到期：2026-11-25）' },
-            { label: '可用模型', value: 'Qwen-Max' },
           ].map((it) => (
             <div key={it.label} style={{ display: 'flex', fontSize: 14, lineHeight: 1.6 }}>
               <span style={{ width: 84, color: '#94a3b8', flexShrink: 0 }}>{it.label}</span>
               <span style={{ color: '#1f2937', flex: 1 }}>{it.value}</span>
             </div>
           ))}
+          {(() => {
+            const MAX_SHOW = 3
+            const showModels = PACK_AVAILABLE_MODELS.slice(0, MAX_SHOW)
+            const hiddenCount = PACK_AVAILABLE_MODELS.length - MAX_SHOW
+            const visible = packModelsExpanded ? PACK_AVAILABLE_MODELS : showModels
+            return (
+              <div style={{ display: 'flex', fontSize: 14, lineHeight: 1.6 }}>
+                <span style={{ width: 84, color: '#94a3b8', flexShrink: 0 }}>可用模型</span>
+                <span style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                  {visible.map((m) => (
+                    <Tag key={m} style={{ margin: 0, borderRadius: 4, fontSize: 12, padding: '2px 8px', background: '#f5f7fa', borderColor: '#e5e7eb', color: '#374151' }}>
+                      {m}
+                    </Tag>
+                  ))}
+                  {hiddenCount > 0 && (
+                    <Tag
+                      onClick={() => setPackModelsExpanded((v) => !v)}
+                      style={{ margin: 0, borderRadius: 4, fontSize: 12, padding: '2px 8px', background: 'transparent', borderColor: '#e5e7eb', color: PRIMARY, cursor: 'pointer' }}
+                    >
+                      {packModelsExpanded ? '收起' : `+${hiddenCount} 更多`}
+                    </Tag>
+                  )}
+                </span>
+              </div>
+            )
+          })()}
         </div>
       </Modal>
 
