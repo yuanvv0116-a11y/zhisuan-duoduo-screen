@@ -19,6 +19,7 @@ import {
 import {
   CopyOutlined,
   DeleteOutlined,
+  ExclamationCircleFilled,
   EyeInvisibleOutlined,
   EyeOutlined,
   InfoCircleOutlined,
@@ -238,10 +239,37 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
   }
 
   function handleResetKey(id: string) {
+    const target = apiKeys.find((k) => k.id === id)
+    const masked = target
+      ? `${target.key.slice(0, 13)}****${target.key.slice(-15)}`
+      : ''
     Modal.confirm({
-      title: '确认重置 API Key？',
-      content: '重置后，原有api key 立即失效，请更换新key使用',
-      okText: '确认',
+      icon: <ExclamationCircleFilled style={{ color: '#ef4444' }} />,
+      title: '确定要重置该 API Key？',
+      content: (
+        <div style={{ marginTop: 12 }}>
+          <div
+            style={{
+              background: '#f5f5f5',
+              borderRadius: 6,
+              padding: '10px 14px',
+              marginBottom: 12,
+              fontFamily:
+                'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+              fontSize: 14,
+              color: '#1f2937',
+              wordBreak: 'break-all',
+            }}
+          >
+            {masked}
+          </div>
+          <div style={{ color: '#ef4444', fontSize: 13, lineHeight: 1.7 }}>
+            重置后，您需要将新的 API Key 更新到所有使用的工具中，否则将会导致工具不可用。该操作无法撤回，请谨慎确认。
+          </div>
+        </div>
+      ),
+      okText: '重置',
+      okButtonProps: { danger: true },
       cancelText: '取消',
       onOk: () => {
         updateApiKeys((prev) =>
