@@ -682,7 +682,7 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
 export type OrderProductType = 'tokensPack' | 'plan'
 
 export const ORDER_PRODUCT_TYPE_LABEL: Record<OrderProductType, string> = {
-  tokensPack: '资源包',
+  tokensPack: '加油包',
   plan: 'Token Plan',
 }
 
