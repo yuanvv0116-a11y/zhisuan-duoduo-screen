@@ -290,7 +290,7 @@ export default function App() {
   /** 「查看模型详情」跳转：进入 Token工厂时直达模型广场的模型详情 */
   const [factoryDetailId, setFactoryDetailId] = useState<string | null>(null)
   const [tokenPlanSub, setTokenPlanSub] = useState<
-    'overview' | 'mySubscription' | 'resourcePack' | 'mySubscriptionNoPlan' | 'mySubscriptionNoPack'
+    'overview' | 'mySubscription' | 'resourcePack' | 'mySubscriptionNoPlan' | 'mySubscriptionNoPack' | 'mySubscriptionPlanUnavailable'
   >('overview')
   const [billingSub, setBillingSub] = useState<BillingSubPage>('accountOverview')
   const [checkoutPlan, setCheckoutPlan] = useState<TokenPlan | null>(null)
@@ -1205,6 +1205,7 @@ export default function App() {
                       { key: 'mySubscriptionNoPlan', label: '我的订阅（未购买套餐）' },
                       { key: 'mySubscriptionNoPack', label: '我的订阅（未购买加油包）' },
                       { key: 'mySubscription', label: '我的订阅（套餐+加油包）' },
+                      { key: 'mySubscriptionPlanUnavailable', label: '我的订阅（套餐不可用+加油包可用）' },
                       { key: 'resourcePack', label: '购买加油包' },
                     ] as const
                   ).map((it) => (
@@ -1252,6 +1253,8 @@ export default function App() {
                   <MySubscriptionPage variant="noPlan" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} onViewModelDetail={handleViewModelDetail} />
                 ) : tokenPlanSub === 'mySubscriptionNoPack' ? (
                   <MySubscriptionPage variant="noPack" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} onViewModelDetail={handleViewModelDetail} onGoResourcePack={handleGoResourcePack} />
+                ) : tokenPlanSub === 'mySubscriptionPlanUnavailable' ? (
+                  <MySubscriptionPage variant="planUnavailable" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} onViewModelDetail={handleViewModelDetail} onGoResourcePack={handleGoResourcePack} />
                 ) : (
                   <MySubscriptionPage variant="normal" onOpenUsageStats={() => setShowUsageStats(true)} onSubscribe={(ed) => { if (ed === 'team') { setShowEnterprisePage(true); setTokenPlanSub('overview'); } else { setTokenPlanSub('overview'); } }} onRenew={handleRenew} onViewOrders={handleViewOrders} onViewModelDetail={handleViewModelDetail} />
                 )}
