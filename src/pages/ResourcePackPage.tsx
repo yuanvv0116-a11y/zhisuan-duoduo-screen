@@ -73,7 +73,7 @@ export default function ResourcePackPage({ onBack }: Props) {
 
   const handlePay = () => {
     if (!agreeTerms) {
-      message.warning('请先阅读并同意购买协议')
+      message.warning('请先阅读并同意《加油包购买协议》')
       return
     }
     const now = new Date()
@@ -424,10 +424,10 @@ export default function ResourcePackPage({ onBack }: Props) {
                     <span style={{ fontSize: 12, color: '#6b7280' }}>
                       我已阅读并同意
                       <a
-                        onClick={() => setAgreementView('subscription')}
+                        onClick={() => setAgreementView('resourcePack')}
                         style={{ color: '#2f6bff', margin: '0 2px', cursor: 'pointer' }}
                       >
-                        《套餐购买协议》
+                        《加油包购买协议》
                       </a>
                     </span>
                   </Checkbox>
