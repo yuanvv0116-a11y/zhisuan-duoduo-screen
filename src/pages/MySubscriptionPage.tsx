@@ -556,7 +556,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
           {/* 额度使用进度 */}
           <div style={{ marginBottom: 40 }}>
             <div style={{ marginBottom: 16, display: 'flex', alignItems: 'baseline', gap: 20, flexWrap: 'wrap' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 14 }}>
                 <span style={{ fontSize: 14, color: '#6b7280' }}>已消耗</span>
                 <span
                   style={{
