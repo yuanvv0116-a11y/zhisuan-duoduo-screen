@@ -656,7 +656,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                   fontSize: 14,
                 }}
               >
-                资源包详情
+                加油包详情
               </a>
             </div>
             {/* 百分比 + 到期时间 */}
@@ -1168,9 +1168,9 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
         />
       </Card>
 
-      {/* 资源包详情弹窗 */}
+      {/* 加油包详情弹窗 */}
       <Modal
-        title="资源包"
+        title="加油包"
         open={packDetailOpen}
         onCancel={() => setPackDetailOpen(false)}
         footer={null}
