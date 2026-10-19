@@ -2029,26 +2029,31 @@ const planSeed: TokenPlan[] = [
   },
 ]
 
+/** 旧快照字段兜底：补折扣价、原价展示、总Token量等后加字段 */
+function healPlans(list: TokenPlan[]): TokenPlan[] {
+  return list.map((p) => ({
+    ...p,
+    discountPrice:
+      typeof (p as any).discountPrice === 'number'
+        ? (p as any).discountPrice
+        : calcPlanDiscountedPrice(p.price, p.discount ?? 100),
+    showOriginalPrice:
+      typeof (p as any).showOriginalPrice === 'boolean' ? (p as any).showOriginalPrice : false,
+    originalPrice:
+      typeof (p as any).originalPrice === 'number' ? (p as any).originalPrice : 0,
+    totalTokens:
+      typeof (p as any).totalTokens === 'number' ? (p as any).totalTokens : p.usageLimit ?? 0,
+    usageLimitEnabled:
+      typeof (p as any).usageLimitEnabled === 'boolean' ? (p as any).usageLimitEnabled : true,
+  }))
+}
+
 function loadPlans(): TokenPlan[] {
   try {
     const raw = localStorage.getItem(PLAN_STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as TokenPlan[]
-      return parsed.map((p) => ({
-        ...p,
-        discountPrice:
-          typeof (p as any).discountPrice === 'number'
-            ? (p as any).discountPrice
-            : calcPlanDiscountedPrice(p.price, p.discount ?? 100),
-        showOriginalPrice:
-          typeof (p as any).showOriginalPrice === 'boolean' ? (p as any).showOriginalPrice : false,
-        originalPrice:
-          typeof (p as any).originalPrice === 'number' ? (p as any).originalPrice : 0,
-        totalTokens:
-          typeof (p as any).totalTokens === 'number' ? (p as any).totalTokens : p.usageLimit ?? 0,
-        usageLimitEnabled:
-          typeof (p as any).usageLimitEnabled === 'boolean' ? (p as any).usageLimitEnabled : true,
-      }))
+      return healPlans(parsed)
     }
   } catch {
     /* ignore */
@@ -2059,6 +2064,21 @@ function loadPlans(): TokenPlan[] {
 
 let planState: TokenPlan[] = loadPlans()
 const planListeners = new Set<() => void>()
+
+/** 跨标签页同步：后台与控制台常在不同标签页打开，后台改套餐后本标签页需感知最新数据 */
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== PLAN_STORAGE_KEY || e.newValue == null || e.newValue === JSON.stringify(planState)) return
+    try {
+      const parsed = JSON.parse(e.newValue) as TokenPlan[]
+      if (!Array.isArray(parsed)) return
+      planState = healPlans(parsed)
+      planListeners.forEach((l) => l())
+    } catch {
+      /* ignore */
+    }
+  })
+}
 
 function emitPlans() {
   localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(planState))
