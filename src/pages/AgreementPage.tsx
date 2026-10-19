@@ -91,11 +91,7 @@ const SUBSCRIPTION_SECTIONS: Section[] = [
       },
       {
         type: 'p',
-        text: '退款政策如下：',
-      },
-      {
-        type: 'p',
-        text: 'Token Plan 套餐暂不支持退款。',
+        text: '退款政策如下：Token Plan 套餐暂不支持退款。',
       },
       {
         type: 'p',
