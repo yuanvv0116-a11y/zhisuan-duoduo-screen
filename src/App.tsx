@@ -712,7 +712,7 @@ export default function App() {
       case 'tokenPlan':
         return <TokenPlanList />
       case 'planBill':
-        return <PlanBill />
+        return <PlanBill onGoConsumeBill={() => setActive('userConsumeBill')} />
       case 'userConsumeBill':
         return <UserConsumeBill />
       case 'planStats':

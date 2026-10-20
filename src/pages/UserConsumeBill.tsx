@@ -23,7 +23,7 @@ import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
 import PageShell from '../components/PageShell'
 import RequirementDot from '../components/RequirementDot'
-import { useChannels, useModels, useResourcePacks, useVouchers } from '../store'
+import { useChannels, useModels, useResourcePacks, useTokenPlans, useVouchers } from '../store'
 import type { ModelItem, Voucher } from '../types'
 
 const { RangePicker } = DatePicker
@@ -40,7 +40,20 @@ const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
 }
 
 /** 一次模型调用实际从哪个资金池扣费：与消费明细 / 账户明细口径一致（仅内部路由用，列表与导出均不展示资金池字样） */
-type FundMode = 'cash' | 'voucher'
+type FundMode = 'cash' | 'voucher' | 'plan'
+
+/** 扣费类型：加油包扣费同属 Token Plan套餐扣费 */
+const CHARGE_TYPE_LABEL: Record<FundMode, string> = {
+  cash: '现金账户扣费',
+  voucher: '代金券扣费',
+  plan: 'Token Plan套餐扣费',
+}
+
+const CHARGE_TYPE_COLOR: Record<FundMode, string> = {
+  cash: 'blue',
+  voucher: 'gold',
+  plan: 'purple',
+}
 
 /** 参与本次抵扣的代金券（券名称 + 券码），悬浮展示 */
 type VoucherItem = { name: string; code: string }
@@ -75,6 +88,9 @@ type ConsumeRow = {
   cacheReadTokens: number | null
   cacheReadFee: number | null
   media: string | null
+  /** Token Plan套餐扣费行：套餐名称（仅该扣费类型下有值） */
+  planName: string | null
+  /** Token Plan套餐扣费行：加油包名称（仅该扣费类型下有值） */
   packName: string | null
   status: 'success' | 'fail'
 }
@@ -210,6 +226,7 @@ function buildRows(
   channelNameById: Map<string, string>,
   fallbackChannels: string[],
   packNames: string[],
+  planNames: string[],
   voucherPool: Map<string, Voucher[]>,
 ): ConsumeRow[] {
   const pool = models.length ? models : []
@@ -273,8 +290,18 @@ function buildRows(
         return true
       })
       .sort((a, b) => String(a.expireAt ?? '9999-12-31').localeCompare(String(b.expireAt ?? '9999-12-31')))
-    const voucherItems: VoucherItem[] = usedVouchers.map((v) => ({ name: v.templateName, code: v.code }))
-    const fundMode: FundMode = voucherItems.length ? 'voucher' : 'cash'
+    /** Token Plan套餐扣费行：约每 7 笔 1 笔，套餐名 / 加油包名 / 「套餐名 + 加油包名」三形态轮循 */
+    const isPlanRow = !head && i % 7 === 6
+    const planIdx = Math.floor(i / 7)
+    const planNameOf = planNames.length ? planNames[planIdx % planNames.length] : 'Token Plan 个人版套餐'
+    const packNameOf = packNames.length ? packNames[planIdx % packNames.length] : '全能大模型套餐 A'
+    const planVariant = planIdx % 3
+    const voucherItems: VoucherItem[] = isPlanRow
+      ? []
+      : usedVouchers.map((v) => ({ name: v.templateName, code: v.code }))
+    const fundMode: FundMode = isPlanRow ? 'plan' : voucherItems.length ? 'voucher' : 'cash'
+    const planName = isPlanRow && planVariant !== 1 ? planNameOf : null
+    const packName = isPlanRow && planVariant !== 0 ? packNameOf : null
 
     return {
       key: String(id),
@@ -305,7 +332,8 @@ function buildRows(
       cacheReadTokens,
       cacheReadFee,
       media: isMediaModel ? (rand() > 0.5 ? `图片 ×${1 + Math.floor(rand() * 4)}` : `视频 · ${5 + Math.floor(rand() * 4) * 5} 秒`) : null,
-      packName: packNames.length && i % 5 !== 1 ? packNames[i % packNames.length] : null,
+      planName,
+      packName,
       status,
     }
   })
@@ -334,7 +362,6 @@ type Query = {
   accountType?: AccountType
   model?: string
   status?: 'success' | 'fail'
-  pack?: string
 }
 
 const emptyQuery = (): Query => ({
@@ -345,7 +372,6 @@ const emptyQuery = (): Query => ({
   accountType: undefined,
   model: undefined,
   status: undefined,
-  pack: undefined,
 })
 
 /* ---------------- 单元格小组件 ---------------- */
@@ -420,6 +446,7 @@ export default function UserConsumeBill() {
   const { models } = useModels()
   const { channels } = useChannels()
   const { packs } = useResourcePacks()
+  const { plans } = useTokenPlans()
   const vouchers = useVouchers()
 
   const [month, setMonth] = useState<MonthPreset>('this')
@@ -430,7 +457,6 @@ export default function UserConsumeBill() {
   const [accountType, setAccountType] = useState<AccountType>()
   const [model, setModel] = useState<string>()
   const [status, setStatus] = useState<'success' | 'fail'>()
-  const [pack, setPack] = useState<string>()
   const [query, setQuery] = useState<Query>(emptyQuery)
 
   const rows = useMemo(() => {
@@ -447,9 +473,10 @@ export default function UserConsumeBill() {
       map,
       channels.map((c) => c.name),
       packs.map((p) => p.name),
+      plans.map((p) => p.name),
       voucherPool,
     )
-  }, [models, channels, packs, vouchers])
+  }, [models, channels, packs, plans, vouchers])
 
   const filtered = useMemo(
     () =>
@@ -473,14 +500,13 @@ export default function UserConsumeBill() {
         if (query.accountType && r.accountType !== query.accountType) return false
         if (query.model && r.modelCode !== query.model) return false
         if (query.status && r.status !== query.status) return false
-        if (query.pack && r.packName !== query.pack) return false
         return true
       }),
     [rows, query],
   )
 
   const handleSearch = () =>
-    setQuery({ range, channel, operator, account, accountType, model, status, pack })
+    setQuery({ range, channel, operator, account, accountType, model, status })
 
   const handleReset = () => {
     setMonth('this')
@@ -491,7 +517,6 @@ export default function UserConsumeBill() {
     setAccountType(undefined)
     setModel(undefined)
     setStatus(undefined)
-    setPack(undefined)
     setQuery(emptyQuery())
   }
 
@@ -508,6 +533,7 @@ export default function UserConsumeBill() {
       '扣费账户ID',
       '扣费账户手机号',
       '扣费账户',
+      '扣费类型',
       '抵扣券码',
       '账户类型',
       '模型',
@@ -528,7 +554,6 @@ export default function UserConsumeBill() {
       '缓存读取Token',
       '缓存读取费用(元)',
       '媒体信息',
-      '加油包',
       '调用状态',
     ]
     const lines = [header.map(csvCell).join(',')]
@@ -539,12 +564,15 @@ export default function UserConsumeBill() {
           maskPhone(r.operatorPhone),
           r.operatorAccountId,
           maskApiKey(r.operatorApiKey),
-          /** 与列表口径一致：卡券账户行不展示账户信息，现金行展示账户 ID + 手机号 */
-          r.fundMode === 'voucher' ? '' : r.accountId,
-          r.fundMode === 'voucher' ? '' : maskPhone(r.accountPhone),
+          /** 与列表口径一致：卡券 / Token Plan套餐行不展示账户信息，现金行展示账户 ID + 手机号 */
+          r.fundMode === 'cash' ? r.accountId : '',
+          r.fundMode === 'cash' ? maskPhone(r.accountPhone) : '',
           r.fundMode === 'voucher'
             ? r.voucherItems.map((v) => `${v.name}（${v.code}）`).join(' / ')
-            : `${maskPhone(r.accountPhone)}（${r.accountId}）`,
+            : r.fundMode === 'plan'
+              ? [r.planName, r.packName].filter(Boolean).join(' + ')
+              : `${maskPhone(r.accountPhone)}（${r.accountId}）`,
+          CHARGE_TYPE_LABEL[r.fundMode],
           r.voucherItems.map((v) => v.code).join(' / '),
           ACCOUNT_TYPE_LABEL[r.accountType],
           r.modelCode,
@@ -565,7 +593,6 @@ export default function UserConsumeBill() {
           r.cacheReadTokens ?? '',
           r.cacheReadFee?.toFixed(6) ?? '',
           r.media ?? '',
-          r.packName ?? '',
           r.status === 'success' ? '成功' : '失败',
         ]
           .map(csvCell)
@@ -588,11 +615,6 @@ export default function UserConsumeBill() {
     const codes = Array.from(new Set(rows.map((r) => r.modelCode)))
     return codes.map((c) => ({ label: c, value: c }))
   }, [rows])
-
-  const packOptions = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.packName).filter(Boolean))).map((p) => ({ label: p as string, value: p as string })),
-    [rows],
-  )
 
   const breakRow = <div style={{ flexBasis: '100%', height: 0 }} />
 
@@ -687,14 +709,6 @@ export default function UserConsumeBill() {
               { label: '失败', value: 'fail' },
             ]}
           />
-          <Select
-            style={{ width: 200 }}
-            placeholder="全部加油包"
-            allowClear
-            value={pack}
-            onChange={setPack}
-            options={packOptions}
-          />
         </>
       }
     >
@@ -744,7 +758,8 @@ export default function UserConsumeBill() {
                         '1.「扣账账户」更名为「扣费账户」。',
                         '2.现金主账户消费：只展示账户信息（手机号 + 账户 ID），不标注资金池字样。',
                         '3.卡券账户消费：直接列出所有参与抵扣的代金券，每行一张「券名称（券码）」，不展示账户信息。',
-                        '4.导出也同样处理。',
+                        '4.Token Plan 套餐消费：展示 Token Plan 套餐名称，或加油包名称，或「套餐名称 + 加油包名称」；其后新增「扣费类型」列（现金账户扣费 / 代金券扣费 / Token Plan套餐扣费，加油包扣费同属 Token Plan套餐扣费）。',
+                        '5.导出也同样处理。',
                       ],
                     },
                   ]}
@@ -761,6 +776,10 @@ export default function UserConsumeBill() {
                     </span>
                   ))}
                 </Space>
+              ) : r.fundMode === 'plan' ? (
+                <Text style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
+                  {[r.planName, r.packName].filter(Boolean).join(' + ')}
+                </Text>
               ) : (
                 <IdentityCell
                   lines={[
@@ -773,6 +792,15 @@ export default function UserConsumeBill() {
                   ]}
                 />
               ),
+          },
+          {
+            title: '扣费类型',
+            key: 'chargeType',
+            render: (_, r) => (
+              <Tag color={CHARGE_TYPE_COLOR[r.fundMode]} style={{ borderRadius: 6, whiteSpace: 'nowrap' }}>
+                {CHARGE_TYPE_LABEL[r.fundMode]}
+              </Tag>
+            ),
           },
           {
             title: '账户类型',
@@ -871,18 +899,6 @@ export default function UserConsumeBill() {
             dataIndex: 'media',
             render: (v: string | null) =>
               v ? <Text style={{ whiteSpace: 'nowrap' }}>{v}</Text> : <Text type="secondary">—</Text>,
-          },
-          {
-            title: '加油包',
-            dataIndex: 'packName',
-            render: (v: string | null) =>
-              v ? (
-                <Tooltip title="本次调用优先抵扣的加油包">
-                  <Text style={{ whiteSpace: 'nowrap' }}>{v}</Text>
-                </Tooltip>
-              ) : (
-                <Text type="secondary">—</Text>
-              ),
           },
           {
             title: '调用状态',
