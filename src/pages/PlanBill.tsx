@@ -184,8 +184,8 @@ const rows: PlanBillRow[] = [
     productType: 'resourcePack',
     orderType: 'new',
     amount: 299,
-    discount: 100,
-    originalAmount: 299,
+    discount: 75,
+    originalAmount: 399,
     status: 'paid',
     createdAt: '2026-08-26 08:30:00',
     grantedAt: '2026-08-26 08:30:05',
@@ -232,8 +232,8 @@ const rows: PlanBillRow[] = [
     productType: 'resourcePack',
     orderType: 'new',
     amount: 999,
-    discount: 100,
-    originalAmount: 999,
+    discount: 77,
+    originalAmount: 1299,
     status: 'pending',
     createdAt: '2026-08-25 16:55:48',
     grantedAt: '—',
@@ -280,8 +280,8 @@ const rows: PlanBillRow[] = [
     productType: 'resourcePack',
     orderType: 'new',
     amount: 399,
-    discount: 100,
-    originalAmount: 399,
+    discount: 80,
+    originalAmount: 499,
     status: 'failed',
     createdAt: '2026-08-24 11:08:22',
     grantedAt: '—',
@@ -798,13 +798,15 @@ export default function PlanBill() {
               <Descriptions.Item label="原价">
                 ¥{currentRow.originalAmount.toFixed(2)}
               </Descriptions.Item>
-              {currentRow.originalAmount - currentRow.amount > 0 && (
-                <Descriptions.Item label="优惠金额">
+              <Descriptions.Item label="优惠金额">
+                {currentRow.originalAmount - currentRow.amount > 0 ? (
                   <Text type="secondary">
                     -¥{(currentRow.originalAmount - currentRow.amount).toFixed(2)}
                   </Text>
-                </Descriptions.Item>
-              )}
+                ) : (
+                  <Text type="secondary">—</Text>
+                )}
+              </Descriptions.Item>
               <Descriptions.Item label="实付金额" span={2}>
                 <Text style={{ fontWeight: 600, fontSize: 18, color: '#2f6bff' }}>
                   ¥{currentRow.amount.toFixed(2)}
