@@ -10,6 +10,9 @@ import {
   Table,
   Tag,
   Typography,
+  Modal,
+  Statistic,
+  Progress,
   message,
   Tooltip,
 } from 'antd'
@@ -48,6 +51,39 @@ interface PlanBillRow {
   operator: string
   paymentMethod: string
   paymentChannel: string
+}
+
+interface CallDetailRow {
+  id: string
+  callTime: string
+  model: string
+  tokens: number
+  cacheHitRate: number
+  cost: number
+}
+
+const MODEL_LIST = ['豆包大模型2.1', '豆包图像创作模型5.0', '豆包声音复刻模型2.0', '推理模型-4', '推理模型-Pro']
+
+function generateCallDetails(row: PlanBillRow): CallDetailRow[] {
+  const baseTime = new Date(row.createdAt.replace(/-/g, '/'))
+  const details: CallDetailRow[] = []
+  const count = 15 + Math.floor(Math.random() * 20)
+  for (let i = 0; i < count; i++) {
+    const time = new Date(baseTime.getTime() + i * 3600 * 1000 * (2 + Math.random() * 6))
+    const model = MODEL_LIST[Math.floor(Math.random() * MODEL_LIST.length)]
+    const tokens = Math.floor(1000 + Math.random() * 50000)
+    const cacheHitRate = Math.random()
+    const cost = (tokens / 1000) * (0.002 + Math.random() * 0.008)
+    details.push({
+      id: `${row.id}-${i}`,
+      callTime: `${time.getFullYear()}-${String(time.getMonth() + 1).padStart(2, '0')}-${String(time.getDate()).padStart(2, '0')} ${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}:${String(time.getSeconds()).padStart(2, '0')}`,
+      model,
+      tokens,
+      cacheHitRate,
+      cost: Math.round(cost * 10000) / 10000,
+    })
+  }
+  return details.sort((a, b) => b.callTime.localeCompare(a.callTime))
 }
 
 const PRODUCT_TYPE_LABEL: Record<string, string> = {
@@ -281,13 +317,12 @@ const initialSearch: SearchForm = {
   dateRange: null,
 }
 
-interface PlanBillProps {
-  onGoConsumeBill?: () => void
-}
-
-export default function PlanBill({ onGoConsumeBill }: PlanBillProps) {
+export default function PlanBill() {
   const [search, setSearch] = useState<SearchForm>(initialSearch)
   const [appliedSearch, setAppliedSearch] = useState<SearchForm>(initialSearch)
+  const [callDetailOpen, setCallDetailOpen] = useState(false)
+  const [callDetailData, setCallDetailData] = useState<CallDetailRow[]>([])
+  const [callDetailRow, setCallDetailRow] = useState<PlanBillRow | null>(null)
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
@@ -479,12 +514,16 @@ export default function PlanBill({ onGoConsumeBill }: PlanBillProps) {
       key: 'action',
       width: 160,
       fixed: 'right',
-      render: () => (
+      render: (_v, r) => (
         <Space size={4}>
           <Button
             type="link"
             style={{ padding: 0, color: '#2f6bff' }}
-            onClick={() => onGoConsumeBill?.()}
+            onClick={() => {
+              setCallDetailRow(r)
+              setCallDetailData(generateCallDetails(r))
+              setCallDetailOpen(true)
+            }}
           >
             消耗明细
           </Button>
@@ -717,6 +756,101 @@ export default function PlanBill({ onGoConsumeBill }: PlanBillProps) {
           columns={columns}
         />
       </Card>
+
+      <Modal
+        centered
+        open={callDetailOpen}
+        onCancel={() => setCallDetailOpen(false)}
+        footer={null}
+        width={780}
+        destroyOnClose
+        title="消耗明细"
+      >
+        {callDetailRow && (
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                gap: 16,
+                marginBottom: 16,
+                padding: '16px 20px',
+                background: '#f7f9fc',
+                borderRadius: 8,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <Statistic
+                  title="总成本"
+                  value={callDetailData.reduce((sum, d) => sum + d.cost, 0)}
+                  precision={4}
+                  prefix="¥"
+                  valueStyle={{ color: '#2f6bff', fontSize: 22 }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic
+                  title="总消耗费用"
+                  value={callDetailData.reduce((sum, d) => sum + d.cost, 0)}
+                  precision={2}
+                  prefix="¥"
+                  valueStyle={{ color: '#333', fontSize: 22 }}
+                />
+              </div>
+            </div>
+
+            <Table<CallDetailRow>
+              rowKey="id"
+              dataSource={callDetailData}
+              size="small"
+              pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条记录` }}
+              scroll={{ x: 'max-content' }}
+              columns={[
+                { title: '调用时间', dataIndex: 'callTime', key: 'callTime', width: 170 },
+                {
+                  title: '调用模型',
+                  dataIndex: 'model',
+                  key: 'model',
+                  width: 180,
+                  render: (v: string) => <span style={{ fontWeight: 500 }}>{v}</span>,
+                },
+                {
+                  title: 'Token消耗',
+                  dataIndex: 'tokens',
+                  key: 'tokens',
+                  width: 120,
+                  align: 'right',
+                  render: (v: number) => v.toLocaleString(),
+                },
+                {
+                  title: '缓存命中率',
+                  dataIndex: 'cacheHitRate',
+                  key: 'cacheHitRate',
+                  width: 140,
+                  render: (v: number) => (
+                    <Progress
+                      percent={Math.round(v * 10000) / 100}
+                      size="small"
+                      strokeColor={v > 0.7 ? '#52c41a' : v > 0.4 ? '#faad14' : '#ff4d4f'}
+                    />
+                  ),
+                },
+                {
+                  title: '消耗费用',
+                  dataIndex: 'cost',
+                  key: 'cost',
+                  width: 110,
+                  align: 'right',
+                  render: (v: number) => (
+                    <Text type={v === 0 ? 'secondary' : undefined}>
+                      ¥{v.toFixed(4)}
+                    </Text>
+                  ),
+                },
+              ]}
+            />
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }
