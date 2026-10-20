@@ -405,7 +405,10 @@ export default function PurchasePage({
                 <Divider style={{ margin: '12px 20px', borderColor: '#f0f0f0' }} />
 
                 <div style={{ padding: '0 20px', flex: 1 }}>
-                  {PLAN_FEATURES[plan.level ?? '']?.map((f, i) => (
+                  {(plan.summaryItems && plan.summaryItems.length > 0
+                    ? plan.summaryItems.map((text) => ({ text }))
+                    : PLAN_FEATURES[plan.level ?? ''] ?? []
+                  ).map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 8, fontSize: 12, color: '#4b5563', lineHeight: 1.6 }}>
                       <span style={{ marginRight: 6, fontSize: 12, color: '#22c55e', fontWeight: 700, flexShrink: 0 }}>✓</span>
                       {f.text}
