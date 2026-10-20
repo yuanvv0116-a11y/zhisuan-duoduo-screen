@@ -162,34 +162,35 @@ export default function ResourcePackPage() {
       dataIndex: 'name',
       key: 'name',
       fixed: 'left',
-      width: 260,
-      render: (_, r) => (
-        <div>
-          <Text strong>{r.name}</Text>
-          {r.subtitle ? (
-            <div>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {r.subtitle}
-              </Text>
-            </div>
-          ) : null}
-        </div>
-      ),
+      width: 200,
+      render: (_, r) => <Text strong>{r.name}</Text>,
+    },
+    {
+      title: '副标题',
+      dataIndex: 'subtitle',
+      key: 'subtitle',
+      width: 280,
+      render: (_, r) =>
+        r.subtitle ? <Text type="secondary">{r.subtitle}</Text> : <Text type="secondary">—</Text>,
     },
     {
       title: '价格',
       key: 'price',
-      width: 160,
-      render: (_, r) => (
-        <Space size={6}>
-          <Text strong style={{ color: '#ff4d4f' }}>¥{r.price}</Text>
-          {r.originalPrice && r.originalPrice > r.price ? (
-            <Text delete type="secondary">
-              ¥{r.originalPrice}
-            </Text>
-          ) : null}
-        </Space>
-      ),
+      width: 110,
+      render: (_, r) => <Text strong style={{ color: '#ff4d4f' }}>¥{r.price}</Text>,
+    },
+    {
+      title: '划线价',
+      key: 'originalPrice',
+      width: 110,
+      render: (_, r) =>
+        r.originalPrice && r.originalPrice > r.price ? (
+          <Text delete type="secondary">
+            ¥{r.originalPrice}
+          </Text>
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
     },
     {
       title: '额度',
