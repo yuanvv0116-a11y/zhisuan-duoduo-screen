@@ -49,6 +49,8 @@ import PromoSettleAudit from './pages/PromoSettleAudit'
 import PromoStats from './pages/PromoStats'
 import TokenFactoryPage, { resolvePlazaModelId, type FactoryMenu } from './pages/TokenFactoryPage'
 import VersionChangelog from './pages/VersionChangelog'
+import PlanUsageQuery from './pages/PlanUsageQuery'
+import PlanConsumeDetail from './pages/PlanConsumeDetail'
 import { RELEASES, parseConsoleScope } from './releases'
 import { getActiveScope, getScopeFromUrl, getScopeRouteKeys, isInScope, SCOPES } from './scope'
 import { getPromoSession } from './store'
@@ -76,6 +78,8 @@ export type RouteKey =
   | 'modelGroups'
   | 'resourcePack'
   | 'tokenPlan'
+  | 'planUsage'
+  | 'planConsumeDetail'
   | 'planBill'
   | 'userConsumeBill'
   | 'planStats'
@@ -127,6 +131,8 @@ const FULL_MENU: MenuItem[] = [
     children: [
       { key: 'tokenPlan', label: '套餐管理' },
       { key: 'resourcePack', label: '加油包管理' },
+      { key: 'planUsage', label: '套餐用量查询' },
+      { key: 'planConsumeDetail', label: '套餐消耗明细' },
     ],
   },
   {
@@ -711,6 +717,10 @@ export default function App() {
         return <ResourcePack />
       case 'tokenPlan':
         return <TokenPlanList />
+      case 'planUsage':
+        return <PlanUsageQuery />
+      case 'planConsumeDetail':
+        return <PlanConsumeDetail />
       case 'planBill':
         return <PlanBill />
       case 'userConsumeBill':

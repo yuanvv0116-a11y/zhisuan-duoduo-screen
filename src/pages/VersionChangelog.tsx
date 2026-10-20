@@ -44,6 +44,8 @@ const MENU_GROUPS: MenuGroup[] = [
     children: [
       { key: 'tokenPlan', label: '套餐管理' },
       { key: 'resourcePack', label: '加油包管理' },
+      { key: 'planUsage', label: '套餐用量查询' },
+      { key: 'planConsumeDetail', label: '套餐消耗明细' },
     ],
   },
   {
