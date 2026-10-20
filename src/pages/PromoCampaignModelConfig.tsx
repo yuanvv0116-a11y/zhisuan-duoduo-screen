@@ -23,84 +23,12 @@ import PageShell from '../components/PageShell'
 import RequirementDot from '../components/RequirementDot'
 import { buildModelRatePool, PROMO_ROW_KEY, setPromoCampaignModels, useChannels, useModels } from '../store'
 import { PROMO_CAMPAIGN_SCOPE_LABEL } from '../types'
-import type { ModelItem, PromoCampaign, PromoCampaignModel } from '../types'
-import { deterministicPrice } from './ModelList'
+import type { PromoCampaign, PromoCampaignModel } from '../types'
 
 const { Text } = Typography
 
-const round4 = (v: number) => Math.round(v * 10000) / 10000
-
-/** 价格展示：按计价方式单位拼接，如 ¥ 20 /Mt、¥ 0.4 /张、¥ 0.024 /积分 */
-const fmtPrice = (v: number, unit: string) =>
-  unit === 'Mt'
-    ? `¥ ${Number((v * 1000).toFixed(4))} /Mt`
-    : `¥ ${Number(v.toFixed(4))} /${unit}`
-
 /** 加倍后比例：开启加倍时默认 = 原有比例 +10%，支持手动改小/改大（最小为原有比例 +1） */
 const boostRateOf = (row: PromoCampaignModel) => row.boostRate ?? row.rate + 10
-
-/** 生效返佣比例：加倍开启时取加倍后比例（默认原有比例 +10%，可手改） */
-const effectiveRate = (row: PromoCampaignModel) => (row.boost ? boostRateOf(row) : row.rate)
-
-/** 价格对比明细行：价格类型 + 成本价 + 返佣后价格（= 对外售价 ×（1 − 生效比例）） */
-interface PriceCompareLine {
-  key: string
-  label: string
-  cost: number
-  after: number
-  /** 计价单位：Mt（元/千Token）/ 张 / 积分 */
-  unit: string
-}
-
-/** 价格对比单位：随计价方式变化 */
-const priceUnitOf = (model: ModelItem): string =>
-  model.pricingMode === 'image_quality' ? '张' : model.pricingMode === 'video_quality_token' ? '积分' : 'Mt'
-
-const round4Of = (v: number) => Math.round(v * 10000) / 10000
-
-/** 各价格类型的成本单价：按计价方式派生；对外售价统一 = 成本 ×1.4 */
-const priceCompareLinesOf = (model: ModelItem, rate: number): PriceCompareLine[] => {
-  const unit = priceUnitOf(model)
-  const line = (key: string, label: string, cost: number): PriceCompareLine => ({
-    key,
-    label,
-    cost,
-    after: round4(round4Of(cost * 1.4) * (1 - rate / 100)),
-    unit,
-  })
-  if (model.pricingMode === 'image_quality') {
-    const low = deterministicPrice(model.id + '_img_low', 0.4)
-    const high = round4Of(low * 2)
-    return [
-      line('img720', '图片生成（720P）', low),
-      line('img1080', '图片生成（1080P）', low),
-      line('img2k', '图片生成（2K）', high),
-      line('img3k', '图片生成（3K）', high),
-      line('img4k', '图片生成（4K）', high),
-    ]
-  }
-  if (model.pricingMode === 'video_quality_token') {
-    const low = deterministicPrice(model.id + '_vid_low', 0.024)
-    const high = round4Of(low * 1.042)
-    return [
-      line('vid360', '视频生成（360P）', low),
-      line('vid540', '视频生成（540P）', low),
-      line('vid720', '视频生成（720P）', high),
-      line('vid1080', '视频生成（1080P）', high),
-    ]
-  }
-  const input = deterministicPrice(model.id + '_cin', 0.0008)
-  const output = deterministicPrice(model.id + '_cout', 0.0024)
-  const cache = deterministicPrice(model.id + '_cpool', 0.0005)
-  return [
-    line('input', '输入价格', input),
-    line('output', '输出价格', output),
-    line('cache', '缓存价格', cache),
-    line('cacheCreate5m', '显式缓存创建/5m', 0),
-    line('cacheCreate1h', '显式缓存创建/1h', 0),
-    line('cacheRead', '显式缓存读取', cache),
-  ]
-}
 
 /** 档位行唯一键与 store 同源，保证后台配置、官网推广页、控制台列表口径一致 */
 const rowKeyOf = PROMO_ROW_KEY
@@ -135,15 +63,12 @@ export default function PromoCampaignModelConfig({
     null,
   )
   const [rateEditInput, setRateEditInput] = useState<number | null>(null)
-  const [compareRow, setCompareRow] = useState<ConfigRow | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
   /** 返佣模型草稿列表：只装「已配置返佣」的模型倍率；增删改都作用在草稿上，点「保存」才写入活动（定义在模型池之后） */
 
   const channelNameById = useMemo(() => new Map(channels.map((c) => [c.id, c.name])), [channels])
-
-  const modelByName = useMemo(() => new Map(models.map((m) => [m.name, m])), [models])
 
   /** 模型池全量「模型 × 档位」候选行：与官网推广页、控制台活动列表同源（buildModelRatePool），此处仅叠加渠道名 */
   const poolRows: ConfigRow[] = useMemo(() => {
@@ -647,16 +572,6 @@ export default function PromoCampaignModelConfig({
         )
       },
     },
-    {
-      title: '价格对比',
-      key: 'compare',
-      width: 130,
-      render: (_, row) => (
-        <Button type="link" size="small" style={{ padding: 0 }} onClick={() => setCompareRow(row)}>
-          查看对比
-        </Button>
-      ),
-    },
     ...(editMode && !isAll
       ? [
           {
@@ -1002,87 +917,6 @@ export default function PromoCampaignModelConfig({
         </div>
       </Modal>
 
-      <Modal
-        centered
-        destroyOnClose
-        width={960}
-        title="价格对比"
-        open={!!compareRow}
-        footer={<Button onClick={() => setCompareRow(null)}>关闭</Button>}
-        onCancel={() => setCompareRow(null)}
-      >
-        {compareRow
-          ? (() => {
-              const model = modelByName.get(compareRow.modelName)
-              const rate = effectiveRate(compareRow)
-              return (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                    <Text strong style={{ fontSize: 16 }}>
-                      {compareRow.modelName}
-                    </Text>
-                    <Text type="secondary">
-                      {compareRow.multiplierName} · {compareRow.modelMultiplier ?? 1}x
-                    </Text>
-                  </div>
-                  {model ? (
-                    (() => {
-                      const lines = priceCompareLinesOf(model, rate)
-                      const unit = lines[0]?.unit ?? 'Mt'
-                      return (
-                        <>
-                          <Table<PriceCompareLine>
-                            rowKey="key"
-                            size="small"
-                            pagination={false}
-                            dataSource={lines}
-                            columns={[
-                              {
-                                title: '',
-                                dataIndex: 'label',
-                                key: 'label',
-                              },
-                              {
-                                title: '成本价',
-                                key: 'cost',
-                                align: 'center',
-                                render: (_, line) => (
-                                  <span style={{ color: token.colorPrimary }}>
-                                    {fmtPrice(line.cost, line.unit)}
-                                  </span>
-                                ),
-                              },
-                              {
-                                title: '返佣后价格',
-                                key: 'after',
-                                align: 'center',
-                                render: (_, line) => (
-                                  <span
-                                    style={{
-                                      color:
-                                        line.after < line.cost ? token.colorError : token.colorPrimary,
-                                    }}
-                                  >
-                                    {fmtPrice(line.after, line.unit)}
-                                  </span>
-                                ),
-                              },
-                            ]}
-                          />
-                          <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
-                            单位：元 / {unit}
-                          </Text>
-                        </>
-                      )
-                    })()
-                  ) : (
-                    <Text type="secondary">模型已删除，暂无价格数据</Text>
-                  )}
-                </>
-              )
-            })()
-          : null}
-      </Modal>
     </>
   )
 }
