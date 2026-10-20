@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Button, Input, Modal, Progress, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Button, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import PageShell from '../components/PageShell'
 import {
@@ -163,20 +163,14 @@ export default function PlanUsageQuery() {
     {
       title: '已用 Tokens',
       key: 'used',
-      width: 170,
+      width: 160,
       render: (_, r) => {
         const percent = Math.min(100, Math.round((r.usedTokens / r.totalTokens) * 100))
         return (
-          <Space size={8} style={{ whiteSpace: 'nowrap' }}>
-            <span>{formatTokens(r.usedTokens)}</span>
-            <Progress
-              percent={percent}
-              size="small"
-              showInfo={false}
-              status={percent >= 100 ? 'exception' : 'normal'}
-              style={{ width: 64, marginBottom: 0 }}
-            />
-          </Space>
+          <span style={{ whiteSpace: 'nowrap' }}>
+            {formatTokens(r.usedTokens)}
+            <Text type="secondary" style={{ fontSize: 12 }}>（{percent}%）</Text>
+          </span>
         )
       },
     },
