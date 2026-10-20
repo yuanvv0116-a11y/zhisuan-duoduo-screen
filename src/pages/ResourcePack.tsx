@@ -193,11 +193,11 @@ export default function ResourcePackPage() {
         ),
     },
     {
-      title: '额度',
+      title: '额度（Tokens）',
       key: 'quota',
-      width: 160,
+      width: 140,
       render: (_, r) =>
-        r.quota > 0 ? <Text>{r.quota.toLocaleString()} Tokens</Text> : <Text type="secondary">—</Text>,
+        r.quota > 0 ? <Text>{r.quota.toLocaleString()}</Text> : <Text type="secondary">—</Text>,
     },
     {
       title: '有效期',
@@ -395,37 +395,21 @@ export default function ResourcePackPage() {
       >
         <Form layout="vertical" requiredMark>
           <Form.Item label="资源包名称" required>
-            <Space.Compact style={{ width: '100%' }}>
-              <Input
-                placeholder="请输入名称"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                maxLength={40}
-                style={{ flex: 1 }}
-              />
-              {!editingId && (
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    padding: '0 12px',
-                    border: '1px solid #d9d9d9',
-                    borderLeft: 'none',
-                    borderRadius: '0 6px 6px 0',
-                    background: '#fff',
-                    height: 32,
-                  }}
-                >
-                  <Switch
-                    checked={form.status === 'on'}
-                    onChange={(v) => setForm({ ...form, status: v ? 'on' : 'off' })}
-                    checkedChildren="上架"
-                    unCheckedChildren="下架"
-                    size="small"
-                  />
-                </div>
-              )}
-            </Space.Compact>
+            <Input
+              placeholder="请输入名称"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              maxLength={40}
+            />
+          </Form.Item>
+
+          <Form.Item label="上架状态">
+            <Switch
+              checked={form.status === 'on'}
+              onChange={(v) => setForm({ ...form, status: v ? 'on' : 'off' })}
+              checkedChildren="上架"
+              unCheckedChildren="下架"
+            />
             <div style={{ marginTop: 6 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 仅支持上架一个资源包；上架新资源包后，当前已上架的资源包将自动下架。
