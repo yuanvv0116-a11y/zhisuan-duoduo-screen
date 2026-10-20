@@ -881,7 +881,7 @@ export default function TokenPlanListPage() {
             </div>
           </Form.Item>
 
-          {/* 开关项：产品标签 / 上下架 / 官网主推 */}
+          {/* 开关项：产品标签 / 上下架 / 默认选中产品 */}
           <div
             style={{
               display: 'flex',
@@ -916,7 +916,7 @@ export default function TokenPlanListPage() {
             </div>
             <div style={{ width: 1, background: '#f0f0f0' }} />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 16 }}>
-              <span style={{ fontSize: 13, color: '#333' }}>官网主推</span>
+              <span style={{ fontSize: 13, color: '#333' }}>默认选中产品</span>
               <Switch
                 checked={form.highlight}
                 onChange={(v) => setForm({ ...form, highlight: v })}
