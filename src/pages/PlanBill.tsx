@@ -505,6 +505,15 @@ export default function PlanBill() {
       },
     },
     {
+      title: '套餐总量（Tokens）',
+      dataIndex: 'totalTokens',
+      key: 'totalTokens',
+      width: 150,
+      align: 'right',
+      render: (v: string) =>
+        v === '—' ? <Text type="secondary">—</Text> : <Text>{v}</Text>,
+    },
+    {
       title: '操作',
       key: 'action',
       width: 160,
