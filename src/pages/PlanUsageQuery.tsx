@@ -137,14 +137,14 @@ export default function PlanUsageQuery() {
     },
     {
       title: '购买产品',
-      key: 'product',
-      width: 220,
-      render: (_, r) => (
-        <Space size={6}>
-          <span>{r.productName}</span>
-          <Tag color={PRODUCT_KIND_COLOR[r.productKind]}>{PRODUCT_KIND_LABEL[r.productKind]}</Tag>
-        </Space>
-      ),
+      dataIndex: 'productName',
+      width: 200,
+    },
+    {
+      title: '产品类型',
+      dataIndex: 'productKind',
+      width: 100,
+      render: (v: ProductKind) => <Tag color={PRODUCT_KIND_COLOR[v]}>{PRODUCT_KIND_LABEL[v]}</Tag>,
     },
     {
       title: '花费金额',
