@@ -477,13 +477,6 @@ export default function PlanBill() {
       width: 170,
     },
     {
-      title: '资源生效时间',
-      dataIndex: 'grantedAt',
-      key: 'grantedAt',
-      width: 170,
-      render: (v: string) => (v === '—' ? <Text type="secondary">—</Text> : v),
-    },
-    {
       title: '资源状态',
       dataIndex: 'resourceStatus',
       key: 'resourceStatus',
@@ -493,6 +486,13 @@ export default function PlanBill() {
           {RESOURCE_STATUS_LABEL[v] ?? v}
         </Tag>
       ),
+    },
+    {
+      title: '资源生效时间',
+      dataIndex: 'grantedAt',
+      key: 'grantedAt',
+      width: 170,
+      render: (v: string) => (v === '—' ? <Text type="secondary">—</Text> : v),
     },
     {
       title: '失效时间',
