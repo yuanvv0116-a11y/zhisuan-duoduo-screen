@@ -343,7 +343,7 @@ export const RELEASES: Record<string, ReleaseItem> = {
   /** ===== 2.7：Token Plan 迭代（需求收集中，未发布，仅本地评审） ===== */
   '2.7': {
     title: '2.7 Token Plan 迭代',
-    routeKeys: ['tokenPlan', 'resourcePack', 'planStats', 'planBill'],
+    routeKeys: ['tokenPlan', 'resourcePack', 'planStats', 'planBill', 'userConsumeBill'],
     consoleKeys: ['plan', 'login', 'billing:orderDetail', 'tf:plaza'],
     websiteKeys: ['tokenPlan'],
     views: ['admin', 'console', 'website'],
