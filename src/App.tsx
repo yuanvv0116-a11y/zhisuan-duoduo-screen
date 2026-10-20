@@ -119,8 +119,14 @@ const FULL_MENU: MenuItem[] = [
     children: [
       { key: 'models', label: '模型列表' },
       { key: 'modelGroups', label: '模型分组' },
-      { key: 'resourcePack', label: '资源包管理' },
-      { key: 'tokenPlan', label: 'Token Plan' },
+    ],
+  },
+  {
+    key: 'tokenPlanGroup',
+    label: 'Token Plan',
+    children: [
+      { key: 'tokenPlan', label: '套餐管理' },
+      { key: 'resourcePack', label: '加油包管理' },
     ],
   },
   {
@@ -152,7 +158,7 @@ const FULL_MENU: MenuItem[] = [
       { key: 'channelStat', label: '渠道统计与性能分析' },
       { key: 'modelUsageStat', label: '模型使用统计分析' },
       { key: 'modelUsageDetail', label: '模型使用明细' },
-      { key: 'planStats', label: '资源包与套餐统计' },
+      { key: 'planStats', label: '加油包与套餐统计' },
       { key: 'voucherStats', label: '代金券统计' },
     ],
   },
@@ -160,7 +166,7 @@ const FULL_MENU: MenuItem[] = [
     key: 'billGroup',
     label: '账单管理',
     children: [
-      { key: 'planBill', label: '套餐与资源包账单' },
+      { key: 'planBill', label: '套餐与加油包账单' },
       { key: 'userConsumeBill', label: '用户消费账单' },
     ],
   },
@@ -175,6 +181,7 @@ const MENU_ICON: Record<string, React.ReactNode> = {
   userTeamGroup: <TeamOutlined />,
   accountGroup: <WalletOutlined />,
   modelGroup: <AppstoreOutlined />,
+  tokenPlanGroup: <MoneyCollectOutlined />,
   channelGroup: <ApiOutlined />,
   statGroup: <BarChartOutlined />,
   billGroup: <WalletOutlined />,
@@ -612,7 +619,7 @@ export default function App() {
             return
           }
           if (loginReturn === 'resourcePack') {
-            /** 官网资源包「立即购买」入口：登录后直达控制台 · 资源包管理 */
+            /** 官网加油包「立即购买」入口：登录后直达控制台 · 加油包管理 */
             setLoginReturn(null)
             setViewMode('console')
             setConsoleSubPage('tokenPlan')
@@ -910,7 +917,7 @@ export default function App() {
                 theme="light"
                 mode="inline"
                 selectedKeys={[active]}
-                defaultOpenKeys={['userTeamGroup', 'accountGroup', 'modelGroup', 'promoGroup', 'channelGroup', 'statGroup', 'billGroup']}
+                defaultOpenKeys={['userTeamGroup', 'accountGroup', 'modelGroup', 'tokenPlanGroup', 'promoGroup', 'channelGroup', 'statGroup', 'billGroup']}
                 style={{ borderRight: 0, paddingTop: 8 }}
                 onClick={({ key }) => {
                   setPerfDetailFilter(undefined)
@@ -1432,7 +1439,7 @@ export default function App() {
                 setLoginMode(true)
               }}
               onBuyResourcePack={() => {
-                /** 未登录先过登录页，登录成功后落到控制台 · 资源包管理 */
+                /** 未登录先过登录页，登录成功后落到控制台 · 加油包管理 */
                 setLoginReturn('resourcePack')
                 setLoginMode(true)
               }}

@@ -90,7 +90,7 @@ interface AccountRow {
   createdAt: string
 }
 
-/** 账户已开通的资源包记录 */
+/** 账户已开通的加油包记录 */
 interface OpenedPack {
   packId: string
   packName: string
@@ -99,7 +99,7 @@ interface OpenedPack {
   openedAt: string
 }
 
-/** 开通资源包弹窗表单状态 */
+/** 开通加油包弹窗表单状态 */
 interface PackFormState {
   packId: string | null
   billingMethod: 'prepaid' | 'postpaid'
@@ -363,11 +363,11 @@ export default function AccountList() {
     message.success(`已为 ${selectedRowKeys.length} 个账户设置余额：${balanceAmount}元，${modeText}`)
   }
 
-  /* 资源包开通 */
+  /* 加油包开通 */
   const { packs } = useResourcePacks()
-  /** 已上架资源包（仅这些可开通） */
+  /** 已上架加油包（仅这些可开通） */
   const availablePacks = useMemo(() => packs.filter((p) => p.status === 'on'), [packs])
-  /** key -> 已开通资源包记录（每账户最多 1 个） */
+  /** key -> 已开通加油包记录（每账户最多 1 个） */
   const [openedPackMap, setOpenedPackMap] = useState<Record<string, OpenedPack>>({})
   const [packModalOpen, setPackModalOpen] = useState(false)
   const [packTargetKey, setPackTargetKey] = useState<string | null>(null)
@@ -376,7 +376,7 @@ export default function AccountList() {
     billingMethod: 'prepaid',
   })
 
-  /* 资源包详情弹窗 */
+  /* 加油包详情弹窗 */
   const [packDetailOpen, setPackDetailOpen] = useState(false)
   const [packDetailPackId, setPackDetailPackId] = useState<string | null>(null)
   const [packDetailRecord, setPackDetailRecord] = useState<OpenedPack | null>(null)
@@ -404,12 +404,12 @@ export default function AccountList() {
 
   const handleSavePack = () => {
     if (!packForm.packId) {
-      message.error('请选择要开通的资源包')
+      message.error('请选择要开通的加油包')
       return
     }
     const pack = availablePacks.find((p) => p.id === packForm.packId)
     if (!pack) {
-      message.error('资源包不存在或已下架')
+      message.error('加油包不存在或已下架')
       return
     }
     const record: OpenedPack = {
@@ -419,18 +419,18 @@ export default function AccountList() {
       openedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
     }
     setOpenedPackMap((prev) => ({ ...prev, [packTargetKey!]: record }))
-    message.success('资源包开通成功')
+    message.success('加油包开通成功')
     setPackModalOpen(false)
   }
 
-  /** 关闭资源包 */
+  /** 关闭加油包 */
   const handleClosePack = (rowKey: string) => {
     setOpenedPackMap((prev) => {
       const next = { ...prev }
       delete next[rowKey]
       return next
     })
-    message.success('资源包已关闭，将按平台价计费')
+    message.success('加油包已关闭，将按平台价计费')
   }
 
   /* 代金券：与现金账户物理分离，此处只读展示名下券 + 支持发放 */
@@ -918,7 +918,7 @@ export default function AccountList() {
       width: 170,
     },
     {
-      title: '已开通资源包',
+      title: '已开通加油包',
       key: 'openedPack',
       width: 220,
       render: (_, r) => {
@@ -944,7 +944,7 @@ export default function AccountList() {
           <a>余额调整</a>
           <a>调整限额</a>
           <a onClick={() => openPackModal(r)}>
-            {openedPackMap[r.key] ? '修改资源包' : '开通资源包'}
+            {openedPackMap[r.key] ? '修改加油包' : '开通加油包'}
           </a>
           <a onClick={() => openIssueVoucher(r)}>发放代金券</a>
           <RequirementDot
@@ -1066,10 +1066,10 @@ export default function AccountList() {
               { value: 'frozen', label: '已冻结' },
             ]}
           />
-          <Text>资源包名称：</Text>
+          <Text>加油包名称：</Text>
           <Input
             prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-            placeholder="请输入资源包名称"
+            placeholder="请输入加油包名称"
             value={packNameInput}
             onChange={(e) => setPackNameInput(e.target.value)}
             onPressEnter={handleSearch}
@@ -1475,9 +1475,9 @@ export default function AccountList() {
         </div>
       </Modal>
 
-      {/* 开通/修改资源包 弹窗 */}
+      {/* 开通/修改加油包 弹窗 */}
       <Modal
-        title={packTargetKey && openedPackMap[packTargetKey] ? '修改资源包' : '开通资源包'}
+        title={packTargetKey && openedPackMap[packTargetKey] ? '修改加油包' : '开通加油包'}
         open={packModalOpen}
         onCancel={() => setPackModalOpen(false)}
         onOk={handleSavePack}
@@ -1491,7 +1491,7 @@ export default function AccountList() {
             <Button onClick={() => setPackModalOpen(false)}>取消</Button>
             {packTargetKey && openedPackMap[packTargetKey] && (
               <Popconfirm
-                title="关闭资源包"
+                title="关闭加油包"
                 description="关闭后将按照平台价计费，是否确认关闭？"
                 okText="确认关闭"
                 cancelText="取消"
@@ -1500,7 +1500,7 @@ export default function AccountList() {
                   setPackModalOpen(false)
                 }}
               >
-                <Button danger>关闭资源包</Button>
+                <Button danger>关闭加油包</Button>
               </Popconfirm>
             )}
             <Button type="primary" onClick={handleSavePack}>保存</Button>
@@ -1527,28 +1527,28 @@ export default function AccountList() {
             </div>
           )}
 
-          {/* 资源包选择（单选，仅上架） */}
+          {/* 加油包选择（单选，仅上架） */}
           <div>
             <div style={{ marginBottom: 6 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                资源包（仅展示已上架）
+                加油包（仅展示已上架）
               </Text>
             </div>
             <Select
               style={{ width: '100%' }}
-              placeholder="请选择资源包"
+              placeholder="请选择加油包"
               value={packForm.packId}
               onChange={(v) => setPackForm((f) => ({ ...f, packId: v }))}
               options={availablePacks.map((p) => ({
                 value: p.id,
                 label: p.name,
               }))}
-              notFoundContent="暂无可开通的资源包"
+              notFoundContent="暂无可开通的加油包"
             />
             {availablePacks.length === 0 && (
               <div style={{ marginTop: 6 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  当前没有已上架的资源包，请先在「资源包管理」中上架。
+                  当前没有已上架的加油包，请先在「加油包管理」中上架。
                 </Text>
               </div>
             )}
@@ -1576,9 +1576,9 @@ export default function AccountList() {
         </div>
       </Modal>
 
-      {/* 资源包详情弹窗 */}
+      {/* 加油包详情弹窗 */}
       <Modal
-        title="资源包详情"
+        title="加油包详情"
         open={packDetailOpen}
         onCancel={() => setPackDetailOpen(false)}
         footer={<Button onClick={() => setPackDetailOpen(false)}>关闭</Button>}
@@ -1598,7 +1598,7 @@ export default function AccountList() {
               }}
             >
               <div style={{ marginBottom: 8 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>资源包名称</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>加油包名称</Text>
                 <div style={{ marginTop: 4 }}>
                   <Text strong>{packDetailRecord.packName}</Text>
                 </div>
@@ -1615,10 +1615,10 @@ export default function AccountList() {
               </div>
             </div>
 
-            {/* 资源包配置：副标题 / 价格 / 额度 / 有效期 */}
+            {/* 加油包配置：副标题 / 价格 / 额度 / 有效期 */}
             <div>
               <div style={{ marginBottom: 8 }}>
-                <Text strong>资源包配置</Text>
+                <Text strong>加油包配置</Text>
               </div>
               {(() => {
                 const pack = packs.find((p) => p.id === packDetailPackId)

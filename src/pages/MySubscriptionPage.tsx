@@ -663,7 +663,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             }}
           />
 
-          {/* 资源包 */}
+          {/* 加油包 */}
           {variant === 'noPack' ? (
             <div
               style={{

@@ -201,7 +201,7 @@ const TOP_ID = 349821
 const TOTAL_ROWS = 60
 
 /**
- * 生成调用明细：模型、渠道、资源包、代金券均取自 store，保证与模型列表 / 渠道管理 / 资源包管理 / 券台账口径一致；
+ * 生成调用明细：模型、渠道、加油包、代金券均取自 store，保证与模型列表 / 渠道管理 / 加油包管理 / 券台账口径一致；
  * 时间从当天上午起逐行向前回溯，近 3 个月内均有分布，因此「本月 / 上月 / 近 3 个月」都能筛到数据。
  * 资金池：扣费账户名下若有券在调用时刻已到账且未过期，该笔走「卡券账户」并列出参与抵扣的券，否则走「现金主账户」。
  */
@@ -528,7 +528,7 @@ export default function UserConsumeBill() {
       '缓存读取Token',
       '缓存读取费用(元)',
       '媒体信息',
-      '资源包',
+      '加油包',
       '调用状态',
     ]
     const lines = [header.map(csvCell).join(',')]
@@ -689,7 +689,7 @@ export default function UserConsumeBill() {
           />
           <Select
             style={{ width: 200 }}
-            placeholder="全部资源包"
+            placeholder="全部加油包"
             allowClear
             value={pack}
             onChange={setPack}
@@ -873,11 +873,11 @@ export default function UserConsumeBill() {
               v ? <Text style={{ whiteSpace: 'nowrap' }}>{v}</Text> : <Text type="secondary">—</Text>,
           },
           {
-            title: '资源包',
+            title: '加油包',
             dataIndex: 'packName',
             render: (v: string | null) =>
               v ? (
-                <Tooltip title="本次调用优先抵扣的资源包">
+                <Tooltip title="本次调用优先抵扣的加油包">
                   <Text style={{ whiteSpace: 'nowrap' }}>{v}</Text>
                 </Tooltip>
               ) : (

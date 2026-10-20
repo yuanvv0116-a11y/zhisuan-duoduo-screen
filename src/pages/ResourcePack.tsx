@@ -114,11 +114,11 @@ export default function ResourcePackPage() {
 
   const handleSave = () => {
     if (!form.name.trim()) {
-      message.error('请输入资源包名称')
+      message.error('请输入加油包名称')
       return
     }
     if (!(form.price > 0)) {
-      message.error('请输入资源包价格')
+      message.error('请输入加油包价格')
       return
     }
     if (form.originalPrice > 0 && form.originalPrice < form.price) {
@@ -126,11 +126,11 @@ export default function ResourcePackPage() {
       return
     }
     if (!(form.quota > 0)) {
-      message.error('请配置资源包额度')
+      message.error('请配置加油包额度')
       return
     }
     if (!(form.validityValue > 0)) {
-      message.error('请配置资源包有效期')
+      message.error('请配置加油包有效期')
       return
     }
 
@@ -147,10 +147,10 @@ export default function ResourcePackPage() {
 
     if (editingId) {
       updatePack(editingId, payload)
-      message.success('资源包已更新')
+      message.success('加油包已更新')
     } else {
       addPack(payload)
-      message.success(payload.status === 'on' ? '资源包已创建并上架（原上架资源包已自动下架）' : '资源包已创建')
+      message.success(payload.status === 'on' ? '加油包已创建并上架（原上架加油包已自动下架）' : '加油包已创建')
     }
     setModalOpen(false)
   }
@@ -158,7 +158,7 @@ export default function ResourcePackPage() {
   /* 列表列 */
   const columns: ColumnsType<ResourcePack> = [
     {
-      title: '资源包名称',
+      title: '加油包名称',
       dataIndex: 'name',
       key: 'name',
       fixed: 'left',
@@ -219,7 +219,7 @@ export default function ResourcePackPage() {
           unCheckedChildren="下架"
           onChange={(checked) => {
             updatePack(r.id, { status: checked ? 'on' : 'off' })
-            message.success(checked ? '资源包已上架，其它上架资源包已自动下架' : '资源包已下架')
+            message.success(checked ? '加油包已上架，其它上架加油包已自动下架' : '加油包已下架')
           }}
         />
       ),
@@ -247,7 +247,7 @@ export default function ResourcePackPage() {
             编辑
           </Button>
           <Popconfirm
-            title="确认删除该资源包？"
+            title="确认删除该加油包？"
             onConfirm={() => {
               removePack(r.id)
               message.success('已删除')
@@ -264,13 +264,13 @@ export default function ResourcePackPage() {
 
   return (
     <PageShell
-      breadcrumb={['模型管理', '资源包管理']}
+      breadcrumb={['Token Plan', '加油包管理']}
       searchFields={
         <>
-          <SearchField label="资源包名称">
+          <SearchField label="加油包名称">
             <Input
               allowClear
-              placeholder="请输入资源包名称"
+              placeholder="请输入加油包名称"
               style={{ width: 220 }}
               value={qName}
               onChange={(e) => setQName(e.target.value)}
@@ -293,46 +293,46 @@ export default function ResourcePackPage() {
       }
       onSearch={handleSearch}
       onReset={handleReset}
-      listTitle="资源包列表"
+      listTitle="加油包列表"
       total={filtered.length}
       hideTotal
-      addText="新增资源包"
+      addText="新增加油包"
       onAdd={openAdd}
       titleExtra={
         <RequirementDot
-          title="资源包管理 — 需求点"
+          title="加油包管理 — 需求点"
           sections={[
             {
               label: '产品定义',
-              items: '资源包 = 将一系列模型打包成一个产品，包内模型单独计价',
+              items: '加油包 = 将一系列模型打包成一个产品，包内模型单独计价',
             },
             {
               label: '上下架状态',
-              items: ['资源包仅维护「上架 / 下架」状态'],
+              items: ['加油包仅维护「上架 / 下架」状态'],
             },
             {
               label: '搜索',
-              items: ['支持根据资源包名称模糊搜索、按照状态搜索'],
+              items: ['支持根据加油包名称模糊搜索、按照状态搜索'],
             },
             {
               label: '下架规则',
               items: [
-                '点击下架，需要验证是否有已使用资源包',
-                '如果有提示「当前资源包正在使用，下架后将同步移除所有在用资源包，是否确认？」',
-                '【确认】为所有开通该资源包的账户关闭资源包，并下架资源包',
+                '点击下架，需要验证是否有已使用加油包',
+                '如果有提示「当前加油包正在使用，下架后将同步移除所有在用加油包，是否确认？」',
+                '【确认】为所有开通该加油包的账户关闭加油包，并下架加油包',
               ],
             },
             {
               label: '编辑规则',
-              items: ['编辑资源包并保存后，按照新的资源包模型价格计费'],
+              items: ['编辑加油包并保存后，按照新的加油包模型价格计费'],
             },
             {
               label: '删除规则',
               items: [
-                '点击删除，需要验证是否有已使用资源包',
-                '如果有提示「当前资源包正在使用，删除后将同步移除所有在用资源包，是否确认？」',
-                '【确认】为所有开通该资源包的账户关闭资源包，并删除资源包',
-                '此处要考虑计费的快照，以前用过哪个资源包消费过要有记录',
+                '点击删除，需要验证是否有已使用加油包',
+                '如果有提示「当前加油包正在使用，删除后将同步移除所有在用加油包，是否确认？」',
+                '【确认】为所有开通该加油包的账户关闭加油包，并删除加油包',
+                '此处要考虑计费的快照，以前用过哪个加油包消费过要有记录',
               ],
             },
           ]}
@@ -352,33 +352,33 @@ export default function ResourcePackPage() {
       <Modal
         title={
           <Space size={6} align="center">
-            {editingId ? '编辑资源包' : '新增资源包'}
+            {editingId ? '编辑加油包' : '新增加油包'}
             <RequirementDot
-              title="新增资源包需求"
+              title="新增加油包需求"
               sections={[
                 {
                   label: '模型配置',
-                  items: ['资源包不需要配置模型'],
+                  items: ['加油包不需要配置模型'],
                 },
                 {
                   label: '基础信息',
-                  items: ['资源包除了名称，还要有副标题'],
+                  items: ['加油包除了名称，还要有副标题'],
                 },
                 {
                   label: '价格',
-                  items: ['资源包要有价格和划线价格'],
+                  items: ['加油包要有价格和划线价格'],
                 },
                 {
                   label: '上架规则',
-                  items: ['资源包仅支持上架一个'],
+                  items: ['加油包仅支持上架一个'],
                 },
                 {
                   label: '额度',
-                  items: ['资源包可以配置额度'],
+                  items: ['加油包可以配置额度'],
                 },
                 {
                   label: '有效期',
-                  items: ['资源包有有效期'],
+                  items: ['加油包有有效期'],
                 },
               ]}
             />
@@ -394,7 +394,7 @@ export default function ResourcePackPage() {
         destroyOnClose
       >
         <Form layout="vertical" requiredMark>
-          <Form.Item label="资源包名称" required>
+          <Form.Item label="加油包名称" required>
             <Input
               placeholder="请输入名称"
               value={form.name}
@@ -412,7 +412,7 @@ export default function ResourcePackPage() {
             />
             <div style={{ marginTop: 6 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                仅支持上架一个资源包；上架新资源包后，当前已上架的资源包将自动下架。
+                仅支持上架一个加油包；上架新加油包后，当前已上架的加油包将自动下架。
               </Text>
             </div>
           </Form.Item>
@@ -459,7 +459,7 @@ export default function ResourcePackPage() {
               step={1000000}
               precision={0}
               style={{ width: '100%' }}
-              placeholder="如 50000000，表示资源包内可用的 Token 总额度"
+              placeholder="如 50000000，表示加油包内可用的 Token 总额度"
             />
           </Form.Item>
 

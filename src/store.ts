@@ -1176,7 +1176,7 @@ function appendSeedApiConfigs(models: ModelItem[]): { list: ModelItem[]; changed
 
 /**
  * 为历史数据补齐 seed 中新增的模型：按模型名称对齐 seed，只追加本地没有的模型。
- * 沿用 v4 存储键而非递增版本号，是为了保住既有模型的 id 与倍率配置 id——模型分组、资源包、
+ * 沿用 v4 存储键而非递增版本号，是为了保住既有模型的 id 与倍率配置 id——模型分组、加油包、
  * Token 套餐都按 id 引用它们，换键会导致这些引用一起悬空。
  */
 function appendSeedModels(models: ModelItem[]): { list: ModelItem[]; changed: boolean } {
@@ -1774,7 +1774,7 @@ export function useModelGroups() {
   }
 }
 
-/* ---------------- 资源包 ---------------- */
+/* ---------------- 加油包 ---------------- */
 
 const PACK_STORAGE_KEY = 'zsdd_resource_packs_v12'
 
@@ -1840,7 +1840,7 @@ export function useResourcePacks() {
 
   const addPack = useCallback((p: Omit<ResourcePack, 'id' | 'createdAt' | 'operator'>) => {
     const now = new Date().toISOString().slice(0, 10)
-    // 仅支持上架一个：新增即上架时，自动下架其它资源包
+    // 仅支持上架一个：新增即上架时，自动下架其它加油包
     const base =
       p.status === 'on'
         ? packState.map((x) => (x.status === 'on' ? { ...x, status: 'off' as const } : x))
@@ -1852,7 +1852,7 @@ export function useResourcePacks() {
   const updatePack = useCallback((id: string, patch: Partial<ResourcePack>) => {
     packState = packState.map((p) => {
       if (p.id === id) return { ...p, ...patch }
-      // 仅支持上架一个：把某个资源包置为上架时，自动下架其它已上架资源包
+      // 仅支持上架一个：把某个加油包置为上架时，自动下架其它已上架加油包
       if (patch.status === 'on' && p.status === 'on') return { ...p, status: 'off' as const }
       return p
     })

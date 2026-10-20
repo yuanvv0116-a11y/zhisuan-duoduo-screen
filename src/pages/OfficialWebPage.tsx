@@ -38,7 +38,7 @@ const AI_TOOLS = [
   { name: 'OpenClaw', icon: new URL('../assets/ai-tool-openclaw.png', import.meta.url).href },
 ]
 
-/** 资源包（按设计图 8 个） */
+/** 加油包（按设计图 8 个） */
 const RESOURCE_PACKS = [
   {
     name: 'Qwen-Max特价尊享包',
@@ -125,7 +125,7 @@ const RESOURCE_PACKS = [
 interface Props {
   /** 点击「立即订阅」：由外层决定跳转（原型里先进登录页，登录后落控制台 Token Plan 概览） */
   onSubscribe?: () => void
-  /** 资源包「立即购买」：先进登录页，登录后落控制台 · 资源包管理 */
+  /** 加油包「立即购买」：先进登录页，登录后落控制台 · 加油包管理 */
   onBuyResourcePack?: () => void
 }
 
@@ -135,7 +135,7 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
 
   const displayedPlans = useMemo(() => plans.filter((p) => p.status === 'on' && p.level !== 'max'), [plans])
 
-  /** 卡片悬浮态：套餐区与资源包区共用 */
+  /** 卡片悬浮态：套餐区与加油包区共用 */
   const [hoverPlanId, setHoverPlanId] = useState<string | null>(null)
 
   const heroFeatures = [
@@ -597,7 +597,7 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
         </div>
       </section>
 
-      {/* ============ 资源包 ============ */}
+      {/* ============ 加油包 ============ */}
       <section id="tp-section-resourcePack" style={{ padding: '68px 24px 0', scrollMarginTop: 80 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 30, color: '#1a1a1a', fontWeight: 700 }}>

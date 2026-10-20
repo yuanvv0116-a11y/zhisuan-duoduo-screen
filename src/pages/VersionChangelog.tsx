@@ -36,8 +36,14 @@ const MENU_GROUPS: MenuGroup[] = [
     children: [
       { key: 'models', label: '模型列表' },
       { key: 'modelGroups', label: '模型分组' },
-      { key: 'resourcePack', label: '资源包管理' },
-      { key: 'tokenPlan', label: 'Token Plan' },
+    ],
+  },
+  {
+    groupKey: 'tokenPlanGroup',
+    groupLabel: 'Token Plan',
+    children: [
+      { key: 'tokenPlan', label: '套餐管理' },
+      { key: 'resourcePack', label: '加油包管理' },
     ],
   },
   {
@@ -69,7 +75,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { key: 'channelStat', label: '渠道统计与性能分析' },
       { key: 'modelUsageStat', label: '模型使用统计分析' },
       { key: 'modelUsageDetail', label: '模型使用明细' },
-      { key: 'planStats', label: '资源包与套餐统计' },
+      { key: 'planStats', label: '加油包与套餐统计' },
       { key: 'voucherStats', label: '代金券统计' },
     ],
   },
@@ -77,7 +83,7 @@ const MENU_GROUPS: MenuGroup[] = [
     groupKey: 'billGroup',
     groupLabel: '账单管理',
     children: [
-      { key: 'planBill', label: '套餐与资源包账单' },
+      { key: 'planBill', label: '套餐与加油包账单' },
       { key: 'userConsumeBill', label: '用户消费账单' },
     ],
   },

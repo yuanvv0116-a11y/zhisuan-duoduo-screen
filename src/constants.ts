@@ -22,7 +22,7 @@ export const BILLING_TYPES: {
   { value: 'token', label: '按 Token 计费', desc: '区分输入/输出，单位：元/千Tokens' },
   { value: 'call', label: '按调用次数', desc: '每次调用固定价格，单位：元/次' },
   { value: 'gpu_hour', label: '按 GPU 时长', desc: '按算力卡时计费，单位：元/卡时' },
-  { value: 'package', label: '包年包月', desc: '固定周期资源包' },
+  { value: 'package', label: '包年包月', desc: '固定周期加油包' },
   { value: 'tiered', label: '阶梯计费', desc: '用量越多单价越低' },
   { value: 'free', label: '免费', desc: '不计费' },
 ]

@@ -324,7 +324,7 @@ export interface ModelItem {
   costConfig?: ModelCostConfig
 }
 
-/* ---------------- 资源包 ---------------- */
+/* ---------------- 加油包 ---------------- */
 
 /** Token 定价明细（元/千Token） */
 export interface TokenPriceBreakdown {
@@ -338,14 +338,14 @@ export interface TokenPriceBreakdown {
   cacheCreate: number
 }
 
-/** 资源包：不配置模型，按额度售卖；同一时间仅支持上架一个 */
+/** 加油包：不配置模型，按额度售卖；同一时间仅支持上架一个 */
 export interface ResourcePack {
   id: string
-  /** 资源包名称 */
+  /** 加油包名称 */
   name: string
   /** 副标题（选填） */
   subtitle?: string
-  /** 上架 / 下架（仅支持上架一个，上架新资源包自动下架原资源包） */
+  /** 上架 / 下架（仅支持上架一个，上架新加油包自动下架原加油包） */
   status: 'on' | 'off'
   /** 价格（元） */
   price: number
@@ -577,7 +577,7 @@ export const ACCOUNT_OPERATION_LABEL: Record<AccountOperationType, string> = {
   model_consume: '模型调用消费',
   recharge: '账户充值',
   plan_subscribe: '套餐订阅',
-  resource_pack_buy: '资源包购买',
+  resource_pack_buy: '加油包购买',
   refund: '退款',
   adjust: '余额调整',
   voucher_issue: '代金券发放',
@@ -631,7 +631,7 @@ export interface AccountLedger {
 export type OrderDetailTab = 'resourcePack' | 'subscription'
 
 export const ORDER_DETAIL_TAB_LABEL: Record<OrderDetailTab, string> = {
-  resourcePack: '资源包订单明细',
+  resourcePack: '加油包订单明细',
   subscription: '订阅套餐明细',
 }
 

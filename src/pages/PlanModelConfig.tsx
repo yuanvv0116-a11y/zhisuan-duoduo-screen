@@ -320,7 +320,7 @@ export default function PlanModelConfig({ plan, onBack }: { plan: TokenPlan; onB
   return (
     <>
       <PageShell
-        breadcrumb={['模型管理', 'Token Plan', '配置模型']}
+        breadcrumb={['Token Plan', '套餐管理', '配置模型']}
         breadcrumbPre={
           <Button type="text" size="small" icon={<ArrowLeftOutlined />} onClick={onBack}>
             返回

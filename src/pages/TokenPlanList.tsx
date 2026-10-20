@@ -421,7 +421,7 @@ export default function TokenPlanListPage() {
 
   return (
     <PageShell
-      breadcrumb={['模型管理', 'Token Plan']}
+      breadcrumb={['Token Plan', '套餐管理']}
       searchFields={
         <>
           <SearchField label="套餐名称">

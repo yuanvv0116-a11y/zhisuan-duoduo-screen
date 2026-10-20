@@ -90,7 +90,7 @@ function generateCallDetails(row: PlanBillRow): CallDetailRow[] {
 
 const PRODUCT_TYPE_LABEL: Record<string, string> = {
   tokenPlan: 'Token Plan套餐',
-  resourcePack: '资源包',
+  resourcePack: '加油包',
 }
 
 const ORDER_TYPE_LABEL: Record<string, string> = {
@@ -228,7 +228,7 @@ const rows: PlanBillRow[] = [
     userPhone: '137****9012',
     userAccount: 'ACC202608200011',
     userEmail: 'research@example.com',
-    productName: '私人投研分析部资源包',
+    productName: '私人投研分析部加油包',
     productType: 'resourcePack',
     orderType: 'new',
     amount: 999,
@@ -541,7 +541,7 @@ export default function PlanBill() {
     <div>
       <Breadcrumb
         style={{ marginBottom: 12 }}
-        items={[{ title: '账单管理' }, { title: '套餐与资源包账单' }]}
+        items={[{ title: '账单管理' }, { title: '套餐与加油包账单' }]}
       />
 
       <Card
@@ -623,7 +623,7 @@ export default function PlanBill() {
               options={[
                 { value: 'all', label: '全部' },
                 { value: 'tokenPlan', label: 'Token Plan套餐' },
-                { value: 'resourcePack', label: '资源包' },
+                { value: 'resourcePack', label: '加油包' },
               ]}
             />
           </div>

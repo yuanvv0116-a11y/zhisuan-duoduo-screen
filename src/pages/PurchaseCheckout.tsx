@@ -250,7 +250,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderBottom: '1px dashed #f0f0f0' }}>
                 <Tag color="blue" style={{ margin: 0, flexShrink: 0 }}>使用规则</Tag>
                 <span style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.6 }}>
-                  订阅套餐在用量或周期未结束之前，不支持修改。套餐结束后，可重新选择套餐。超出总额度后调用将被阻断，可购买资源包补充额度。
+                  订阅套餐在用量或周期未结束之前，不支持修改。套餐结束后，可重新选择套餐。超出总额度后调用将被阻断，可购买加油包补充额度。
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0' }}>

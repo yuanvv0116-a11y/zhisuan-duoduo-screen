@@ -20,7 +20,7 @@ import { SHOW_ENTERPRISE } from '../constants'
 
 const { Text } = Typography
 
-/* ---------------- 资源包销售统计 ---------------- */
+/* ---------------- 加油包销售统计 ---------------- */
 const RESOURCE_PACK_SUMMARY = {
   soldCount: 186,
   soldAmount: 58647,
@@ -81,13 +81,13 @@ const HOT_PLANS: RankItem[] = [
   { rank: 5, name: '企业旗舰版套餐', type: '企业版', soldCount: 18, soldAmount: 37566, profit: 21782, profitRate: 58.0 },
 ]
 
-/* ---------------- 热门资源包TOP5 ---------------- */
+/* ---------------- 热门加油包TOP5 ---------------- */
 const HOT_RESOURCE_PACKS: RankItem[] = [
-  { rank: 1, name: '豆包大模型2.1 特价尊享包', type: '资源包', soldCount: 68, soldAmount: 20332, profit: 12180, profitRate: 59.9 },
-  { rank: 2, name: '豆包图像创作模型5.0', type: '资源包', soldCount: 45, soldAmount: 8955, profit: 5370, profitRate: 60.0 },
-  { rank: 3, name: '豆包声音复刻模型2.0', type: '资源包', soldCount: 32, soldAmount: 12768, profit: 7656, profitRate: 60.0 },
-  { rank: 4, name: '私人投研分析部资源包', type: '资源包', soldCount: 28, soldAmount: 27972, profit: 11190, profitRate: 40.0 },
-  { rank: 5, name: 'GPT-4o畅享包', type: '资源包', soldCount: 13, soldAmount: 8620, profit: 5172, profitRate: 60.0 },
+  { rank: 1, name: '豆包大模型2.1 特价尊享包', type: '加油包', soldCount: 68, soldAmount: 20332, profit: 12180, profitRate: 59.9 },
+  { rank: 2, name: '豆包图像创作模型5.0', type: '加油包', soldCount: 45, soldAmount: 8955, profit: 5370, profitRate: 60.0 },
+  { rank: 3, name: '豆包声音复刻模型2.0', type: '加油包', soldCount: 32, soldAmount: 12768, profit: 7656, profitRate: 60.0 },
+  { rank: 4, name: '私人投研分析部加油包', type: '加油包', soldCount: 28, soldAmount: 27972, profit: 11190, profitRate: 40.0 },
+  { rank: 5, name: 'GPT-4o畅享包', type: '加油包', soldCount: 13, soldAmount: 8620, profit: 5172, profitRate: 60.0 },
 ]
 
 function OverviewCard() {
@@ -125,7 +125,7 @@ function OverviewCard() {
           </div>
           <div>
             <div style={{ marginBottom: 4 }}>
-              <Text type="secondary" style={{ fontSize: 13 }}>资源包总数</Text>
+              <Text type="secondary" style={{ fontSize: 13 }}>加油包总数</Text>
             </div>
             <div>
               <span style={{ fontSize: 26, fontWeight: 600, color: '#333' }}>5</span>
@@ -605,7 +605,7 @@ export default function PlanStats() {
     <div>
       <Breadcrumb
         style={{ marginBottom: 12 }}
-        items={[{ title: '统计与分析' }, { title: '资源包与套餐统计' }]}
+        items={[{ title: '统计与分析' }, { title: '加油包与套餐统计' }]}
       />
 
       {/* 时间筛选 */}
@@ -641,7 +641,7 @@ export default function PlanStats() {
       <Row gutter={[16, 16]} style={{ marginTop: 16, marginBottom: 16 }}>
         <Col xs={24} lg={12}>
           <SummaryBlock
-            title="资源包销售统计"
+            title="加油包销售统计"
             icon={<AppstoreOutlined />}
             color="#2f6bff"
             soldCount={RESOURCE_PACK_SUMMARY.soldCount}
@@ -676,7 +676,7 @@ export default function PlanStats() {
           />
         </Col>
         <Col xs={24} lg={12}>
-          <RankingTable dataSource={HOT_RESOURCE_PACKS} title="热门资源包 TOP 5" />
+          <RankingTable dataSource={HOT_RESOURCE_PACKS} title="热门加油包 TOP 5" />
         </Col>
       </Row>
 

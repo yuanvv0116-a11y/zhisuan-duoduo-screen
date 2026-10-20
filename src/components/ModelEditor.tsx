@@ -79,7 +79,7 @@ function PriceCells({
     case 'package':
       return (
         <InputNumber
-          addonBefore="资源包"
+          addonBefore="加油包"
           addonAfter="元/周期"
           min={0}
           value={m.callPrice}
