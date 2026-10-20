@@ -1776,78 +1776,32 @@ export function useModelGroups() {
 
 /* ---------------- 资源包 ---------------- */
 
-const PACK_STORAGE_KEY = 'zsdd_resource_packs_v11'
+const PACK_STORAGE_KEY = 'zsdd_resource_packs_v12'
 
 const packSeed: ResourcePack[] = [
   {
     id: uid(),
     name: '全能大模型套餐 A',
+    subtitle: '一次购买畅享全模型通用 Token 额度，按量扣减、有效期内用完即止',
     status: 'on',
-    models: [
-      {
-        modelId: 'demo-ultra',
-        modelName: 'DODO-AC-Ultra-5',
-        pricingMode: 'token',
-        packPricingMode: 'token_ladder',
-        basePrices: {
-          input: 0.0042,
-          output: 0.0112,
-          cacheRead: 0.0008,
-          cacheCreate: 0.0042,
-        },
-        baseUnit: '元/千Token',
-        tiers: [
-          { start: 0, threshold: 1000000, discount: 90 },
-        ],
-        rpm: 60,
-        tpm: 100000,
-      },
-      {
-        modelId: 'demo-flash',
-        modelName: 'DeepSeek-V4-Flash',
-        pricingMode: 'token',
-        packPricingMode: 'amount_ladder',
-        basePrices: {
-          input: 0.0028,
-          output: 0.0084,
-          cacheRead: 0.0006,
-          cacheCreate: 0.0028,
-        },
-        baseUnit: '元/千Token',
-        tiers: [
-          { start: 0, threshold: 100, discount: 85 },
-        ],
-        rpm: 40,
-        tpm: 80000,
-      },
-    ],
+    price: 999,
+    originalPrice: 1299,
+    quota: 50000000,
+    validityValue: 1,
+    validityUnit: 'month',
     operator: '管理员',
     createdAt: '2026-08-10',
   },
   {
     id: uid(),
     name: '视觉创作包',
+    subtitle: '面向图像与视频创作场景的额度包，覆盖主流多模态模型',
     status: 'off',
-    models: [
-      {
-        modelId: 'demo-seedream',
-        modelName: 'Doubao-Seedream-5.0-Pro',
-        pricingMode: 'image_quality',
-        packPricingMode: 'amount_ladder',
-        basePrices: {
-          input: 0,
-          output: 0.28,
-          cacheRead: 0,
-          cacheCreate: 0,
-        },
-        baseUnit: '元/次',
-        tiers: [
-          { start: 0, threshold: 50, discount: 88 },
-        ],
-        rpm: 20,
-        tpm: 30000,
-      },
-    ],
+    price: 299,
+    originalPrice: 399,
+    quota: 10000000,
+    validityValue: 3,
+    validityUnit: 'month',
     operator: '管理员',
     createdAt: '2026-08-12',
   },
@@ -1886,12 +1840,22 @@ export function useResourcePacks() {
 
   const addPack = useCallback((p: Omit<ResourcePack, 'id' | 'createdAt' | 'operator'>) => {
     const now = new Date().toISOString().slice(0, 10)
-    packState = [{ ...p, id: uid(), createdAt: now, operator: CURRENT_OPERATOR }, ...packState]
+    // 仅支持上架一个：新增即上架时，自动下架其它资源包
+    const base =
+      p.status === 'on'
+        ? packState.map((x) => (x.status === 'on' ? { ...x, status: 'off' as const } : x))
+        : packState
+    packState = [{ ...p, id: uid(), createdAt: now, operator: CURRENT_OPERATOR }, ...base]
     emitPacks()
   }, [])
 
   const updatePack = useCallback((id: string, patch: Partial<ResourcePack>) => {
-    packState = packState.map((p) => (p.id === id ? { ...p, ...patch } : p))
+    packState = packState.map((p) => {
+      if (p.id === id) return { ...p, ...patch }
+      // 仅支持上架一个：把某个资源包置为上架时，自动下架其它已上架资源包
+      if (patch.status === 'on' && p.status === 'on') return { ...p, status: 'off' as const }
+      return p
+    })
     emitPacks()
   }, [])
 

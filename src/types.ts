@@ -326,21 +326,6 @@ export interface ModelItem {
 
 /* ---------------- 资源包 ---------------- */
 
-/** 包内模型阶梯定价模式 */
-export type PackPricingMode =
-  | 'token_ladder' // 按 Token 用量阶梯折扣（仅 token 计费模型）
-  | 'amount_ladder' // 按消费金额阶梯折扣（所有计费形式通用）
-
-/** 阶梯定价档位 */
-export interface PackPricingTier {
-  /** 区间开始：token_ladder 为累计 Token 数量；amount_ladder 为累计消费金额（元） */
-  start: number
-  /** 区间结束：token_ladder 为累计 Token 数量；amount_ladder 为累计消费金额（元） */
-  threshold: number
-  /** 折扣百分比 1-100，如 90 = 9折；阶梯越后折扣越低（越便宜） */
-  discount: number
-}
-
 /** Token 定价明细（元/千Token） */
 export interface TokenPriceBreakdown {
   /** 输入 Token 单价 */
@@ -353,35 +338,25 @@ export interface TokenPriceBreakdown {
   cacheCreate: number
 }
 
-/** 包内模型定价 + 配额 */
-export interface PackModelPricing {
-  modelId: string
-  modelName: string
-  /** 继承原模型计费形式 */
-  pricingMode: PricingMode
-  /** 包内阶梯定价模式 */
-  packPricingMode: PackPricingMode
-  /** Token 计费：明细单价（元/千Token，只读）；非Token计费：output=统一单价，其它为0 */
-  basePrices: TokenPriceBreakdown
-  /** 单位说明，如「元/千Token」「元/次」（只读，根据计费形式） */
-  baseUnit: string
-  /** 阶梯列表 */
-  tiers: PackPricingTier[]
-  /** RPM 配额 */
-  rpm: number
-  /** TPM 配额 */
-  tpm: number
-}
-
-/** 资源包 */
+/** 资源包：不配置模型，按额度售卖；同一时间仅支持上架一个 */
 export interface ResourcePack {
   id: string
   /** 资源包名称 */
   name: string
-  /** 上架 / 下架 */
+  /** 副标题（选填） */
+  subtitle?: string
+  /** 上架 / 下架（仅支持上架一个，上架新资源包自动下架原资源包） */
   status: 'on' | 'off'
-  /** 包内模型定价列表（模型单独计价） */
-  models: PackModelPricing[]
+  /** 价格（元） */
+  price: number
+  /** 划线价格（元，选填；填写后列表展示划线原价） */
+  originalPrice?: number
+  /** 额度（Token 数量） */
+  quota: number
+  /** 有效期数值 */
+  validityValue: number
+  /** 有效期单位 */
+  validityUnit: PlanValidityUnit
   operator: string
   createdAt: string
 }

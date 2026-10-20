@@ -17,6 +17,7 @@ import {
 import {
   VOUCHER_STATUS_COLOR,
   VOUCHER_STATUS_LABEL,
+  PLAN_DURATION_UNIT_META,
 } from '../types'
 import type { Voucher, VoucherTemplate } from '../types'
 import {
@@ -1614,41 +1615,56 @@ export default function AccountList() {
               </div>
             </div>
 
-            {/* 包含模型与折扣 */}
+            {/* 资源包配置：副标题 / 价格 / 额度 / 有效期 */}
             <div>
               <div style={{ marginBottom: 8 }}>
-                <Text strong>包含模型与折扣</Text>
+                <Text strong>资源包配置</Text>
               </div>
               {(() => {
                 const pack = packs.find((p) => p.id === packDetailPackId)
-                if (!pack || pack.models.length === 0) {
-                  return <Text type="secondary">无模型</Text>
+                if (!pack) {
+                  return <Text type="secondary">—</Text>
                 }
                 return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {pack.models.map((m) => (
-                      <div
-                        key={m.modelId}
-                        style={{
-                          border: '1px solid #eef0f4',
-                          borderRadius: 8,
-                          padding: '8px 12px',
-                          background: '#fff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                        }}
-                      >
-                        <Text>{m.modelName}</Text>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          {m.tiers.map((t, i) => (
-                            <Text key={i} style={{ color: '#ff4d4f', fontSize: 12 }}>
-                              折扣 {t.discount}%
-                            </Text>
-                          ))}
-                        </div>
+                  <div
+                    style={{
+                      border: '1px solid #eef0f4',
+                      borderRadius: 8,
+                      padding: '10px 14px',
+                      background: '#fff',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                  >
+                    {pack.subtitle ? (
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 12 }}>副标题：</Text>
+                        <Text>{pack.subtitle}</Text>
                       </div>
-                    ))}
+                    ) : null}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 24px' }}>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 12 }}>价格：</Text>
+                        <Text strong style={{ color: '#ff4d4f' }}>¥{pack.price}</Text>
+                        {pack.originalPrice && pack.originalPrice > pack.price ? (
+                          <Text delete type="secondary" style={{ marginLeft: 6 }}>
+                            ¥{pack.originalPrice}
+                          </Text>
+                        ) : null}
+                      </div>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 12 }}>额度：</Text>
+                        <Text>{pack.quota.toLocaleString()} Tokens</Text>
+                      </div>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 12 }}>有效期：</Text>
+                        <Text>
+                          {pack.validityValue}
+                          {PLAN_DURATION_UNIT_META[pack.validityUnit].shortUnit}
+                        </Text>
+                      </div>
+                    </div>
                   </div>
                 )
               })()}

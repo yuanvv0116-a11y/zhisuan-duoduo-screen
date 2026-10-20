@@ -3,7 +3,6 @@ import {
   Input,
   Select,
   Table,
-  Tag,
   Typography,
   Space,
   Modal,
@@ -12,153 +11,55 @@ import {
   Button,
   Popconfirm,
   Form,
-  Tooltip,
   message,
 } from 'antd'
-import {
-  DeleteOutlined,
-  InfoCircleOutlined,
-  PlusOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import PageShell from '../components/PageShell'
 import SearchField from '../components/SearchField'
 import RequirementDot from '../components/RequirementDot'
-import { useResourcePacks, useModels, useChannels } from '../store'
-import { pricingModeLabel } from '../constants'
-import type {
-  ResourcePack,
-  PackModelPricing,
-  PackPricingMode,
-  PackPricingTier,
-  PricingMode,
-  TokenPriceBreakdown,
-} from '../types'
+import { useResourcePacks } from '../store'
+import { PLAN_DURATION_UNIT_META } from '../types'
+import type { ResourcePack, PlanValidityUnit } from '../types'
 
 const { Text } = Typography
 
-/** 根据原模型 pricingMode 返回可用的折扣方式：仅 token 模型支持按 Token 用量，所有模型支持按金额 */
-const availablePackModes = (pricingMode: PricingMode): PackPricingMode[] => {
-  if (pricingMode === 'token') return ['token_ladder', 'amount_ladder']
-  return ['amount_ladder']
-}
+/* 有效期单位下拉：天 / 周 / 个月 / 季 / 年 */
+const validityUnitOptions = (Object.keys(PLAN_DURATION_UNIT_META) as PlanValidityUnit[]).map(
+  (u) => ({ value: u, label: PLAN_DURATION_UNIT_META[u].shortUnit }),
+)
 
-/** 默认阶梯：第1档（按模式给合理开始/结束默认值，折扣 90%） */
-const defaultTiers = (mode: PackPricingMode): PackPricingTier[] => {
-  const end = mode === 'token_ladder' ? 1000000 : 100
-  return [{ start: 0, threshold: end, discount: 90 }]
-}
-
-const PRICE_KEYS: (keyof TokenPriceBreakdown)[] = ['input', 'output', 'cacheRead', 'cacheCreate']
-const PRICE_LABELS: Record<keyof TokenPriceBreakdown, string> = {
-  input: '输入',
-  output: '输出',
-  cacheRead: '缓存读',
-  cacheCreate: '缓存建',
-}
-
-/** 根据模型 ID 生成稳定的价格（与 ModelList 保持一致） */
-function deterministicPrice(id: string, base: number) {
-  let h = 0
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
-  const r = (h % 1000) / 1000
-  return Math.round(base * (0.6 + r * 0.8) * 10000) / 10000
-}
-/** Token 计费模型的成本价明细：输入 / 输出 / 缓存读取 / 缓存创建（元/千Token） */
-const tokenCostOf = (id: string): TokenPriceBreakdown => ({
-  input: deterministicPrice(id + '_cin', 0.0008),
-  output: deterministicPrice(id + '_cout', 0.0024),
-  cacheRead: deterministicPrice(id + '_cread', 0.0002),
-  cacheCreate: deterministicPrice(id + '_ccreate', 0.0008),
-})
-/** Token 计费模型的对外售价明细（成本×1.4） */
-const tokenSellOf = (id: string): TokenPriceBreakdown => {
-  const c = tokenCostOf(id)
-  return {
-    input: Math.round(c.input * 1.4 * 10000) / 10000,
-    output: Math.round(c.output * 1.4 * 10000) / 10000,
-    cacheRead: Math.round(c.cacheRead * 1.4 * 10000) / 10000,
-    cacheCreate: Math.round(c.cacheCreate * 1.4 * 10000) / 10000,
-  }
-}
-/** 非 Token 计费模型的统一单价（元/次等） */
-const singleCostOf = (id: string) => deterministicPrice(id, 0.8)
-const singleSellOf = (id: string) => Math.round(singleCostOf(id) * 1.4 * 10000) / 10000
-
-/** 根据计费形式返回单位 */
-const baseUnitOf = (pricingMode: PricingMode): string => {
-  switch (pricingMode) {
-    case 'token':
-      return '元/千Token'
-    case 'call':
-    case 'image_quality':
-      return '元/次'
-    case 'video_quality_token':
-      return '元/千Token'
-    case 'free':
-      return '免费'
-    default:
-      return '元'
-  }
-}
-
-/** 将单一折扣应用到明细价（元/千Token 等），得到折后价 */
-const applyDiscount = (bp: TokenPriceBreakdown, discount: number): TokenPriceBreakdown => ({
-  input: Math.round((bp.input * discount) / 100 * 10000) / 10000,
-  output: Math.round((bp.output * discount) / 100 * 10000) / 10000,
-  cacheRead: Math.round((bp.cacheRead * discount) / 100 * 10000) / 10000,
-  cacheCreate: Math.round((bp.cacheCreate * discount) / 100 * 10000) / 10000,
-})
-
-/** 根据原模型创建包内模型定价初始值（成本/售价/单位只读） */
-const createPackModel = (m: { id: string; name: string; pricingMode: PricingMode }): PackModelPricing => {
-  const modes = availablePackModes(m.pricingMode)
-  const packPricingMode = modes[0]
-  const basePrices: TokenPriceBreakdown =
-    m.pricingMode === 'token'
-      ? tokenSellOf(m.id)
-      : { input: 0, output: singleSellOf(m.id), cacheRead: 0, cacheCreate: 0 }
-  return {
-    modelId: m.id,
-    modelName: m.name,
-    pricingMode: m.pricingMode,
-    packPricingMode,
-    basePrices,
-    baseUnit: baseUnitOf(m.pricingMode),
-    tiers: defaultTiers(packPricingMode),
-    rpm: 30,
-    tpm: 50000,
-  }
-}
-
-/* ---------------- 阈值单位说明 ---------------- */
-const thresholdUnit = (mode: PackPricingMode): string =>
-  mode === 'token_ladder' ? 'Token' : '元'
+/** 「X + 单位」展示，如「1个月」「3季」 */
+const formatValidity = (value: number, unit: PlanValidityUnit): string =>
+  `${value}${PLAN_DURATION_UNIT_META[unit].shortUnit}`
 
 /* ---------------- 弹窗表单状态 ---------------- */
 interface FormState {
   name: string
+  subtitle: string
   status: 'on' | 'off'
-  models: PackModelPricing[]
+  /** 价格（元） */
+  price: number
+  /** 划线价格（元），0 表示未配置 */
+  originalPrice: number
+  /** 额度（Token 数量） */
+  quota: number
+  validityValue: number
+  validityUnit: PlanValidityUnit
 }
 
 const emptyForm: FormState = {
   name: '',
+  subtitle: '',
   status: 'on',
-  models: [],
+  price: 0,
+  originalPrice: 0,
+  quota: 0,
+  validityValue: 1,
+  validityUnit: 'month',
 }
 
 export default function ResourcePackPage() {
   const { packs, addPack, updatePack, removePack } = useResourcePacks()
-  const { models } = useModels()
-  const { channels } = useChannels()
-
-  const channelNameMap = useMemo(() => {
-    const m: Record<string, string> = {}
-    channels.forEach((c) => (m[c.id] = c.name))
-    return m
-  }, [channels])
 
   /* 搜索 */
   const [qName, setQName] = useState('')
@@ -189,8 +90,6 @@ export default function ResourcePackPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
-  const [modelPickerOpen, setModelPickerOpen] = useState(false)
-  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([])
 
   const openAdd = () => {
     setEditingId(null)
@@ -202,11 +101,13 @@ export default function ResourcePackPage() {
     setEditingId(pack.id)
     setForm({
       name: pack.name,
+      subtitle: pack.subtitle ?? '',
       status: pack.status,
-      models: pack.models.map((m) => ({
-        ...m,
-        tiers: [{ ...m.tiers[0] }],
-      })),
+      price: pack.price,
+      originalPrice: pack.originalPrice ?? 0,
+      quota: pack.quota,
+      validityValue: pack.validityValue,
+      validityUnit: pack.validityUnit,
     })
     setModalOpen(true)
   }
@@ -216,38 +117,32 @@ export default function ResourcePackPage() {
       message.error('请输入资源包名称')
       return
     }
-    if (form.models.length === 0) {
-      message.error('请至少选择一个模型')
+    if (!(form.price > 0)) {
+      message.error('请输入资源包价格')
       return
     }
-    // 校验阶梯
-    for (const m of form.models) {
-      if (m.tiers.length === 0) {
-        message.error(`模型「${m.modelName}」至少需要 1 个阶梯`)
-        return
-      }
-      const tiers = m.tiers
-      for (let i = 0; i < tiers.length; i++) {
-        const t = tiers[i]
-        if (t.start < 0) {
-          message.error(`模型「${m.modelName}」第 ${i + 1} 档开始值不能为负数`)
-          return
-        }
-        if (t.threshold <= t.start) {
-          message.error(`模型「${m.modelName}」第 ${i + 1} 档结束值必须大于开始值`)
-          return
-        }
-        if (t.discount < 1 || t.discount > 100) {
-          message.error(`模型「${m.modelName}」第 ${i + 1} 档折扣必须在 1~100 之间`)
-          return
-        }
-      }
+    if (form.originalPrice > 0 && form.originalPrice < form.price) {
+      message.error('划线价格不能低于价格')
+      return
+    }
+    if (!(form.quota > 0)) {
+      message.error('请配置资源包额度')
+      return
+    }
+    if (!(form.validityValue > 0)) {
+      message.error('请配置资源包有效期')
+      return
     }
 
     const payload = {
       name: form.name.trim(),
+      subtitle: form.subtitle.trim() || undefined,
       status: form.status,
-      models: form.models,
+      price: form.price,
+      originalPrice: form.originalPrice > 0 ? form.originalPrice : undefined,
+      quota: form.quota,
+      validityValue: form.validityValue,
+      validityUnit: form.validityUnit,
     }
 
     if (editingId) {
@@ -255,49 +150,9 @@ export default function ResourcePackPage() {
       message.success('资源包已更新')
     } else {
       addPack(payload)
-      message.success('资源包已创建')
+      message.success(payload.status === 'on' ? '资源包已创建并上架（原上架资源包已自动下架）' : '资源包已创建')
     }
     setModalOpen(false)
-  }
-
-  /* 模型选择弹窗 */
-  const openModelPicker = () => {
-    setSelectedModelIds(form.models.map((m) => m.modelId))
-    setModelPickerOpen(true)
-  }
-
-  const confirmModelPicker = () => {
-    const existing = new Map(form.models.map((m) => [m.modelId, m]))
-    const newModels: PackModelPricing[] = selectedModelIds.map((id) => {
-      const found = models.find((m) => m.id === id)
-      if (!found) return existing.get(id)!
-      return (
-        existing.get(id) ??
-        createPackModel({ id: found.id, name: found.name, pricingMode: found.pricingMode })
-      )
-    })
-    setForm({ ...form, models: newModels })
-    setModelPickerOpen(false)
-  }
-
-  /* 修改包内模型定价 */
-  const updatePackModel = (modelId: string, patch: Partial<PackModelPricing>) => {
-    setForm({
-      ...form,
-      models: form.models.map((m) => (m.modelId === modelId ? { ...m, ...patch } : m)),
-    })
-  }
-
-  const removePackModel = (modelId: string) => {
-    setForm({ ...form, models: form.models.filter((m) => m.modelId !== modelId) })
-  }
-
-  /* 阶梯操作 */
-  const updateTier = (modelId: string, idx: number, patch: Partial<PackPricingTier>) => {
-    const model = form.models.find((m) => m.modelId === modelId)
-    if (!model) return
-    const tiers = model.tiers.map((t, i) => (i === idx ? { ...t, ...patch } : t))
-    updatePackModel(modelId, { tiers })
   }
 
   /* 列表列 */
@@ -307,38 +162,47 @@ export default function ResourcePackPage() {
       dataIndex: 'name',
       key: 'name',
       fixed: 'left',
-      width: 200,
-      render: (v: string) => <Text strong>{v}</Text>,
+      width: 260,
+      render: (_, r) => (
+        <div>
+          <Text strong>{r.name}</Text>
+          {r.subtitle ? (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {r.subtitle}
+              </Text>
+            </div>
+          ) : null}
+        </div>
+      ),
     },
     {
-      title: '包含模型',
-      key: 'models',
-      width: 120,
-      align: 'center',
-      render: (_, r) => {
-        if (r.models.length === 0) return <Text type="secondary">—</Text>
-        return (
-          <Tooltip
-            title={
-              <div style={{ lineHeight: 1.8 }}>
-                {r.models.map((m) => (
-                  <div key={m.modelId}>
-                    {m.modelName}
-                    {m.tiers.map((t, i) => (
-                      <span key={i} style={{ paddingLeft: 8, color: 'rgba(255,255,255,0.65)' }}>
-                        折扣 {t.discount}%
-                        {i < m.tiers.length - 1 ? '，' : ''}
-                      </span>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            }
-          >
-            <Text style={{ cursor: 'pointer', color: '#2f6bff' }}>{r.models.length}</Text>
-          </Tooltip>
-        )
-      },
+      title: '价格',
+      key: 'price',
+      width: 160,
+      render: (_, r) => (
+        <Space size={6}>
+          <Text strong style={{ color: '#ff4d4f' }}>¥{r.price}</Text>
+          {r.originalPrice && r.originalPrice > r.price ? (
+            <Text delete type="secondary">
+              ¥{r.originalPrice}
+            </Text>
+          ) : null}
+        </Space>
+      ),
+    },
+    {
+      title: '额度',
+      key: 'quota',
+      width: 160,
+      render: (_, r) =>
+        r.quota > 0 ? <Text>{r.quota.toLocaleString()} Tokens</Text> : <Text type="secondary">—</Text>,
+    },
+    {
+      title: '有效期',
+      key: 'validity',
+      width: 100,
+      render: (_, r) => <Text>{formatValidity(r.validityValue, r.validityUnit)}</Text>,
     },
     {
       title: '状态',
@@ -354,7 +218,7 @@ export default function ResourcePackPage() {
           unCheckedChildren="下架"
           onChange={(checked) => {
             updatePack(r.id, { status: checked ? 'on' : 'off' })
-            message.success(checked ? '资源包已上架' : '资源包已下架')
+            message.success(checked ? '资源包已上架，其它上架资源包已自动下架' : '资源包已下架')
           }}
         />
       ),
@@ -394,53 +258,6 @@ export default function ResourcePackPage() {
           </Popconfirm>
         </Space>
       ),
-    },
-  ]
-
-  /* 模型选择表格列 */
-  const modelPickerColumns: ColumnsType<(typeof models)[0]> = [
-    {
-      title: '模型名称',
-      dataIndex: 'name',
-      key: 'name',
-      render: (v: string) => <Text strong>{v}</Text>,
-    },
-    {
-      title: '渠道商',
-      key: 'channels',
-      width: 200,
-      render: (_, r) => {
-        const list = r.apiConfigs ?? []
-        if (!list.length) return <Text type="secondary">—</Text>
-        const unique = Array.from(new Set(list.map((a) => a.channelId)))
-        return (
-          <Space size={[4, 4]} wrap>
-            {unique.map((cid) => (
-              <Tag key={cid} color="blue">
-                {channelNameMap[cid] ?? '—'}
-              </Tag>
-            ))}
-          </Space>
-        )
-      },
-    },
-    {
-      title: '计费形式',
-      dataIndex: 'pricingMode',
-      key: 'pricingMode',
-      width: 140,
-      render: (v: PricingMode) => (
-        <Tag color={v === 'token' ? 'blue' : 'geekblue'}>{pricingModeLabel(v)}</Tag>
-      ),
-    },
-    {
-      title: '上架状态',
-      dataIndex: 'online',
-      key: 'online',
-      width: 100,
-      align: 'center',
-      render: (v: boolean) =>
-        v ? <Tag color="green">已上架</Tag> : <Tag color="red">已下架</Tag>,
     },
   ]
 
@@ -539,28 +356,28 @@ export default function ResourcePackPage() {
               title="新增资源包需求"
               sections={[
                 {
+                  label: '模型配置',
+                  items: ['资源包不需要配置模型'],
+                },
+                {
                   label: '基础信息',
-                  items: [
-                    '资源包名称 50 字内不可重复',
-                  ],
+                  items: ['资源包除了名称，还要有副标题'],
                 },
                 {
-                  label: '选择模型',
-                  items: [
-                    '点击选择模型，展示所有未删除模型，先按照上下架状态优先展示上架模型，再按照上架时间倒序展示',
-                    '支持多选',
-                    '支持选择下架模型（下架模型放在资源包里允许被调用）',
-                  ],
+                  label: '价格',
+                  items: ['资源包要有价格和划线价格'],
                 },
                 {
-                  label: '折扣设置',
-                  items: [
-                    '折扣支持输入 0-100 的整数',
-                  ],
+                  label: '上架规则',
+                  items: ['资源包仅支持上架一个'],
                 },
                 {
-                  label: '保存',
-                  items: ['点击保存后保存信息，提示保存成功，返回列表刷新'],
+                  label: '额度',
+                  items: ['资源包可以配置额度'],
+                },
+                {
+                  label: '有效期',
+                  items: ['资源包有有效期'],
                 },
               ]}
             />
@@ -572,10 +389,9 @@ export default function ResourcePackPage() {
         okText="保存"
         cancelText="取消"
         centered
-        width={1000}
+        width={640}
         destroyOnClose
       >
-        {/* 基础信息 */}
         <Form layout="vertical" requiredMark>
           <Form.Item label="资源包名称" required>
             <Space.Compact style={{ width: '100%' }}>
@@ -596,7 +412,6 @@ export default function ResourcePackPage() {
                     borderLeft: 'none',
                     borderRadius: '0 6px 6px 0',
                     background: '#fff',
-                    cursor: 'pointer',
                     height: 32,
                   }}
                 >
@@ -610,128 +425,79 @@ export default function ResourcePackPage() {
                 </div>
               )}
             </Space.Compact>
+            <div style={{ marginTop: 6 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                仅支持上架一个资源包；上架新资源包后，当前已上架的资源包将自动下架。
+              </Text>
+            </div>
+          </Form.Item>
+
+          <Form.Item label="副标题">
+            <Input
+              placeholder="选填，展示在名称下方"
+              value={form.subtitle}
+              onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
+              maxLength={60}
+            />
+          </Form.Item>
+
+          <Space size={16} style={{ display: 'flex' }} align='start'>
+            <Form.Item label="价格（元）" required style={{ flex: 1, minWidth: 200 }}>
+              <InputNumber
+                value={form.price}
+                onChange={(v) => setForm({ ...form, price: v ?? 0 })}
+                min={0}
+                precision={2}
+                prefix="¥"
+                style={{ width: '100%' }}
+                placeholder="请输入价格"
+              />
+            </Form.Item>
+            <Form.Item label="划线价格（元）" style={{ flex: 1, minWidth: 200 }}>
+              <InputNumber
+                value={form.originalPrice || undefined}
+                onChange={(v) => setForm({ ...form, originalPrice: v ?? 0 })}
+                min={0}
+                precision={2}
+                prefix="¥"
+                style={{ width: '100%' }}
+                placeholder="选填，不填则不展示划线价"
+              />
+            </Form.Item>
+          </Space>
+
+          <Form.Item label="额度（Tokens）" required>
+            <InputNumber
+              value={form.quota}
+              onChange={(v) => setForm({ ...form, quota: v ?? 0 })}
+              min={0}
+              step={1000000}
+              precision={0}
+              style={{ width: '100%' }}
+              placeholder="如 50000000，表示资源包内可用的 Token 总额度"
+            />
+          </Form.Item>
+
+          <Form.Item label="有效期" required>
+            <Space.Compact style={{ width: '100%' }}>
+              <InputNumber
+                value={form.validityValue}
+                onChange={(v) => setForm({ ...form, validityValue: v ?? 0 })}
+                min={1}
+                precision={0}
+                style={{ width: '60%' }}
+                placeholder="请输入有效期数值"
+              />
+              <Select
+                value={form.validityUnit}
+                onChange={(v) => setForm({ ...form, validityUnit: v })}
+                options={validityUnitOptions}
+                style={{ width: '40%' }}
+              />
+            </Space.Compact>
           </Form.Item>
         </Form>
-
-        {/* 包内模型定价 */}
-        <div
-          style={{
-            marginTop: 16,
-            padding: 16,
-            background: '#fafafa',
-            borderRadius: 8,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 12,
-            }}
-          >
-            <Space>
-              <Text strong>包含模型与定价</Text>
-              <Text type="secondary">（{form.models.length} 个）</Text>
-            </Space>
-            <Button type="primary" icon={<PlusOutlined />} size="small" onClick={openModelPicker}>
-              选择模型
-            </Button>
-          </div>
-
-          {form.models.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>
-              请点击「选择模型」添加模型
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {form.models.map((m) => {
-                return (
-                  <div
-                    key={m.modelId}
-                    style={{
-                      background: '#fff',
-                      border: '1px solid #eef0f4',
-                      borderRadius: 8,
-                      padding: '12px 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                    }}
-                  >
-                    <Text strong>{m.modelName}</Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      折扣
-                    </Text>
-                    <InputNumber
-                      value={m.tiers[0]?.discount ?? 100}
-                      onChange={(v) =>
-                        updateTier(m.modelId, 0, { discount: v ?? 100 })
-                      }
-                      min={1}
-                      max={100}
-                      step={1}
-                      precision={0}
-                      size="small"
-                      style={{ width: 110 }}
-                      suffix="%"
-                    />
-                    <div style={{ flex: 1 }} />
-                    <Button
-                      type="text"
-                      size="small"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => removePackModel(m.modelId)}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </Modal>
-
-      {/* 模型选择弹窗 */}
-      <Modal
-        title="选择模型"
-        open={modelPickerOpen}
-        onCancel={() => setModelPickerOpen(false)}
-        onOk={confirmModelPicker}
-        okText="确认选择"
-        cancelText="取消"
-        centered
-        width={700}
-        destroyOnClose
-      >
-        <Table
-          rowKey="id"
-          columns={modelPickerColumns}
-          dataSource={models}
-          rowSelection={{
-            type: 'checkbox',
-            selectedRowKeys: selectedModelIds,
-            onChange: (keys) => setSelectedModelIds(keys as string[]),
-          }}
-          pagination={{ pageSize: 8, showSizeChanger: false }}
-          size="small"
-          scroll={{ y: 360 }}
-        />
       </Modal>
     </PageShell>
   )
-}
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '6px 10px',
-  borderBottom: '1px solid #eef0f4',
-  fontWeight: 500,
-  fontSize: 12,
-  color: '#8c8c8c',
-}
-
-const tdStyle: React.CSSProperties = {
-  padding: '6px 10px',
-  borderBottom: '1px solid #f0f0f0',
 }
