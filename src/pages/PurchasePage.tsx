@@ -1,9 +1,9 @@
 import { Fragment, useMemo, useState } from 'react'
 import { Card, Typography, Space, Button, Collapse, Tabs, Divider, Modal, Tag, message } from 'antd'
 import { RightOutlined } from '@ant-design/icons'
-import { useTokenPlans } from '../store'
+import { useModels, usePlanModels, useTokenPlans } from '../store'
 import { calcPlanDiscountedPrice, type TokenPlan } from '../types'
-import { SHOW_ENTERPRISE } from '../constants'
+import { modelTypeLabel, SHOW_ENTERPRISE } from '../constants'
 
 const PLAN_MODELS: Record<string, { name: string; type: string }[]> = {
   lite: [
@@ -144,6 +144,25 @@ export default function PurchasePage({
 }) {
   const { plans } = useTokenPlans()
   const displayedPlans = useMemo(() => plans.filter((p) => p.status === 'on' && p.level !== 'max'), [plans])
+  const { planModels } = usePlanModels()
+  const { models } = useModels()
+
+  /** 后台「配置模型」优先：本套餐配置过的模型按名称去重展示；未配置时回退写死的 PLAN_MODELS */
+  const modelsOfPlan = useMemo(() => {
+    const typeByName = new Map(models.map((m) => [m.name, m.type]))
+    return (plan: TokenPlan): { name: string; type: string }[] => {
+      const rows = planModels.filter((r) => r.planId === plan.id && r.visible !== false)
+      if (rows.length === 0) return PLAN_MODELS[plan.level ?? ''] || []
+      const seen = new Set<string>()
+      const out: { name: string; type: string }[] = []
+      for (const r of rows) {
+        if (seen.has(r.modelName)) continue
+        seen.add(r.modelName)
+        out.push({ name: r.modelName, type: modelTypeLabel(typeByName.get(r.modelName) ?? 'text') })
+      }
+      return out
+    }
+  }, [planModels, models])
   const [purchased, setPurchased] = useState<Record<string, boolean>>({})
   const [activeFaqTab, setActiveFaqTab] = useState(FAQ_GROUPS[0].key)
   const [activeFaqKey, setActiveFaqKey] = useState<string | string[]>(FAQ_GROUPS[0].items[0].q)
@@ -421,7 +440,7 @@ export default function PurchasePage({
 
                   {/* 可用模型 */}
                   {(() => {
-                    const models = PLAN_MODELS[plan.level ?? ''] || []
+                    const models = modelsOfPlan(plan)
                     const MAX_SHOW = 3
                     const showModels = models.slice(0, MAX_SHOW)
                     const hasMore = models.length > MAX_SHOW
@@ -966,7 +985,7 @@ export default function PurchasePage({
                   borderRadius: 4,
                   fontSize: 11,
                 }}
-                color={m.type === '文本' ? 'blue' : m.type === '图像' ? 'purple' : 'orange'}
+                color={m.type.includes('文本') ? 'blue' : m.type.includes('图像') ? 'purple' : 'orange'}
               >
                 {m.type}
               </Tag>
