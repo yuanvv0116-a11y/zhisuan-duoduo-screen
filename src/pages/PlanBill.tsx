@@ -11,8 +11,6 @@ import {
   Tag,
   Typography,
   Modal,
-  Descriptions,
-  Divider,
   Statistic,
   Progress,
   message,
@@ -322,8 +320,6 @@ const initialSearch: SearchForm = {
 export default function PlanBill() {
   const [search, setSearch] = useState<SearchForm>(initialSearch)
   const [appliedSearch, setAppliedSearch] = useState<SearchForm>(initialSearch)
-  const [detailOpen, setDetailOpen] = useState(false)
-  const [currentRow, setCurrentRow] = useState<PlanBillRow | null>(null)
   const [callDetailOpen, setCallDetailOpen] = useState(false)
   const [callDetailData, setCallDetailData] = useState<CallDetailRow[]>([])
   const [callDetailRow, setCallDetailRow] = useState<PlanBillRow | null>(null)
@@ -419,6 +415,15 @@ export default function PlanBill() {
       render: (v: string) => ORDER_TYPE_LABEL[v] ?? v,
     },
     {
+      title: '套餐总量（Tokens）',
+      dataIndex: 'totalTokens',
+      key: 'totalTokens',
+      width: 150,
+      align: 'right',
+      render: (v: string) =>
+        v === '—' ? <Text type="secondary">—</Text> : <Text>{v}</Text>,
+    },
+    {
       title: '原价',
       dataIndex: 'originalAmount',
       key: 'originalAmount',
@@ -505,31 +510,12 @@ export default function PlanBill() {
       },
     },
     {
-      title: '套餐总量（Tokens）',
-      dataIndex: 'totalTokens',
-      key: 'totalTokens',
-      width: 150,
-      align: 'right',
-      render: (v: string) =>
-        v === '—' ? <Text type="secondary">—</Text> : <Text>{v}</Text>,
-    },
-    {
       title: '操作',
       key: 'action',
       width: 160,
       fixed: 'right',
       render: (_v, r) => (
         <Space size={4}>
-          <Button
-            type="link"
-            style={{ padding: 0, color: '#2f6bff' }}
-            onClick={() => {
-              setCurrentRow(r)
-              setDetailOpen(true)
-            }}
-          >
-            查看详情
-          </Button>
           <Button
             type="link"
             style={{ padding: 0, color: '#2f6bff' }}
@@ -770,110 +756,6 @@ export default function PlanBill() {
           columns={columns}
         />
       </Card>
-
-      <Modal
-        centered
-        open={detailOpen}
-        onCancel={() => setDetailOpen(false)}
-        footer={null}
-        width={600}
-        destroyOnClose
-        title="账单详情"
-      >
-        {currentRow && (
-          <div style={{ maxHeight: '65vh', overflowY: 'auto' }}>
-            <Descriptions
-              column={2}
-              size="small"
-              bordered
-              labelStyle={{ width: 100, color: '#8c8c8c', background: '#fafafa' }}
-              contentStyle={{ color: '#333' }}
-            >
-              <Descriptions.Item label="订单号" span={2}>
-                <Text style={{ fontFamily: 'monospace' }}>{currentRow.orderNo}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="产品名称">{currentRow.productName}</Descriptions.Item>
-              <Descriptions.Item label="产品类型">
-                {PRODUCT_TYPE_LABEL[currentRow.productType]}
-              </Descriptions.Item>
-              <Descriptions.Item label="订单类型">
-                {ORDER_TYPE_LABEL[currentRow.orderType]}
-              </Descriptions.Item>
-              <Descriptions.Item label="支付状态">
-                <Tag color={STATUS_COLOR[currentRow.status]} style={{ borderRadius: 6 }}>
-                  {STATUS_LABEL[currentRow.status]}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="原价">
-                ¥{currentRow.originalAmount.toFixed(2)}
-              </Descriptions.Item>
-              <Descriptions.Item label="优惠金额">
-                {currentRow.originalAmount - currentRow.amount > 0 ? (
-                  <Text type="secondary">
-                    -¥{(currentRow.originalAmount - currentRow.amount).toFixed(2)}
-                  </Text>
-                ) : (
-                  <Text type="secondary">—</Text>
-                )}
-              </Descriptions.Item>
-              <Descriptions.Item label="实付金额" span={2}>
-                <Text style={{ fontWeight: 600, fontSize: 18, color: '#2f6bff' }}>
-                  ¥{currentRow.amount.toFixed(2)}
-                </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="支付方式">{currentRow.paymentMethod}</Descriptions.Item>
-              <Descriptions.Item label="交易时间" span={2}>
-                {currentRow.createdAt}
-              </Descriptions.Item>
-            </Descriptions>
-
-            <Divider style={{ margin: '12px 0' }} />
-
-            <Descriptions
-              column={2}
-              size="small"
-              bordered
-              labelStyle={{ width: 100, color: '#8c8c8c', background: '#fafafa' }}
-              contentStyle={{ color: '#333' }}
-            >
-              <Descriptions.Item label="资源状态">
-                <Tag color={RESOURCE_STATUS_COLOR[currentRow.resourceStatus]} style={{ borderRadius: 6 }}>
-                  {RESOURCE_STATUS_LABEL[currentRow.resourceStatus]}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="余量">
-                <Text style={{ color: currentRow.remainingTokens === '0' ? '#ff4d4f' : undefined }}>
-                  {currentRow.remainingTokens === '—' ? '—' : `${currentRow.remainingTokens} Tokens`}
-                </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="生效时间">
-                {currentRow.grantedAt === '—' ? '—' : currentRow.grantedAt}
-              </Descriptions.Item>
-              <Descriptions.Item label="失效时间">
-                {currentRow.expireAt === '—' ? '—' : currentRow.expireAt}
-              </Descriptions.Item>
-              <Descriptions.Item label="总量" span={2}>
-                {currentRow.totalTokens === '—' ? '—' : `${currentRow.totalTokens} Tokens`}
-              </Descriptions.Item>
-            </Descriptions>
-
-            <Divider style={{ margin: '12px 0' }} />
-
-            <Descriptions
-              column={2}
-              size="small"
-              bordered
-              labelStyle={{ width: 100, color: '#8c8c8c', background: '#fafafa' }}
-              contentStyle={{ color: '#333' }}
-            >
-              <Descriptions.Item label="用户昵称">{currentRow.userNickname}</Descriptions.Item>
-              <Descriptions.Item label="手机号">{currentRow.userPhone}</Descriptions.Item>
-              <Descriptions.Item label="账户ID">{currentRow.userAccount}</Descriptions.Item>
-              <Descriptions.Item label="邮箱">{currentRow.userEmail}</Descriptions.Item>
-            </Descriptions>
-          </div>
-        )}
-      </Modal>
 
       <Modal
         centered
