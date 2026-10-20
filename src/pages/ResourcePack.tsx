@@ -403,20 +403,6 @@ export default function ResourcePackPage() {
             />
           </Form.Item>
 
-          <Form.Item label="上架状态">
-            <Switch
-              checked={form.status === 'on'}
-              onChange={(v) => setForm({ ...form, status: v ? 'on' : 'off' })}
-              checkedChildren="上架"
-              unCheckedChildren="下架"
-            />
-            <div style={{ marginTop: 6 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                仅支持上架一个加油包；上架新加油包后，当前已上架的加油包将自动下架。
-              </Text>
-            </div>
-          </Form.Item>
-
           <Form.Item label="副标题">
             <Input
               placeholder="选填，展示在名称下方"
@@ -480,6 +466,20 @@ export default function ResourcePackPage() {
                 style={{ width: '40%' }}
               />
             </Space.Compact>
+          </Form.Item>
+
+          <Form.Item label="上架状态">
+            <Switch
+              checked={form.status === 'on'}
+              onChange={(v) => setForm({ ...form, status: v ? 'on' : 'off' })}
+              checkedChildren="上架"
+              unCheckedChildren="下架"
+            />
+            <div style={{ marginTop: 6 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                仅支持上架一个加油包；上架新加油包后，当前已上架的加油包将自动下架。
+              </Text>
+            </div>
           </Form.Item>
         </Form>
       </Modal>
