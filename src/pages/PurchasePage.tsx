@@ -405,6 +405,10 @@ export default function PurchasePage({
                 <Divider style={{ margin: '12px 20px', borderColor: '#f0f0f0' }} />
 
                 <div style={{ padding: '0 20px', flex: 1 }}>
+                  {/* 总 Token 量：来自后台套餐配置的 totalTokens */}
+                  <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 600, color: '#111827' }}>
+                    总 Token 量：{(plan.totalTokens ?? 0).toLocaleString()} Tokens
+                  </div>
                   {(plan.summaryItems && plan.summaryItems.length > 0
                     ? plan.summaryItems.map((text) => ({ text }))
                     : PLAN_FEATURES[plan.level ?? ''] ?? []
