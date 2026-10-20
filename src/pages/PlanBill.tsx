@@ -497,7 +497,7 @@ export default function PlanBill({ onGoConsumeBill }: PlanBillProps) {
     <div>
       <Breadcrumb
         style={{ marginBottom: 12 }}
-        items={[{ title: '账单管理' }, { title: '套餐与加油包账单' }]}
+        items={[{ title: '账单管理' }, { title: '套餐与加油包订单' }]}
       />
 
       <Card

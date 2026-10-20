@@ -83,7 +83,7 @@ const MENU_GROUPS: MenuGroup[] = [
     groupKey: 'billGroup',
     groupLabel: '账单管理',
     children: [
-      { key: 'planBill', label: '套餐与加油包账单' },
+      { key: 'planBill', label: '套餐与加油包订单' },
       { key: 'userConsumeBill', label: '用户消费账单' },
     ],
   },
