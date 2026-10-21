@@ -1,6 +1,13 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Button, message } from 'antd'
-import { CheckOutlined, CopyOutlined, ShareAltOutlined, ThunderboltFilled } from '@ant-design/icons'
+import {
+  CheckOutlined,
+  CopyOutlined,
+  DatabaseOutlined,
+  RightOutlined,
+  ShareAltOutlined,
+  ThunderboltFilled,
+} from '@ant-design/icons'
 
 /* 与移动端引导页同一视觉体系：深空底 + 品牌蓝绿渐变 */
 const NAVY = '#020618'
@@ -12,6 +19,8 @@ const CYAN = '#3fe0ff'
 
 /** 合伙人专属推广链接（演示数据：邀请码 ZM8K2P7Q） */
 const PROMO_URL = 'https://zsdodo.com/promo?code=ZM8K2P7Q'
+/** 电脑端控制台地址 */
+const CONSOLE_URL = 'https://console.zsdodo.com/'
 
 const STEPS = ['复制专属推广链接', '转发给朋友', '朋友充值使用即计佣']
 
@@ -107,7 +116,7 @@ export default function MobilePartnerPage() {
             textAlign: 'left',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
             <span
               style={{
                 width: 40,
@@ -136,6 +145,7 @@ export default function MobilePartnerPage() {
               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
               color: CYAN,
               wordBreak: 'break-all',
+              textAlign: 'center',
               background: 'rgba(2,6,24,.66)',
               border: '1px solid rgba(63,224,255,.35)',
               borderRadius: 12,
@@ -166,39 +176,101 @@ export default function MobilePartnerPage() {
             {copied ? '已复制' : '复制推广链接'}
           </Button>
 
-          {/* 三步引导 */}
-          <div style={{ marginTop: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          {/* 三步引导（编号圆点 + 虚线连接） */}
+          <div style={{ marginTop: 26, display: 'flex', alignItems: 'flex-start' }}>
             {STEPS.map((s, i) => (
-              <div key={s} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                <span
+              <Fragment key={s}>
+                {i > 0 && (
+                  <div style={{ flex: 1, marginTop: 13, borderTop: '1px dashed rgba(70,140,255,.5)' }} />
+                )}
+                <div
                   style={{
-                    width: 26,
-                    height: 26,
-                    borderRadius: '50%',
+                    width: 88,
+                    flexShrink: 0,
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: '#fff',
-                    background: `linear-gradient(135deg, ${BRAND}, ${ACCENT})`,
+                    gap: 12,
                   }}
                 >
-                  {i + 1}
-                </span>
-                <span style={{ fontSize: 12, color: SUB, textAlign: 'center' }}>{s}</span>
-              </div>
+                  <span
+                    style={{
+                      width: 27,
+                      height: 27,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: '#fff',
+                      background: `linear-gradient(135deg, ${BRAND}, ${ACCENT})`,
+                      boxShadow: '0 0 14px rgba(47,107,255,.5)',
+                    }}
+                  >
+                    {i + 1}
+                  </span>
+                  <span style={{ fontSize: 12, color: '#c3d8f2', textAlign: 'center', lineHeight: 1.6 }}>{s}</span>
+                </div>
+              </Fragment>
             ))}
           </div>
         </div>
 
-        {/* 页脚 */}
-        <div style={{ marginTop: 28, fontSize: 12, color: '#5f7fb3', textAlign: 'center', lineHeight: 1.8 }}>
-          佣金收益可在电脑端控制台「推广合伙人」页面随时查看
-          <br />
-          地址：<span style={{ color: '#7ea6d9' }}>https://console.zsdodo.com/</span>
+        {/* 控制台入口卡 */}
+        <div
+          style={{
+            width: '100%',
+            marginTop: 22,
+            padding: '18px 18px 16px',
+            background: 'linear-gradient(180deg, rgba(13,34,84,.55), rgba(6,18,48,.78))',
+            border: '1px solid rgba(70,140,255,.3)',
+            borderRadius: 18,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <DatabaseOutlined style={{ fontSize: 26, color: CYAN, marginTop: 2 }} />
+            <div style={{ fontSize: 13, lineHeight: 1.7, color: '#fff' }}>
+              佣金收益可在电脑端控制台<span style={{ color: CYAN, fontWeight: 700 }}>「推广合伙人」</span>页面随时查看
+            </div>
+          </div>
+          <a
+            href={CONSOLE_URL}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              marginTop: 14,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              padding: '12px 14px',
+              background: 'rgba(2,6,24,.6)',
+              border: '1px solid rgba(63,224,255,.28)',
+              borderRadius: 12,
+              textDecoration: 'none',
+            }}
+          >
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', flexShrink: 0 }}>访问控制台</span>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12,
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                color: SUB,
+                wordBreak: 'break-all',
+              }}
+            >
+              {CONSOLE_URL}
+              <RightOutlined style={{ fontSize: 10, color: CYAN }} />
+            </span>
+          </a>
         </div>
-        <div style={{ marginTop: 10, fontSize: 11, color: '#48628c', textAlign: 'center' }}>
+
+        {/* 页脚小字 */}
+        <div style={{ marginTop: 24, fontSize: 12, color: '#48628c', textAlign: 'center' }}>
           已绑定分销人的用户无法再次绑定
         </div>
       </main>
