@@ -1,12 +1,6 @@
 import { useState, type CSSProperties } from 'react'
 import { Button, message } from 'antd'
-import {
-  CheckCircleFilled,
-  CheckOutlined,
-  CopyOutlined,
-  DesktopOutlined,
-  ThunderboltFilled,
-} from '@ant-design/icons'
+import { CheckOutlined, CopyOutlined, DesktopOutlined } from '@ant-design/icons'
 
 /* 与被邀请人落地页同一视觉体系：深空底 + 品牌蓝绿渐变 */
 const NAVY = '#020618'
@@ -21,7 +15,7 @@ const PC_URL = 'https://console.zsdodo.com/#/workbench'
 
 const MODELS = ['DeepSeek-V4', 'Kimi-K3', 'GLM-5.3', 'Qwen3.8-Max', 'Doubao-Seed-2.0', 'MiniMax-M3']
 
-const STEPS = ['电脑浏览器打开地址', '登录当前账号', '进入控制台工作台']
+const STEPS = ['电脑浏览器打开地址', '登录当前账号', '开始使用模型']
 
 const chipStyle: CSSProperties = {
   display: 'inline-flex',
@@ -35,7 +29,7 @@ const chipStyle: CSSProperties = {
   borderRadius: 999,
 }
 
-export default function MobileGuidePage({ onEnterConsole }: { onEnterConsole?: () => void }) {
+export default function MobileGuidePage() {
   const [copied, setCopied] = useState(false)
   const [msgApi, msgHolder] = message.useMessage()
 
@@ -79,47 +73,8 @@ export default function MobileGuidePage({ onEnterConsole }: { onEnterConsole?: (
           textAlign: 'center',
         }}
       >
-        {/* Logo */}
-        <div
-          style={{
-            width: 68,
-            height: 68,
-            borderRadius: 20,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: `linear-gradient(135deg, ${BRAND}, ${ACCENT})`,
-            boxShadow: '0 10px 30px rgba(47,107,255,.55), 0 0 24px rgba(20,224,176,.35)',
-          }}
-        >
-          <ThunderboltFilled style={{ fontSize: 34, color: '#fff' }} />
-        </div>
-        <div style={{ marginTop: 14, fontSize: 20, fontWeight: 800, letterSpacing: 2 }}>智算多多</div>
-        <div style={{ marginTop: 4, fontSize: 12, letterSpacing: 3, color: SUB }}>
-          AI · 多模型 · 更智能 · 更高效
-        </div>
-
-        {/* 登录成功徽标 */}
-        <span
-          style={{
-            marginTop: 24,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '6px 16px',
-            fontSize: 13,
-            color: ACCENT,
-            background: 'rgba(20,224,176,.1)',
-            border: '1px solid rgba(20,224,176,.4)',
-            borderRadius: 999,
-          }}
-        >
-          <CheckCircleFilled />
-          登录成功
-        </span>
-
         {/* 欢迎主标题 */}
-        <div style={{ marginTop: 18, fontSize: 30, fontWeight: 800, lineHeight: 1.3 }}>
+        <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.3 }}>
           欢迎使用
           <span
             style={{
@@ -183,16 +138,14 @@ export default function MobileGuidePage({ onEnterConsole }: { onEnterConsole?: (
             >
               <DesktopOutlined style={{ fontSize: 20, color: CYAN }} />
             </span>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>目前暂未开放移动端</div>
-          </div>
-
-          <div style={{ marginTop: 14, fontSize: 13.5, lineHeight: 1.7, color: SUB }}>
-            为了方便您的使用，请在<b style={{ color: TEXT, fontWeight: 600 }}>电脑端</b>访问：
+            <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.5, color: '#fff' }}>
+              为了方便您的使用，目前暂未开放移动端，请在<b style={{ color: CYAN }}>电脑端</b>访问：
+            </div>
           </div>
 
           <div
             style={{
-              marginTop: 10,
+              marginTop: 14,
               padding: '12px 14px',
               fontSize: 13,
               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
@@ -257,13 +210,6 @@ export default function MobileGuidePage({ onEnterConsole }: { onEnterConsole?: (
         {/* 页脚 */}
         <div style={{ marginTop: 28, fontSize: 12, color: '#5f7fb3', textAlign: 'center' }}>
           您的账号与权益已同步，在电脑端登录即可继续使用
-          {onEnterConsole && (
-            <div style={{ marginTop: 14 }}>
-              <Button type="link" size="small" style={{ padding: 0, fontSize: 12 }} onClick={onEnterConsole}>
-                已在电脑端？直接进入控制台 →
-              </Button>
-            </div>
-          )}
         </div>
       </main>
     </div>

@@ -660,17 +660,7 @@ export default function App() {
   }
 
   if (mobileGuide) {
-    return (
-      <MobileGuidePage
-        onEnterConsole={() => {
-          dropQueryParams('mobile')
-          setMobileGuide(false)
-          setViewMode('console')
-          setFactoryDetailId(null)
-          setConsoleSubPage('tokenFactory')
-        }}
-      />
-    )
+    return <MobileGuidePage />
   }
 
   if (shareCampaignId && shareInviteCode) {
