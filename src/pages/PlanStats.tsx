@@ -638,17 +638,6 @@ export default function PlanStats() {
       <Row gutter={[16, 16]} style={{ marginTop: 16, marginBottom: 16 }}>
         <Col xs={24} lg={12}>
           <SummaryBlock
-            title="加油包销售统计"
-            icon={<AppstoreOutlined />}
-            color="#2f6bff"
-            soldCount={RESOURCE_PACK_SUMMARY.soldCount}
-            soldAmount={RESOURCE_PACK_SUMMARY.soldAmount}
-            cost={RESOURCE_PACK_SUMMARY.cost}
-            profit={RESOURCE_PACK_SUMMARY.profit}
-          />
-        </Col>
-        <Col xs={24} lg={12}>
-          <SummaryBlock
             title="套餐销售统计"
             icon={<RocketOutlined />}
             color="#722ed1"
@@ -656,6 +645,17 @@ export default function PlanStats() {
             soldAmount={PLAN_SUMMARY.soldAmount}
             cost={PLAN_SUMMARY.cost}
             profit={PLAN_SUMMARY.profit}
+          />
+        </Col>
+        <Col xs={24} lg={12}>
+          <SummaryBlock
+            title="加油包销售统计"
+            icon={<AppstoreOutlined />}
+            color="#2f6bff"
+            soldCount={RESOURCE_PACK_SUMMARY.soldCount}
+            soldAmount={RESOURCE_PACK_SUMMARY.soldAmount}
+            cost={RESOURCE_PACK_SUMMARY.cost}
+            profit={RESOURCE_PACK_SUMMARY.profit}
           />
         </Col>
       </Row>
