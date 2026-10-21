@@ -98,10 +98,6 @@ export default function MobilePartnerPage() {
             智算多多合伙人
           </span>
         </div>
-        <div style={{ marginTop: 10, fontSize: 15, color: TEXT }}>
-          分享专属链接，朋友充值使用即可开始计算<span style={{ color: CYAN, fontWeight: 700 }}>佣金</span>
-        </div>
-
         {/* 推广链接卡 */}
         <div
           style={{
