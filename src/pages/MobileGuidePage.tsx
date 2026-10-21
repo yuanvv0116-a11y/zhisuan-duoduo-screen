@@ -90,7 +90,7 @@ export default function MobileGuidePage() {
         </div>
 
         {/* 欢迎主标题 */}
-        <div style={{ marginTop: 22, fontSize: 30, fontWeight: 800, lineHeight: 1.3 }}>
+        <div style={{ marginTop: 36, fontSize: 30, fontWeight: 800, lineHeight: 1.3 }}>
           欢迎使用
           <span
             style={{
@@ -154,7 +154,7 @@ export default function MobileGuidePage() {
             >
               <DesktopOutlined style={{ fontSize: 20, color: CYAN }} />
             </span>
-            <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.5, color: '#fff' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.5, color: '#fff' }}>
               为了方便您的使用，目前暂未开放移动端，请在<b style={{ color: CYAN }}>电脑端</b>访问：
             </div>
           </div>
