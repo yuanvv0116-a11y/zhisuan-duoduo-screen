@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Button, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Button, Input, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import PageShell from '../components/PageShell'
 import {
-  CONSUME_ROWS,
   PRODUCT_KIND_LABEL,
   USAGE_STATUS_COLOR,
   USAGE_STATUS_LABEL,
@@ -11,7 +10,6 @@ import {
   formatTokens,
   maskPhone,
   remainingTokens,
-  type ConsumeRow,
   type ProductKind,
   type UsageRow,
   type UsageStatus,
@@ -19,68 +17,18 @@ import {
 
 const { Text } = Typography
 
-/** 消耗明细弹窗内的表格列（不含用户与产品信息，头部已展示） */
-const detailColumns: ColumnsType<ConsumeRow> = [
-  { title: '调用时间', dataIndex: 'callTime', width: 160 },
-  {
-    title: '使用模型',
-    key: 'model',
-    width: 230,
-    render: (_, r) => (
-      <Space direction="vertical" size={0}>
-        <span style={{ fontWeight: 500 }}>{r.model}</span>
-        <Text type="secondary" style={{ fontSize: 12 }}>{r.endpoint}</Text>
-        <Text type="secondary" style={{ fontSize: 12, fontFamily: 'monospace' }}>{r.accountAlias}</Text>
-      </Space>
-    ),
-  },
-  { title: '倍率', dataIndex: 'rate', width: 70, render: (v: number) => `${v}x` },
-  {
-    title: '输入',
-    dataIndex: 'inputTokens',
-    align: 'right',
-    width: 100,
-    render: (v: number) => formatTokens(v),
-  },
-  {
-    title: '输出',
-    dataIndex: 'outputTokens',
-    align: 'right',
-    width: 100,
-    render: (v: number) => formatTokens(v),
-  },
-  {
-    title: '缓存创建',
-    dataIndex: 'cacheCreateTokens',
-    align: 'right',
-    width: 100,
-    render: (v: number) => formatTokens(v),
-  },
-  {
-    title: '缓存读取',
-    dataIndex: 'cacheReadTokens',
-    align: 'right',
-    width: 100,
-    render: (v: number) => formatTokens(v),
-  },
-  {
-    title: '成本价',
-    dataIndex: 'cost',
-    align: 'right',
-    width: 100,
-    render: (v: number) => <Text style={{ color: '#1677ff' }}>¥{v.toFixed(4)}</Text>,
-  },
-]
+interface Props {
+  /** 「查看消耗明细」：跳转到「套餐消耗明细」页，并按当前订单号过滤到当前人的当前套餐 */
+  onViewConsume: (row: UsageRow) => void
+}
 
-export default function PlanUsageQuery() {
+export default function PlanUsageQuery({ onViewConsume }: Props) {
   const [user, setUser] = useState('')
   const [productKind, setProductKind] = useState<ProductKind>()
   const [status, setStatus] = useState<UsageStatus>()
   const [query, setQuery] = useState<{ user: string; productKind?: ProductKind; status?: UsageStatus }>({
     user: '',
   })
-  const [detailRow, setDetailRow] = useState<UsageRow | null>(null)
-
   const filtered = useMemo(
     () =>
       USAGE_ROWS.filter((r) => {
@@ -99,12 +47,6 @@ export default function PlanUsageQuery() {
       }),
     [query],
   )
-
-  const detailData = useMemo(
-    () => (detailRow ? CONSUME_ROWS.filter((c) => c.usageKey === detailRow.key) : []),
-    [detailRow],
-  )
-  const detailCostSum = useMemo(() => detailData.reduce((s, c) => s + c.cost, 0), [detailData])
 
   const handleSearch = () => setQuery({ user, productKind, status })
 
@@ -204,7 +146,7 @@ export default function PlanUsageQuery() {
             </Button>
           </Tooltip>
         ) : (
-          <Button type="link" size="small" style={{ padding: 0 }} onClick={() => setDetailRow(r)}>
+          <Button type="link" size="small" style={{ padding: 0 }} onClick={() => onViewConsume(r)}>
             查看消耗明细
           </Button>
         ),
@@ -264,42 +206,6 @@ export default function PlanUsageQuery() {
           showTotal: (t) => `共 ${t} 条记录`,
         }}
       />
-
-      <Modal
-        centered
-        open={detailRow != null}
-        destroyOnClose
-        width={1000}
-        footer={null}
-        onCancel={() => setDetailRow(null)}
-        title={
-          detailRow && (
-            <Space size={8}>
-              <span>消耗明细</span>
-              <Text type="secondary" style={{ fontWeight: 400, fontSize: 13 }}>
-                {detailRow.userName} · {detailRow.productName}（{PRODUCT_KIND_LABEL[detailRow.productKind]}） · {detailRow.orderNo}
-              </Text>
-            </Space>
-          )
-        }
-      >
-        {detailRow && (
-          <div style={{ marginBottom: 12 }}>
-            <Text type="secondary">
-              共 {detailData.length} 次调用 · 已用 {formatTokens(detailRow.usedTokens)} Tokens · 累计成本{' '}
-              <Text style={{ color: '#1677ff' }}>¥{detailCostSum.toFixed(4)}</Text>
-            </Text>
-          </div>
-        )}
-        <Table<ConsumeRow>
-          rowKey="key"
-          size="small"
-          dataSource={detailData}
-          columns={detailColumns}
-          scroll={{ x: 'max-content', y: 360 }}
-          pagination={false}
-        />
-      </Modal>
     </PageShell>
   )
 }

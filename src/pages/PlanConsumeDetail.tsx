@@ -22,11 +22,22 @@ interface Query {
 
 const emptyQuery: Query = { user: '' }
 
-export default function PlanConsumeDetail() {
-  const [user, setUser] = useState('')
+/** 由「套餐用量查询 › 查看消耗明细」跳转带入的查询条件：按订单号精确过滤到当前人的当前套餐 */
+export interface PlanConsumeFilter {
+  orderNo: string
+}
+
+interface Props {
+  /** 从「套餐用量查询」跳转带入：进入页面即按该订单号完成搜索 */
+  initialFilter?: PlanConsumeFilter
+}
+
+export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
+  const seeded: Query = initialFilter ? { ...emptyQuery, user: initialFilter.orderNo } : emptyQuery
+  const [user, setUser] = useState(seeded.user)
   const [productKind, setProductKind] = useState<ProductKind>()
   const [model, setModel] = useState<string>()
-  const [query, setQuery] = useState<Query>(emptyQuery)
+  const [query, setQuery] = useState<Query>(seeded)
 
   const modelOptions = useMemo(() => {
     const codes = Array.from(new Set(CONSUME_ROWS.map((r) => r.model)))

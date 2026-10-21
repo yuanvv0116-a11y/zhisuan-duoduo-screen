@@ -51,7 +51,7 @@ import PromoStats from './pages/PromoStats'
 import TokenFactoryPage, { resolvePlazaModelId, type FactoryMenu } from './pages/TokenFactoryPage'
 import VersionChangelog from './pages/VersionChangelog'
 import PlanUsageQuery from './pages/PlanUsageQuery'
-import PlanConsumeDetail from './pages/PlanConsumeDetail'
+import PlanConsumeDetail, { type PlanConsumeFilter } from './pages/PlanConsumeDetail'
 import { RELEASES, parseConsoleScope } from './releases'
 import { getActiveScope, getScopeFromUrl, getScopeRouteKeys, isInScope, SCOPES } from './scope'
 import { getPromoSession } from './store'
@@ -296,6 +296,7 @@ export default function App() {
   const [perfDetailFilter, setPerfDetailFilter] = useState<PerfDetailFilter | undefined>(undefined)
   /** 从「分销合伙人 › 分佣明细」跳转带过来的分销员，用于分佣明细页自动搜索 */
   const [commissionDetailFilter, setCommissionDetailFilter] = useState<CommissionDetailFilter | undefined>(undefined)
+  const [planConsumeFilter, setPlanConsumeFilter] = useState<PlanConsumeFilter | undefined>(undefined)
   const [viewMode, setViewMode] = useState<'admin' | 'console' | 'website'>('admin')
   /** 官网当前页：默认落在「Token Plan」菜单页 */
   const [websitePage, setWebsitePage] = useState<WebsitePage>('tokenPlan')
@@ -734,9 +735,16 @@ export default function App() {
       case 'tokenPlan':
         return <TokenPlanList />
       case 'planUsage':
-        return <PlanUsageQuery />
+        return (
+          <PlanUsageQuery
+            onViewConsume={(row) => {
+              setPlanConsumeFilter({ orderNo: row.orderNo })
+              setActive('planConsumeDetail')
+            }}
+          />
+        )
       case 'planConsumeDetail':
-        return <PlanConsumeDetail />
+        return <PlanConsumeDetail initialFilter={planConsumeFilter} />
       case 'planBill':
         return <PlanBill />
       case 'userConsumeBill':
@@ -948,6 +956,7 @@ export default function App() {
                 onClick={({ key }) => {
                   setPerfDetailFilter(undefined)
                   setCommissionDetailFilter(undefined)
+                  setPlanConsumeFilter(undefined)
                   setActive(key as RouteKey)
                   /** 每次点击菜单都重挂载内容区：即使点的是当前菜单，也能从内嵌子页（如配置返佣模型）退回列表 */
                   setNavSeq((s) => s + 1)
