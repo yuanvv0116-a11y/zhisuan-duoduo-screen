@@ -193,8 +193,13 @@ export default function MobilePartnerPage() {
         </div>
 
         {/* 页脚 */}
-        <div style={{ marginTop: 28, fontSize: 12, color: '#5f7fb3', textAlign: 'center' }}>
+        <div style={{ marginTop: 28, fontSize: 12, color: '#5f7fb3', textAlign: 'center', lineHeight: 1.8 }}>
           佣金收益可在电脑端控制台「推广合伙人」页面随时查看
+          <br />
+          地址：<span style={{ color: '#7ea6d9' }}>https://console.zsdodo.com/</span>
+        </div>
+        <div style={{ marginTop: 10, fontSize: 11, color: '#48628c', textAlign: 'center' }}>
+          已绑定分销人的用户无法再次绑定
         </div>
       </main>
     </div>
