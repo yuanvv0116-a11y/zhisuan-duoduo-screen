@@ -15,7 +15,7 @@ const PC_URL = 'https://console.zsdodo.com/#/workbench'
 
 const MODELS = ['DeepSeek-V4', 'Kimi-K3', 'GLM-5.3', 'Qwen3.8-Max', 'Doubao-Seed-2.0', 'MiniMax-M3']
 
-const STEPS = ['电脑浏览器打开地址', '登录当前账号', '开始使用模型']
+const STEPS = ['电脑端打开地址', '登录当前账号', '开始使用模型']
 
 const chipStyle: CSSProperties = {
   display: 'inline-flex',
