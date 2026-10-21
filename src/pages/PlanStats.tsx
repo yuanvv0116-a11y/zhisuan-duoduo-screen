@@ -8,6 +8,7 @@ import {
   Table,
   Tag,
   Segmented,
+  DatePicker,
 } from 'antd'
 import {
   AppstoreOutlined,
@@ -19,6 +20,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { SHOW_ENTERPRISE } from '../constants'
 
 const { Text } = Typography
+const { RangePicker } = DatePicker
 
 /* ---------------- 加油包销售统计 ---------------- */
 const RESOURCE_PACK_SUMMARY = {
@@ -610,6 +612,7 @@ export default function PlanStats() {
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <RangePicker placeholder={['开始日期', '结束日期']} style={{ width: 260 }} />
             <Text>统计周期：</Text>
             <Segmented
               value={period}
