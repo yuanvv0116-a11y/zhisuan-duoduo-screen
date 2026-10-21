@@ -40,6 +40,7 @@ import PromoShareLandingPage from './pages/PromoShareLandingPage'
 import PromoInviteeLandingPageV2 from './pages/PromoInviteeLandingPageV2'
 import PromoLoginPage from './pages/PromoLoginPage'
 import MobileGuidePage from './pages/MobileGuidePage'
+import MobilePartnerPage from './pages/MobilePartnerPage'
 import SiteFooter from './components/SiteFooter'
 import RequirementDot from './components/RequirementDot'
 import ConsolePromo from './pages/ConsolePromo'
@@ -601,14 +602,16 @@ export default function App() {
   /** 登录页成功后的回流目标：官网「立即订阅」登录后直达控制台 Token Plan 概览；null 走默认逻辑 */
   const [loginReturn, setLoginReturn] = useState<'tokenPlanOverview' | 'resourcePack' | null>(null)
 
-  /** 移动端引导页：?mobile=1 整屏渲染；被邀请人登录成功后也落入该页 */
-  const [mobileGuide, setMobileGuide] = useState<boolean>(() => {
+  /** 移动端落地页：?mobile=1 引导页、?mobile=partner 合伙人页整屏渲染；被邀请人登录成功后也落入引导页 */
+  const [mobileView, setMobileView] = useState<'guide' | 'partner' | null>(() => {
     try {
-      return new URLSearchParams(window.location.search).get('mobile') === '1'
+      const m = new URLSearchParams(window.location.search).get('mobile')
+      if (m === '1') return 'guide'
+      if (m === 'partner') return 'partner'
     } catch {
       /** 忽略非法 URL 参数 */
     }
-    return false
+    return null
   })
 
   if (loginMode) {
@@ -650,7 +653,7 @@ export default function App() {
           setFactoryDetailId(null)
           if (invitee) {
             dropQueryParams('mobile')
-            setMobileGuide(true)
+            setMobileView('guide')
             return
           }
           setViewMode('console')
@@ -660,8 +663,12 @@ export default function App() {
     )
   }
 
-  if (mobileGuide) {
+  if (mobileView === 'guide') {
     return <MobileGuidePage />
+  }
+
+  if (mobileView === 'partner') {
+    return <MobilePartnerPage />
   }
 
   if (shareCampaignId && shareInviteCode) {
