@@ -112,6 +112,36 @@ function OverviewCard() {
               width: 48,
               height: 48,
               borderRadius: 12,
+              background: '#722ed115',
+              color: '#722ed1',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 24,
+              flexShrink: 0,
+            }}
+          >
+            <RocketOutlined />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4 }}>
+              <Text type="secondary" style={{ fontSize: 13 }}>Token Plan套餐总数</Text>
+            </div>
+            <div>
+              <span style={{ fontSize: 26, fontWeight: 600, color: '#333' }}>{SHOW_ENTERPRISE ? 5 : 3}</span>
+              <Text type="secondary" style={{ fontSize: 14, marginLeft: 4 }}>个</Text>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ width: 1, background: '#eef0f4', margin: '0 8px' }} />
+
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
               background: '#2f6bff15',
               color: '#2f6bff',
               display: 'flex',
@@ -130,42 +160,6 @@ function OverviewCard() {
             <div>
               <span style={{ fontSize: 26, fontWeight: 600, color: '#333' }}>5</span>
               <Text type="secondary" style={{ fontSize: 14, marginLeft: 4 }}>个</Text>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ width: 1, background: '#eef0f4', margin: '0 8px' }} />
-
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              background: '#722ed115',
-              color: '#722ed1',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 24,
-              flexShrink: 0,
-            }}
-          >
-            <RocketOutlined />
-          </div>
-          <div>
-            <div style={{ marginBottom: 4 }}>
-              <Text type="secondary" style={{ fontSize: 13 }}>Token Plan套餐总数</Text>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontSize: 26, fontWeight: 600, color: '#333' }}>{SHOW_ENTERPRISE ? 5 : 3}</span>
-              <Text type="secondary" style={{ fontSize: 14 }}>个</Text>
-              <div style={{ display: 'flex', gap: 6, marginLeft: 4 }}>
-                <Tag color="#722ed1" style={{ borderRadius: 4, fontSize: 12 }}>个人版 3</Tag>
-                {SHOW_ENTERPRISE && (
-                  <Tag color="#fa8c16" style={{ borderRadius: 4, fontSize: 12 }}>企业版 2</Tag>
-                )}
-              </div>
             </div>
           </div>
         </div>
