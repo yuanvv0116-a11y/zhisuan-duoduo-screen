@@ -38,6 +38,7 @@ import PromoLandingPage from './pages/PromoLandingPage'
 import PromoShareLandingPage from './pages/PromoShareLandingPage'
 import PromoInviteeLandingPageV2 from './pages/PromoInviteeLandingPageV2'
 import PromoLoginPage from './pages/PromoLoginPage'
+import MobileGuidePage from './pages/MobileGuidePage'
 import SiteFooter from './components/SiteFooter'
 import RequirementDot from './components/RequirementDot'
 import ConsolePromo from './pages/ConsolePromo'
@@ -507,6 +508,16 @@ export default function App() {
     }
   }
 
+  /** 移动端引导页：?mobile=1 整屏渲染；被邀请人登录成功后也落入该页 */
+  const [mobileGuide, setMobileGuide] = useState<boolean>(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('mobile') === '1'
+    } catch {
+      /** 忽略非法 URL 参数 */
+    }
+    return false
+  })
+
   if (loginMode) {
     return (
       <PromoLoginPage
@@ -521,16 +532,21 @@ export default function App() {
           setLoginMode(false)
           setShareCampaignId(null)
           setShareInviteCode(null)
-          /** 登录成功统一进入控制台：被邀请用户直达「Token工厂 › 概览」（Token工厂默认首页即概览），分销商直达推广合伙人 */
-          setViewMode('console')
+          /** 被邀请用户登录成功进入移动端引导页（暂未开放移动端，引导去电脑端）；分销商直达推广合伙人 */
           if (invitee) {
-            setConsoleSubPage('tokenFactory')
-          } else {
-            setConsoleSubPage('promo')
+            dropQueryParams('mobile')
+            setMobileGuide(true)
+            return
           }
+          setViewMode('console')
+          setConsoleSubPage('promo')
         }}
       />
     )
+  }
+
+  if (mobileGuide) {
+    return <MobileGuidePage />
   }
 
   if (shareCampaignId && shareInviteCode) {
