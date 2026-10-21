@@ -222,6 +222,7 @@ export default function MobilePartnerPage() {
             background: 'linear-gradient(180deg, rgba(13,34,84,.55), rgba(6,18,48,.78))',
             border: '1px solid rgba(70,140,255,.3)',
             borderRadius: 18,
+            textAlign: 'left',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
