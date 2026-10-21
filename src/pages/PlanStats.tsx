@@ -412,6 +412,7 @@ function RankingTable({
     <Card
       variant="borderless"
       styles={{ body: { padding: 16 } }}
+      style={{ height: '100%' }}
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <TrophyOutlined style={{ color: '#faad14', fontSize: 18 }} />
