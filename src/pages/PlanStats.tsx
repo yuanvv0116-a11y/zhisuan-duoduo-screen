@@ -14,7 +14,6 @@ import {
   AppstoreOutlined,
   RocketOutlined,
   TrophyOutlined,
-  WarningOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { SHOW_ENTERPRISE } from '../constants'
@@ -46,23 +45,6 @@ const TOKEN_STATS = {
   consumed: 8_540_000_000,
   expired: 1_286_000_000,
 }
-
-/* ---------------- 模型失效率TOP3 ---------------- */
-interface ModelFailItem {
-  rank: number
-  modelName: string
-  modelType: string
-  quota: string
-  amount: number
-  failRate: number
-  profitRate: number
-}
-
-const MODEL_FAIL_TOP3: ModelFailItem[] = [
-  { rank: 1, modelName: '私人投研分析部', modelType: '投研模型', quota: '1,200,000,000 Tokens', amount: 27972, failRate: 42.5, profitRate: 40.0 },
-  { rank: 2, modelName: '豆包声音复刻模型2.0', modelType: '语音模型', quota: '800,000,000 Tokens', amount: 12768, failRate: 28.3, profitRate: 60.0 },
-  { rank: 3, modelName: 'GPT-4o畅享包', modelType: '对话模型', quota: '500,000,000 Tokens', amount: 8620, failRate: 24.1, profitRate: 60.0 },
-]
 
 /* ---------------- 热门套餐TOP5 ---------------- */
 interface RankItem {
@@ -387,17 +369,6 @@ function RankingTable({
       render: (v: string) => <span style={{ fontWeight: 500 }}>{v}</span>,
     },
     {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      width: 100,
-      render: (v: string) => (
-        <Tag color={v === '个人版' ? 'blue' : v === '企业版' ? 'purple' : 'default'} style={{ borderRadius: 4 }}>
-          {v}
-        </Tag>
-      ),
-    },
-    {
       title: '销售数量',
       dataIndex: 'soldCount',
       key: 'soldCount',
@@ -451,141 +422,6 @@ function RankingTable({
       <Table<RankItem>
         rowKey="rank"
         dataSource={dataSource}
-        pagination={false}
-        size="small"
-        columns={columns}
-      />
-    </Card>
-  )
-}
-
-/* ---------------- 模型失效率分析 ---------------- */
-function ModelFailAnalysis() {
-  const columns: ColumnsType<ModelFailItem> = [
-    {
-      title: '排名',
-      dataIndex: 'rank',
-      key: 'rank',
-      width: 70,
-      render: (v: number) => {
-        const colors = ['#ff4d4f', '#fa8c16', '#faad14']
-        return (
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              background: colors[v - 1] || '#8c8c8c',
-              color: '#fff',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 14,
-              fontWeight: 600,
-            }}
-          >
-            {v}
-          </div>
-        )
-      },
-    },
-    {
-      title: '模型名称',
-      dataIndex: 'modelName',
-      key: 'modelName',
-      render: (v: string) => <span style={{ fontWeight: 500 }}>{v}</span>,
-    },
-    {
-      title: '模型类型',
-      dataIndex: 'modelType',
-      key: 'modelType',
-      width: 100,
-      render: (v: string) => (
-        <Tag color="blue" style={{ borderRadius: 4 }}>{v}</Tag>
-      ),
-    },
-    {
-      title: '额度',
-      dataIndex: 'quota',
-      key: 'quota',
-      width: 160,
-      render: (v: string) => <Text type="secondary">{v}</Text>,
-    },
-    {
-      title: '金额',
-      dataIndex: 'amount',
-      key: 'amount',
-      width: 120,
-      align: 'right',
-      render: (v: number) => <span style={{ color: '#333' }}>¥{v.toLocaleString()}</span>,
-    },
-    {
-      title: '失效率',
-      dataIndex: 'failRate',
-      key: 'failRate',
-      width: 120,
-      align: 'right',
-      render: (v: number) => {
-        const color = v >= 40 ? '#ff4d4f' : v >= 25 ? '#fa8c16' : '#faad14'
-        return (
-          <div>
-            <div style={{ color, fontWeight: 600 }}>{v}%</div>
-            <div style={{ marginTop: 4 }}>
-              <div
-                style={{
-                  width: '100%',
-                  height: 6,
-                  background: '#f0f0f0',
-                  borderRadius: 3,
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    width: `${Math.min(v, 100)}%`,
-                    height: '100%',
-                    background: color,
-                    borderRadius: 3,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        )
-      },
-    },
-    {
-      title: '利润率',
-      dataIndex: 'profitRate',
-      key: 'profitRate',
-      width: 120,
-      align: 'right',
-      render: (v: number) => {
-        const good = v >= 50
-        return (
-          <Tag color={good ? 'green' : 'orange'} style={{ borderRadius: 4 }}>
-            {v}%
-          </Tag>
-        )
-      },
-    },
-  ]
-
-  return (
-    <Card
-      variant="borderless"
-      styles={{ body: { padding: 16 } }}
-      title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <WarningOutlined style={{ color: '#ff4d4f', fontSize: 18 }} />
-          <span style={{ fontSize: 15, fontWeight: 600 }}>模型失效率分析 TOP 3</span>
-        </div>
-      }
-      extra={<Text type="secondary" style={{ fontSize: 12 }}>数据按失效率降序排列</Text>}
-    >
-      <Table<ModelFailItem>
-        rowKey="rank"
-        dataSource={MODEL_FAIL_TOP3}
         pagination={false}
         size="small"
         columns={columns}
@@ -669,16 +505,13 @@ export default function PlanStats() {
                 ? HOT_PLANS
                 : HOT_PLANS.filter((p) => p.type !== '企业版').map((p, i) => ({ ...p, rank: i + 1 }))
             }
-            title={SHOW_ENTERPRISE ? '热门套餐 TOP 5' : '热门套餐 TOP 3'}
+            title="热门套餐 TOP 5"
           />
         </Col>
         <Col xs={24} lg={12}>
           <RankingTable dataSource={HOT_RESOURCE_PACKS} title="热门加油包 TOP 5" />
         </Col>
       </Row>
-
-      {/* 模型失效率分析 */}
-      <ModelFailAnalysis />
     </div>
   )
 }
