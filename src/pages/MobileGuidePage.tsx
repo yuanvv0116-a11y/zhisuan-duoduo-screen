@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react'
 import { Button, message } from 'antd'
-import { CheckOutlined, CopyOutlined, DesktopOutlined } from '@ant-design/icons'
+import { CheckOutlined, CopyOutlined, DesktopOutlined, ThunderboltFilled } from '@ant-design/icons'
 
 /* 与被邀请人落地页同一视觉体系：深空底 + 品牌蓝绿渐变 */
 const NAVY = '#020618'
@@ -73,8 +73,24 @@ export default function MobileGuidePage() {
           textAlign: 'center',
         }}
       >
+        {/* Logo */}
+        <div
+          style={{
+            width: 68,
+            height: 68,
+            borderRadius: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: `linear-gradient(135deg, ${BRAND}, ${ACCENT})`,
+            boxShadow: '0 10px 30px rgba(47,107,255,.55), 0 0 24px rgba(20,224,176,.35)',
+          }}
+        >
+          <ThunderboltFilled style={{ fontSize: 34, color: '#fff' }} />
+        </div>
+
         {/* 欢迎主标题 */}
-        <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.3 }}>
+        <div style={{ marginTop: 22, fontSize: 30, fontWeight: 800, lineHeight: 1.3 }}>
           欢迎使用
           <span
             style={{
