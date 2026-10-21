@@ -127,6 +127,7 @@ const MENU_GROUPS: MenuGroup[] = [
     children: [
       { key: 'promoLanding', label: '推广合伙人' },
       { key: 'promoInviteeLanding', label: '被邀请人落地页' },
+      { key: 'mobileGuide', label: '移动端引导页' },
     ],
   },
   {
@@ -150,7 +151,7 @@ function findMenuLabel(routeKey: string): [string, string] {
 function findPlatform(routeKey: string): string {
   if (routeKey === 'global' || routeKey === 'admin') return routeKey === 'global' ? '全局' : '管理后台'
   if (routeKey.startsWith('tf:') || routeKey.startsWith('billing:') || routeKey === 'console') return '控制台'
-  if (routeKey === 'promoLanding' || routeKey === 'promoInviteeLanding') return '官方网站'
+  if (routeKey === 'promoLanding' || routeKey === 'promoInviteeLanding' || routeKey === 'mobileGuide') return '官方网站'
   return '管理后台'
 }
 
