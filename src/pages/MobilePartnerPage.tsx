@@ -22,7 +22,7 @@ const PROMO_URL = 'https://zsdodo.com/promo?code=ZM8K2P7Q'
 /** 电脑端控制台地址 */
 const CONSOLE_URL = 'https://console.zsdodo.com/'
 
-const STEPS = ['复制专属链接', '转发给朋友', '朋友充值使用即计佣']
+const STEPS = ['复制专属链接', '转发给朋友', '使用即计佣']
 
 export default function MobilePartnerPage() {
   const [copied, setCopied] = useState(false)
