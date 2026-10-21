@@ -54,6 +54,7 @@
 ## 4. 组件用法约定
 - 卡片：`variant="borderless"`，body padding 16，卡片间距 16。
 - 表格 Table：`rowKey`；`pagination` 用 `showTotal: t => 共 ${t} 条记录`；`scroll={{ x: 'max-content' }}`；首列与「操作」列 `fixed`；超长字段 `ellipsis` + `Tooltip`；**空值统一显示 `—`**（`<Text type="secondary">—</Text>`）。
+- **列表少用花哨样式**：列表/表格单元格以纯文字为主，**类型、来源、渠道等枚举字段一律不用 `Tag` 彩色标签**，直接显示文字；`Tag` 仅保留给真正的状态标记（如需醒目区分生效/失效）且慎用彩色。
 - 敏感字段（如 API Key）：默认脱敏（首尾各 4 位 + `****`），行内提供「显示/隐藏」👁 与「复制」📋 两个 text 图标按钮。优先复用 `SecretCell`。
 - 状态字段：列表内用 `Switch`（size small，启用/停用）直接切换。
 - 操作列：`type="link"` 文字按钮「编辑 / 删除」，删除必须 `Popconfirm` 二次确认。

@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Input, Select, Space, Table, Tag, Typography } from 'antd'
+import { Input, Select, Space, Table, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import PageShell from '../components/PageShell'
 import {
   CONSUME_ROWS,
-  PRODUCT_KIND_COLOR,
   PRODUCT_KIND_LABEL,
   formatTokens,
   maskPhone,
@@ -100,7 +99,7 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
       title: '扣费类型',
       dataIndex: 'productKind',
       width: 100,
-      render: (v: ProductKind) => <Tag color={PRODUCT_KIND_COLOR[v]}>{PRODUCT_KIND_LABEL[v]}</Tag>,
+      render: (v: ProductKind) => PRODUCT_KIND_LABEL[v],
     },
     {
       title: '使用模型',
