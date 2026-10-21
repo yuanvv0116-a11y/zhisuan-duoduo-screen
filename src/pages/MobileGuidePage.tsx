@@ -66,7 +66,7 @@ export default function MobileGuidePage() {
         style={{
           maxWidth: 440,
           margin: '0 auto',
-          padding: '96px 24px 40px',
+          padding: '76px 24px 40px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
