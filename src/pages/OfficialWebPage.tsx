@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Typography, Button, Segmented, Space, message } from 'antd'
+import { Typography, Button, Segmented, Space, Modal, Tag, message } from 'antd'
 import {
   CheckOutlined,
   CodeOutlined,
@@ -18,9 +18,9 @@ import {
   ArrowRightOutlined,
 } from '@ant-design/icons'
 import RequirementDot from '../components/RequirementDot'
-import { useTokenPlans } from '../store'
-import { calcPlanDiscountedPrice } from '../types'
-import { SHOW_ENTERPRISE } from '../constants'
+import { useModels, usePlanModels, useTokenPlans } from '../store'
+import { calcPlanDiscountedPrice, type TokenPlan } from '../types'
+import { modelTypeLabel, SHOW_ENTERPRISE } from '../constants'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -123,6 +123,36 @@ const RESOURCE_PACKS = [
   },
 ]
 
+/** 套餐默认模型清单：后台未为该套餐配置模型时回退使用（与控制台订购页一致） */
+const PLAN_MODELS: Record<string, { name: string; type: string }[]> = {
+  lite: [
+    { name: 'Qwen3.6-27B', type: '文本' },
+    { name: 'DODO-AC-Ultra-5', type: '文本' },
+    { name: 'Doubao-Seedream-5.0', type: '图像' },
+    { name: 'DeepSeek-V4-Flash', type: '文本' },
+  ],
+  standard: [
+    { name: 'Qwen3.6-27B', type: '文本' },
+    { name: 'Qwen3.6-72B', type: '文本' },
+    { name: 'DODO-AC-Ultra-5', type: '文本' },
+    { name: 'Doubao-Seedream-5.0-Pro', type: '图像' },
+    { name: 'Doubao-Seedance-2.0', type: '视频' },
+    { name: 'DeepSeek-V4', type: '文本' },
+  ],
+  pro: [
+    { name: 'Qwen3.6-27B', type: '文本' },
+    { name: 'Qwen3.6-72B', type: '文本' },
+    { name: 'GLM-5.2-FP8', type: '文本' },
+    { name: 'GLM-5.2', type: '文本' },
+    { name: 'DODO-AC-Ultra-5', type: '文本' },
+    { name: 'DODO-AC-Pro-5', type: '文本' },
+    { name: 'Doubao-Seedream-5.0-Pro', type: '图像' },
+    { name: 'Doubao-Seedance-2.0', type: '视频' },
+    { name: 'DeepSeek-V4', type: '文本' },
+    { name: 'DeepSeek-V4-Pro', type: '文本' },
+  ],
+}
+
 interface Props {
   /** 点击「立即订阅」：由外层决定跳转（原型里先进登录页，登录后落控制台 Token Plan 概览） */
   onSubscribe?: () => void
@@ -138,6 +168,29 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
 
   /** 卡片悬浮态：套餐区与加油包区共用 */
   const [hoverPlanId, setHoverPlanId] = useState<string | null>(null)
+
+  /** 可用模型：后台「配置模型」优先（可见、按名称去重），未配置回退默认清单——与控制台订购页同规则 */
+  const { planModels } = usePlanModels()
+  const { models } = useModels()
+  const modelsOfPlan = useMemo(() => {
+    const typeByName = new Map(models.map((m) => [m.name, m.type]))
+    return (plan: TokenPlan): { name: string; type: string }[] => {
+      const rows = planModels.filter((r) => r.planId === plan.id && r.visible !== false)
+      if (rows.length === 0) return PLAN_MODELS[plan.level ?? ''] || []
+      const seen = new Set<string>()
+      const out: { name: string; type: string }[] = []
+      for (const r of rows) {
+        if (seen.has(r.modelName)) continue
+        seen.add(r.modelName)
+        out.push({ name: r.modelName, type: modelTypeLabel(typeByName.get(r.modelName) ?? 'text') })
+      }
+      return out
+    }
+  }, [planModels, models])
+
+  const [modelModalOpen, setModelModalOpen] = useState(false)
+  const [modalPlanTitle, setModalPlanTitle] = useState('')
+  const [modalModels, setModalModels] = useState<{ name: string; type: string }[]>([])
 
   const heroFeatures = [
     {
@@ -333,7 +386,8 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
                       '3. 设置「默认选中产品」的，该产品默认选中；鼠标悬浮到其他套餐时，选中其他套餐，默认选中套餐不再选中；鼠标不在任何套餐悬浮时，恢复默认状态，选中配置为「默认选中产品」的套餐。',
                       '4. 如未设置划线价，则不展示划线价。',
                       '5. 套餐卡片在价格下方展示 Token 量，取自后台套餐配置，如「Token 量：100,000 Tokens」。',
-                      '6. 点击「立即订阅」：已登录的直接跳转到控制台「Token Plan 概览」页面；未登录的需要登录后跳转。',
+                      '6. 套餐卡片展示可用模型，与控制台订购页同规则：优先取后台「配置模型」（仅可见、按名称去重），未配置回退默认清单；最多展示 3 个，其余「+N 更多」，点击打开全量模型弹窗，弹窗顶部提示模型不定期上下架规则。',
+                      '7. 点击「立即订阅」：已登录的直接跳转到控制台「Token Plan 概览」页面；未登录的需要登录后跳转。',
                     ],
                   },
                 ]}
@@ -533,6 +587,60 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
                         {feat}
                       </div>
                     ))}
+
+                    {/* 可用模型：与控制台订购页同规则 */}
+                    {(() => {
+                      const ms = modelsOfPlan(plan)
+                      const MAX_SHOW = 3
+                      const showModels = ms.slice(0, MAX_SHOW)
+                      const hasMore = ms.length > MAX_SHOW
+                      return (
+                        <div style={{ marginTop: 4, paddingTop: 12, borderTop: '1px dashed #e5e7eb' }}>
+                          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
+                            可用模型（{ms.length}个）
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {showModels.map((m) => (
+                              <Tag
+                                key={m.name}
+                                style={{
+                                  margin: 0,
+                                  borderRadius: 4,
+                                  fontSize: 11,
+                                  padding: '2px 8px',
+                                  background: '#f5f7fa',
+                                  borderColor: '#e5e7eb',
+                                  color: '#4b5563',
+                                }}
+                              >
+                                {m.name}
+                              </Tag>
+                            ))}
+                            {hasMore && (
+                              <Tag
+                                onClick={() => {
+                                  setModalPlanTitle(plan.name)
+                                  setModalModels(ms)
+                                  setModelModalOpen(true)
+                                }}
+                                style={{
+                                  margin: 0,
+                                  borderRadius: 4,
+                                  fontSize: 11,
+                                  padding: '2px 8px',
+                                  background: 'transparent',
+                                  borderColor: '#e5e7eb',
+                                  color: '#2f6bff',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                +{ms.length - MAX_SHOW} 更多
+                              </Tag>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
 
                   <Button
@@ -558,6 +666,43 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
           </div>
         </div>
       </section>
+
+      {/* 可用模型弹窗（套餐卡片「+N 更多」） */}
+      <Modal
+        title={modalPlanTitle}
+        open={modelModalOpen}
+        onCancel={() => setModelModalOpen(false)}
+        footer={null}
+        width={520}
+        centered
+      >
+        <div style={{ marginBottom: 12, fontSize: 12, color: '#8b93a5', lineHeight: 1.7, background: '#f8f9fb', padding: '8px 12px', borderRadius: 6 }}>
+          为持续优化用户体验，平台将不定期上架新模型并下架低效模型。订阅套餐即视为同意本规则。
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto' }}>
+          {modalModels.map((m, idx) => (
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                background: '#f8f9fb',
+                borderRadius: 8,
+              }}
+            >
+              <Text strong style={{ fontSize: 13 }}>{m.name}</Text>
+              <Tag
+                style={{ margin: 0, borderRadius: 4, fontSize: 11 }}
+                color={m.type.includes('文本') ? 'blue' : m.type.includes('图像') ? 'purple' : 'orange'}
+              >
+                {m.type}
+              </Tag>
+            </div>
+          ))}
+        </div>
+      </Modal>
 
       {/* ============ 蓝色 Banner ============ */}
       <section style={{ padding: '64px 24px 12px' }}>
