@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Typography, Button, Segmented, message } from 'antd'
+import { Typography, Button, Segmented, Space, message } from 'antd'
 import {
   CheckOutlined,
   CodeOutlined,
@@ -17,6 +17,7 @@ import {
   SafetyCertificateOutlined,
   ArrowRightOutlined,
 } from '@ant-design/icons'
+import RequirementDot from '../components/RequirementDot'
 import { useTokenPlans } from '../store'
 import { calcPlanDiscountedPrice } from '../types'
 import { SHOW_ENTERPRISE } from '../constants'
@@ -319,7 +320,24 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
         {/* ============ 定价区 ============ */}
         <div id="tp-section-tokenPlan" style={{ maxWidth: 1200, margin: '0 auto', padding: '100px 0 0', scrollMarginTop: 80 }}>
           <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 32, color: '#1a1a1a', fontWeight: 700 }}>
-            首发 · 限时优惠
+            <Space size={8} align="center">
+              首发 · 限时优惠
+              <RequirementDot
+                title="首发 · 限时优惠 — 需求点"
+                sections={[
+                  {
+                    label: '',
+                    items: [
+                      '1. 展示后台配置的上架的套餐，根据排序数字由小到大（页面从左到右）展示。',
+                      '2. 设置产品标签的，在右上角展示产品标签的文字。',
+                      '3. 设置「默认选中产品」的，该产品默认选中；鼠标悬浮到其他套餐时，选中其他套餐，默认选中套餐不再选中；鼠标不在任何套餐悬浮时，恢复默认状态，选中配置为「默认选中产品」的套餐。',
+                      '4. 如未设置划线价，则不展示划线价。',
+                      '5. 点击「立即订阅」：已登录的直接跳转到控制台「Token Plan 概览」页面；未登录的需要登录后跳转。',
+                    ],
+                  },
+                ]}
+              />
+            </Space>
           </Title>
           <Paragraph style={{ textAlign: 'center', color: '#86909c', margin: '10px 0 36px', fontSize: 14 }}>
             请根据自身需求和团队规模灵活订阅
