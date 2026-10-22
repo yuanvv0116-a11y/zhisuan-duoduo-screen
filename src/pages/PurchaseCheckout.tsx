@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Card, Checkbox, Button, Tag, Divider, message, Modal, Typography } from 'antd'
+import { Card, Checkbox, Button, Tag, Divider, message, Modal, Typography, Space } from 'antd'
 import {
   WechatOutlined,
   ArrowLeftOutlined,
@@ -12,6 +12,7 @@ import {
   PLAN_DURATION_UNIT_META,
 } from '../types'
 import type { AgreementType } from './AgreementPage'
+import RequirementDot from '../components/RequirementDot'
 
 const { Text } = Typography
 
@@ -195,8 +196,28 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
         {/* 页面标题 */}
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 22, fontWeight: 600, color: '#111827', margin: 0 }}>
-            {isRenew ? 'Token Plan 套餐 续费' : '购买 Token Plan 套餐'}
-           </h2>
+            <Space size={8} align="center">
+              {isRenew ? 'Token Plan 套餐 续费' : '购买 Token Plan 套餐'}
+              <RequirementDot
+                title="套餐订购结算页需求说明"
+                sections={[
+                  {
+                    label: '',
+                    items: [
+                      '1. 标题按状态区分：新购显示「购买 Token Plan 套餐」，续费显示「Token Plan 套餐 续费」；续费态购买须知黄条包含现有到期日提示',
+                      '2. 购买须知三条：计费规则（订阅模式、不支持退订）、使用规则（用量或周期未结束不支持修改，额度用尽后阻断、可购加油包）、抵扣规则（额度周期内用完、到期清零不顺延）',
+                      '3. 套餐配置卡：套餐名称与标签、副标题、单价（折后价 ÷ 计费周期）、划线价、每周期额度（usageLimit Tokens）、支持模型数、适用场景（按档位文案）、独享禁共享提示',
+                      '4. 支持模型展示 4 个，其余「+N」打开全量模型弹窗（与 Token Plan 概览一致，含模型不定期上下架规则提示）',
+                      '5. 订阅时长单选，选项来自后台套餐 durations 配置；有折扣的选项显示「X折」角标；默认选中第一项',
+                      '6. 订单摘要：套餐版本、订阅时长 + 到期日（按整数月 + 余数折算 30 天/月计算）、每周期额度、原价合计（单价 × 期数，划线）、优惠金额（优惠 > 0 才显示）、应付金额 = 所选时长到手价',
+                      '7. 订单号生成规则：时间戳（YYYYMMDDHHMMSS）+ 4 位随机数',
+                      '8. 支付方式默认选中「微信支付」；须勾选《套餐购买协议》方可支付，未勾选点击「去支付」提示「请先阅读并同意《套餐购买协议》」；点击协议名打开订阅协议页',
+                    ],
+                  },
+                ]}
+              />
+            </Space>
+          </h2>
         </div>
 
         {/* 购买须知提示 */}

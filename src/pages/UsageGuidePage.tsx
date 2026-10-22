@@ -1,5 +1,6 @@
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { SHOW_ENTERPRISE } from '../constants'
+import RequirementDot from '../components/RequirementDot'
 
 interface Props {
   onBack: () => void
@@ -463,7 +464,28 @@ export default function UsageGuidePage({ onBack }: Props) {
 
       {/* 正文 */}
       <div style={STYLES.pageContent}>
-        <h1 style={STYLES.h1}>智算多多 Token Plan 套餐 使用指南</h1>
+        <h1 style={STYLES.h1}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            智算多多 Token Plan 套餐 使用指南
+            <RequirementDot
+              title="使用指南页需求说明"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1. 页面展示《Token Plan 套餐使用指南》全文，章节包含：产品简介、核心特性、支持的模型、套餐与定价、计费机制、购买流程、创建 API Key、调用规则、查看用量与数据、联系我们',
+                    '2. 顶栏提供「返回」按钮回到上一页；指南标题与最后更新日期居中展示',
+                    '3. 套餐版本说明与企业版开关联动：开启时描述个人/企业账号可购数量限制，关闭时仅描述个人版',
+                    '4. 额度超出处理与抵扣顺序：套餐额度 → 加油包（持有多个时优先抵扣最近到期的）→ 现金账户按原价扣费直至余额用尽',
+                    '5. 购买流程 6 步指引；续费为手动续费、周期与订阅一致；退订规则「已有用量消耗后不可退订，未开始使用且未过期 7 日内可联系客服退款」',
+                    '6. 调用规则：调用链路（购买订阅 → 创建 API Key → 配置工具 → 发起调用 → 消耗额度）、每 Key 频率限制、使用规范（仅限本人/合规/内容标识/禁止行为）与违规后果',
+                    '7. 支持的模型与套餐权益以控制台页面最新展示或智算多多官方通知为准',
+                  ],
+                },
+              ]}
+            />
+          </span>
+        </h1>
         <p style={STYLES.date}>最后更新：2026 年 8 月 23 日</p>
 
         <div style={STYLES.content}>

@@ -4,6 +4,7 @@ import { RightOutlined } from '@ant-design/icons'
 import { useModels, usePlanModels, useTokenPlans } from '../store'
 import { calcPlanDiscountedPrice, type TokenPlan } from '../types'
 import { modelTypeLabel, SHOW_ENTERPRISE } from '../constants'
+import RequirementDot from '../components/RequirementDot'
 
 const PLAN_MODELS: Record<string, { name: string; type: string }[]> = {
   lite: [
@@ -283,7 +284,29 @@ export default function PurchasePage({
         {/* Hero 文案 */}
         <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '40px 24px 68px' }}>
           <Title level={1} style={{ margin: 0, fontSize: 40, fontWeight: 800, color: '#171a2b', letterSpacing: 1 }}>
-            选择适合你的 <span style={{ color: '#7c5cfc' }}>Token Plan</span>
+            <Space size={10} align="center">
+              <span>
+                选择适合你的 <span style={{ color: '#7c5cfc' }}>Token Plan</span>
+              </span>
+              <RequirementDot
+                title="Token Plan 订购页需求说明"
+                sections={[
+                  {
+                    label: '',
+                    items: [
+                      '1. 仅展示在售（启用中）且非企业顶级档位的套餐；企业版开关关闭时，隐藏企业订阅相关区块',
+                      '2. 套餐卡片展示：套餐名称与副标题、折后月费、划线原价、Token 量、权益列表、可用模型',
+                      '3. 划线价规则：后台勾选「展示原价」且原价 > 0 时划掉配置原价；否则非全价（有折扣）时划掉现价',
+                      '4. 可用模型优先读取后台该套餐「配置模型」（仅可见模型、按名称去重）；未配置时回退默认模型清单',
+                      '5. 卡片内模型最多展示 3 个，其余以「+N 更多」收起，点击打开全量「可用模型」弹窗；弹窗顶部提示模型将不定期上架/下架，订阅即视为同意该规则',
+                      '6. standard 套餐带「推荐」徽标与高亮样式，按钮为「推荐订阅 →」；已订阅的套餐按钮显示「✓ 已订阅」',
+                      '7. 点击订阅按钮进入订购结算页；页面顶栏右上提供「使用指南」入口',
+                      '8. 常见问题按 Tabs 分组（订阅 / 计费与额度 / 套餐规则 / 其他），手风琴展开；企业开关关闭时过滤提及企业的 FAQ，分组为空则整组隐藏',
+                    ],
+                  },
+                ]}
+              />
+            </Space>
           </Title>
           <div style={{ marginTop: 18, fontSize: 14, lineHeight: 2, color: '#6b7280' }}>
             面向开发者的 AI 大模型订阅服务，兼容主流编程与智能体框架。固定月费，畅用旗舰级模型

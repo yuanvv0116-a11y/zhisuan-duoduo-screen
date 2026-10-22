@@ -29,6 +29,7 @@ import {
 } from '@ant-design/icons'
 import { maskSecret } from '../components/SecretCell'
 import { SHOW_ENTERPRISE } from '../constants'
+import RequirementDot from '../components/RequirementDot'
 
 const { Text } = Typography
 
@@ -441,6 +442,24 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               <Tooltip title="套餐周期内未耗尽额度将自动清零，不顺延到下期">
                 <InfoCircleOutlined style={{ color: '#94a3b8', cursor: 'pointer' }} />
               </Tooltip>
+              <RequirementDot
+                title="我的订阅 · 套餐信息与额度需求说明"
+                sections={[
+                  {
+                    label: '',
+                    items: [
+                      '1. 未订阅时显示空状态「您还未订阅 Token Plan」，提供「立即购买」按钮（企业版开关开启时增加「立即购买企业版」），点击进入 Token Plan 订购页',
+                      '2. 左侧信息区：套餐名称（悬浮提示「周期内未耗尽额度自动清零、不顺延」）、套餐状态（生效中/已耗尽，标签颜色区分）、套餐总量、剩余天数、开始/结束时间',
+                      '3. 标题右侧「查看历史订单」入口；底部「续费」按钮点击进入套餐续费结算页（续费态）',
+                      '4. 套餐额度：已消耗百分比、已用与总额度、进度条（0/50/90/100 刻度 + 90% 红色虚线警戒线），悬浮进度条显示已用 tokens',
+                      '5. 额度用尽态：套餐状态显示灰色「已耗尽」，额度显示 100% 且进度条变红、末端显示「已用完」角标',
+                      '6. 「用量统计」链接跳转套餐用量统计页；额度区块副文案「套餐周期内未用完的额度不作结转」',
+                      '7. 加油包区块（未购态）：提示「资源耗尽可补充购买加油包」+「去购买」按钮，直达固定档位加油包购买页',
+                      '8. 加油包区块（已到账态）：显示已消耗百分比、已用/总额度、到期时间与 90% 警戒线；「加油包详情」弹窗展示名称、额度、订阅时间、订阅时长（含到期日）、可用模型（默认展示 3 个，「+N 更多」可展开/收起）',
+                    ],
+                  },
+                ]}
+              />
             </Space>
             <a
               onClick={() => onViewOrders?.()}
@@ -839,9 +858,29 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             marginBottom: 16,
           }}
         >
-          <div style={{ fontSize: 20, fontWeight: 600, color: '#1f2937' }}>
-            专属 API KEY
-          </div>
+          <Space size={8} align="center">
+            <span style={{ fontSize: 20, fontWeight: 600, color: '#1f2937' }}>
+              专属 API KEY
+            </span>
+            <RequirementDot
+              title="专属 API KEY 需求说明"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1. 安全提示：密钥不可与他人共享或暴露在客户端代码中，公开泄漏的 Key 可能被自动禁用，可随时重置生成新密钥',
+                    '2. 展示 Base URL（服务接入根地址）并支持一键复制',
+                    '3. 每个账户最多可生成 1 个密钥（弹窗内显示当前数量/上限）；已存在密钥时不再显示「新增」按钮',
+                    '4. 新增弹窗：密钥名称必填（最多 32 字符）、是否永久有效；选「否」时需填到期日期（到期后该 Key 无法调用接口）',
+                    '5. 列表字段：名称、API KEY、生成时间、有效期（永久或指定日期）、操作',
+                    '6. API KEY 默认脱敏展示（首 4 位 + **** + 尾 4 位），支持显示/隐藏切换与完整复制',
+                    '7. 重置：二次确认弹窗展示脱敏 Key 并警示「重置后需将新 API Key 更新到所有使用的工具，否则将导致工具不可用」；确认后生成新密钥并刷新生成时间',
+                    '8. 删除：Popconfirm 二次确认，提示「删除后将立即失效，无法恢复」；密钥列表持久化到本地，刷新后保留',
+                  ],
+                },
+              ]}
+            />
+          </Space>
         </div>
         <div style={{ color: '#64748b', lineHeight: 1.8, marginBottom: 18 }}>
           请妥善保存您的密钥信息，不要与他人共享，或者暴露在客户端代码中。为保护您的账户安全，我们可能会自动禁用任何公开泄漏的 API
@@ -1147,8 +1186,26 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
         style={{ borderRadius: 12, border: '1px solid #eef0f4' }}
         bodyStyle={{ padding: '28px 32px 12px' }}
       >
-        <div style={{ fontSize: 20, fontWeight: 600, color: '#1f2937', marginBottom: 10 }}>
-          可使用模型
+        <div style={{ marginBottom: 10 }}>
+          <Space size={8} align="center">
+            <span style={{ fontSize: 20, fontWeight: 600, color: '#1f2937' }}>
+              可使用模型
+            </span>
+            <RequirementDot
+              title="可使用模型需求说明"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1. 展示当前订阅套餐支持的模型清单：品牌（连续同品牌单元格合并、仅首行展示）、模型、模型能力',
+                    '2. 顶部提示：为保证效率最优，可能不定期更新部分模型，届时将发送站内消息',
+                    '3. 每行提供「接入信息」：弹窗展示 Base URL、API Endpoints、Model ID，均支持一键复制',
+                    '4. 「查看模型详情」跳转 Token 工厂模型广场对应模型详情页',
+                  ],
+                },
+              ]}
+            />
+          </Space>
         </div>
         <div style={{ color: '#64748b', marginBottom: 22 }}>
           当前订阅套餐支持使用以下模型列表，为保证效率最优，可能不定期更新部分模型，届时将会发送站内消息，请关注使用

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Card, Checkbox, Divider, Modal, Tag, Typography, message } from 'antd'
+import { Button, Card, Checkbox, Divider, Modal, Space, Tag, Typography, message } from 'antd'
 import {
   ArrowLeftOutlined,
   InfoCircleOutlined,
@@ -8,6 +8,7 @@ import {
 import PaymentPage from './PaymentPage'
 import AgreementPage from './AgreementPage'
 import type { AgreementType } from './AgreementPage'
+import RequirementDot from '../components/RequirementDot'
 
 type Pack = {
   id: string
@@ -163,7 +164,26 @@ export default function ResourcePackPage({ onBack }: Props) {
       <div style={{ maxWidth: 1120, margin: '0 auto', padding: 24 }}>
         <div style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0 }}>
-            购买加油包
+            <Space size={8} align="center">
+              购买加油包
+              <RequirementDot
+                title="加油包购买页需求说明"
+                sections={[
+                  {
+                    label: '',
+                    items: [
+                      '1. 加油包为固定单一档位、不可选档：Qwen-Max 特价尊享包，售价 ¥189.9（原价 ¥259.9），包含 1 亿 Tokens，有效期 1 个月',
+                      '2. 购买须知三条：生效规则（购买后立即生效，扣减顺序为 Token Plan → 加油包 → 现金账户）、有效期规则（加油包有效期按自然月，不支持同时购买多个）、退款规则（加油包不支持退款）',
+                      '3. 加油包配置卡：名称、模型描述、价格、Token 总量、有效期、支持模型（展示 3 个，其余「+N 更多」打开全量模型弹窗，含模型不定期上下架规则提示）',
+                      '4. 订单摘要：加油包名称、额度换算（100,000,000 Tokens）、有效期（到期日 = 订阅当月 + 1 个月）、原价划线、优惠金额、应付金额',
+                      '5. 须勾选《加油包购买协议》方可支付：未勾选时支付按钮置灰禁用，点击提示「请先阅读并同意《加油包购买协议》」；点击协议名打开加油包协议页',
+                      '6. 点击支付进入扫码支付页；支付成功提示「支付成功，加油包已到账」并返回上一页',
+                      '7. 订单号生成规则：时间戳（YYYYMMDDHHMMSS）+ 4 位随机数；顶栏提供「返回」与「安全支付 · 实时到账」提示',
+                    ],
+                  },
+                ]}
+              />
+            </Space>
           </h1>
         </div>
 
