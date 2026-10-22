@@ -553,7 +553,6 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
                     <span style={{ fontSize: 38, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.1 }}>
                       ¥{discounted.toFixed(2)}
                     </span>
-                    <span style={{ fontSize: 15, color: '#86909c' }}>/月</span>
                     <span style={{ fontSize: 14, color: '#a9b0bd', textDecoration: 'line-through' }}>
                       ¥{originalPrice.toFixed(2)}/月
                     </span>
