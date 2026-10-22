@@ -732,7 +732,7 @@ export default function PromoCampaignModelConfig({
                   '5.点击价格对比，展示渠道模型成本价格和返佣后价格（售价x （1-返佣比例）），如返佣后价格低于成本，需要标红。',
                   '6.支持批量设置，批量设置比例后，将所有佣金设置为新比例，此时可能会产生加倍<正常比例的情况，则关闭加倍佣金；',
                   '7.全平台适用的模型配置，不支持批量移除。',
-                  '8.批量编辑无保存按钮，所有编辑操作即时生效，完成后点击「完成」退出编辑态。',
+                  '8.批量编辑无保存按钮，所有编辑操作即时生效，点击「取消编辑」退出编辑态。',
                 ],
               },
             ]}
@@ -795,7 +795,7 @@ export default function PromoCampaignModelConfig({
                     批量移除
                   </Button>
                 )}
-                <Button onClick={handleCancelEdit}>完成</Button>
+                <Button onClick={handleCancelEdit}>取消编辑</Button>
               </>
             ) : (
               <>
