@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Button, Input, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import PageShell from '../components/PageShell'
+import RequirementDot from '../components/RequirementDot'
 import {
   PRODUCT_KIND_LABEL,
   USAGE_STATUS_COLOR,
@@ -158,6 +159,22 @@ export default function PlanUsageQuery({ onViewConsume }: Props) {
       breadcrumb={['Token Plan', '套餐用量查询']}
       listTitle="套餐用量"
       total={filtered.length}
+      titleExtra={
+        <RequirementDot
+          title="套餐用量查询 — 需求点"
+          sections={[
+            {
+              label: '',
+              items: [
+                '1. 列表：每人每笔套餐/加油包订单一行，展示订单号、用户信息（姓名/脱敏手机号/账户ID）、购买产品、产品类型、花费金额、Tokens 总量、已用 Tokens（括号内标注已用百分比）、剩余 Tokens、有效期开始/截止、当前状态。',
+                '2. 搜索：用户姓名/手机号/订单号模糊搜索；产品类型（套餐/加油包）、当前状态（使用中/已过期/未生效）筛选。',
+                '3. 剩余 Tokens 为 0 时红色警示；状态以标签展示，其余字段纯文字。',
+                '4. 点击「查看消耗明细」：跳转「套餐消耗明细」页，自动按该行订单号搜索，仅展示当前人当前套餐的消耗记录；未生效订单按钮置灰，悬停提示「套餐尚未生效，暂无消耗明细」。',
+              ],
+            },
+          ]}
+        />
+      }
       onSearch={handleSearch}
       onReset={handleReset}
       searchFields={

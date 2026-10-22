@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Input, Select, Space, Table, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import PageShell from '../components/PageShell'
+import RequirementDot from '../components/RequirementDot'
 import {
   CONSUME_ROWS,
   PRODUCT_KIND_LABEL,
@@ -157,6 +158,22 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
       breadcrumb={['Token Plan', '套餐消耗明细']}
       listTitle="消耗明细"
       total={filtered.length}
+      titleExtra={
+        <RequirementDot
+          title="套餐消耗明细 — 需求点"
+          sections={[
+            {
+              label: '',
+              items: [
+                '1. 列表：按调用逐笔展示扣费记录，列为用户信息（姓名/脱敏手机号/账户ID）、扣费来源（产品名+订单号）、扣费类型、使用模型（模型/Endpoint/账号别名）、调用时间、倍率、输入 Tokens、输出 Tokens、缓存创建 Tokens、缓存读取 Tokens、成本价（¥ 保留 4 位小数）。',
+                '2. 列表按调用时间倒序排列，每页 10 条，可切换每页条数。',
+                '3. 搜索：用户姓名/手机号/订单号模糊搜索；扣费类型（套餐/加油包）、使用模型（下拉枚举明细中出现的全部模型）筛选。',
+                '4. 从「套餐用量查询 → 查看消耗明细」跳转进入时，按带入的订单号自动完成搜索，仅展示当前人当前套餐的消耗记录；手动从菜单进入时展示全量明细。',
+              ],
+            },
+          ]}
+        />
+      }
       onSearch={handleSearch}
       onReset={handleReset}
       searchFields={

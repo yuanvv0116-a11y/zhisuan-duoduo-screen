@@ -17,6 +17,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { SHOW_ENTERPRISE } from '../constants'
+import RequirementDot from '../components/RequirementDot'
 
 const { Text } = Typography
 const { RangePicker } = DatePicker
@@ -462,9 +463,26 @@ export default function PlanStats() {
               ]}
             />
           </div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            数据截止至：2026-08-26 23:59:59
-          </Text>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              数据截止至：2026-08-26 23:59:59
+            </Text>
+            <RequirementDot
+              title="加油包与套餐统计 — 需求点"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1. 筛选：支持开始/结束日期范围搜索；统计周期快捷切换（近7天/近30天/本月/全部时间），默认全部时间；页面右上角展示数据截止时间。',
+                    '2. 概览：Token Plan套餐总数、加油包总数在前；总成本、总销售金额、总利润（标注利润率）居中；总 Token 数、已消耗、已失效、Token 失效率在后。',
+                    '3. 销售统计：套餐销售统计在左、加油包销售统计在右，各卡片展示销售数量、销售金额、成本、利润（利润率≥50% 绿色标签）。',
+                    '4. 排行榜：热门套餐 TOP 5、热门加油包 TOP 5，按销售数量倒序，展示排名、名称、销售数量、销售金额、利润与利润率；不足 5 条按实际条数展示，两张榜单卡片等高。',
+                    '5. 类型、版本等枚举字段一律纯文字展示，不加彩色标签。',
+                  ],
+                },
+              ]}
+            />
+          </div>
         </div>
       </Card>
 

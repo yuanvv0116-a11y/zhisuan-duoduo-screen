@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { SHOW_ENTERPRISE } from '../constants'
+import RequirementDot from '../components/RequirementDot'
 
 const { Text } = Typography
 const { RangePicker } = DatePicker
@@ -736,6 +737,22 @@ export default function PlanBill() {
         >
           <Space size={8}>
             <span style={{ fontWeight: 600, fontSize: 15 }}>账单列表</span>
+            <RequirementDot
+              title="套餐与加油包订单 — 需求点"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1. 搜索：订单号、产品名称、账户ID、手机号，均支持模糊搜索；交易时间按日期区间筛选。',
+                    '2. 筛选：产品类型（套餐/加油包）、订单类型（新购/续费）、支付状态（已支付/待支付/支付失败/已退款）、套餐状态（生效中/已失效/未生效），均多选，选「全部」自动清空该类其他项。',
+                    '3. 列：订单号左固定，操作列右固定；原价/优惠金额/实付金额展示 ¥ 并保留两位小数；支付状态、套餐状态用标签，其余字段纯文字。',
+                    '4. 列表按交易时间倒序排列，每页 10 条。',
+                    '5. 点击「导出」：导出当前筛选结果。',
+                    '6. 操作列点击「消耗明细」：打开弹窗，展示该订单的调用消耗记录。',
+                  ],
+                },
+              ]}
+            />
           </Space>
           <Space>
             <Button
@@ -764,7 +781,25 @@ export default function PlanBill() {
         footer={null}
         width={780}
         destroyOnClose
-        title="消耗明细"
+        title={
+          <Space size={6}>
+            消耗明细
+            <RequirementDot
+              title="消耗明细弹窗 — 需求点"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1. 入口：账单列表操作列点击「消耗明细」打开，仅展示该订单的调用记录。',
+                    '2. 顶部汇总：总成本（¥ 四位小数）、总消耗费用（¥ 两位小数），取当前订单全部调用记录求和。',
+                    '3. 明细列：调用时间、调用模型、Token消耗（千分位）、缓存命中率（进度条）、消耗费用（¥ 四位小数）。',
+                    '4. 按调用时间倒序排列，每页 10 条。',
+                  ],
+                },
+              ]}
+            />
+          </Space>
+        }
       >
         {callDetailRow && (
           <div>
