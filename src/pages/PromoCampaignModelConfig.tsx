@@ -262,14 +262,17 @@ export default function PromoCampaignModelConfig({
     })
   }, [rows, query])
 
-  const patchRow = (key: string, patch: Partial<PromoCampaignModel>) =>
-    setDraft((prev) => prev.map((m) => (rowKeyOf(m) === key ? { ...m, ...patch } : m)))
+  const patchRow = (key: string, patch: Partial<PromoCampaignModel>) => {
+    const next = draft.map((m) => (rowKeyOf(m) === key ? { ...m, ...patch } : m))
+    setDraft(next)
+    persistDraft(next)
+  }
 
   const removeRow = (key: string) => {
     const next = draft.filter((m) => rowKeyOf(m) !== key)
     setDraft(next)
     setSelectedKeys((prev) => prev.filter((k) => String(k) !== key))
-    if (!editMode) persistDraft(next)
+    persistDraft(next)
     message.success('已移除')
   }
 
@@ -337,14 +340,14 @@ export default function PromoCampaignModelConfig({
       return
     }
     const keys = new Set(selectedKeys.map((k) => String(k)))
-    setDraft((prev) =>
-      prev.map((m) => {
-        if (!keys.has(rowKeyOf(m))) return m
-        const next: PromoCampaignModel = { ...m, rate: batchRate }
-        if (m.boost && boostRateOf(m) <= batchRate) next.boostRate = batchRate + 10
-        return next
-      }),
-    )
+    const next = draft.map((m) => {
+      if (!keys.has(rowKeyOf(m))) return m
+      const patched: PromoCampaignModel = { ...m, rate: batchRate }
+      if (m.boost && boostRateOf(m) <= batchRate) patched.boostRate = batchRate + 10
+      return patched
+    })
+    setDraft(next)
+    persistDraft(next)
     message.success(`已批量设置 ${selectedKeys.length} 条模型的返佣比例为 ${batchRate}%`)
     setBatchOpen(false)
     setBatchRate(null)
@@ -355,7 +358,7 @@ export default function PromoCampaignModelConfig({
     const count = selectedKeys.length
     Modal.confirm({
       title: '确认移除吗？',
-      content: '将移除所选返佣模型，保存后该模型倍率不再参与本活动返佣',
+      content: '将移除所选返佣模型，该模型倍率不再参与本活动返佣',
       okText: '移除',
       cancelText: '取消',
       centered: true,
@@ -363,14 +366,14 @@ export default function PromoCampaignModelConfig({
         const keys = new Set(selectedKeys.map((k) => String(k)))
         const next = draft.filter((m) => !keys.has(rowKeyOf(m)))
         setDraft(next)
-        if (!editMode) persistDraft(next)
+        persistDraft(next)
         message.success(`已移除 ${count} 条返佣模型`)
         setSelectedKeys([])
       },
     })
   }
 
-  /** 将指定返佣配置写入 store，返回是否保存成功，供「保存」与只读态即时保存复用 */
+  /** 将指定返佣配置写入 store，返回是否保存成功，供各编辑操作即时落盘复用 */
   const saveRows = (rows: PromoCampaignModel[]): boolean => {
     const payload: PromoCampaignModel[] = rows.map((m) => ({
       ...m,
@@ -385,37 +388,13 @@ export default function PromoCampaignModelConfig({
     return true
   }
 
-  const doSave = (): boolean => saveRows(draft)
-
-  /** 只读态下的即时保存：加倍、添加等操作直接落盘，不打断当前浏览 */
+  /** 即时保存：加倍、添加、批量等操作直接落盘，不打断当前浏览 */
   const persistDraft = (next: PromoCampaignModel[]) => {
     saveRows(next)
   }
 
-  /** 编辑态「保存」：写入活动并回到只读态 */
-  const handleSave = () => {
-    if (!doSave()) return
-    message.success('保存成功')
-    exitEditMode()
-  }
-
   const handleBack = () => {
-    if (!editMode) {
-      onBack()
-      return
-    }
-    Modal.confirm({
-      title: '确认返回吗？',
-      content: '为避免数据丢失，请确认已保存好最新信息',
-      okText: '确认保存，返回',
-      cancelText: '取消',
-      centered: true,
-      onOk: () => {
-        if (!doSave()) return false
-        message.success('保存成功')
-        onBack()
-      },
-    })
+    onBack()
   }
 
   /** ================= 添加返佣模型弹窗 ================= */
@@ -511,7 +490,7 @@ export default function PromoCampaignModelConfig({
       }))
     const next = [...draft, ...added]
     setDraft(next)
-    if (!editMode) persistDraft(next)
+    persistDraft(next)
     message.success(`已添加 ${added.length} 条返佣模型`)
     setAddOpen(false)
   }
@@ -753,7 +732,7 @@ export default function PromoCampaignModelConfig({
                   '5.点击价格对比，展示渠道模型成本价格和返佣后价格（售价x （1-返佣比例）），如返佣后价格低于成本，需要标红。',
                   '6.支持批量设置，批量设置比例后，将所有佣金设置为新比例，此时可能会产生加倍<正常比例的情况，则关闭加倍佣金；',
                   '7.全平台适用的模型配置，不支持批量移除。',
-                  '8.批量操作需要保存后方可生效。',
+                  '8.批量编辑无保存按钮，所有编辑操作即时生效，完成后点击「完成」退出编辑态。',
                 ],
               },
             ]}
@@ -816,10 +795,7 @@ export default function PromoCampaignModelConfig({
                     批量移除
                   </Button>
                 )}
-                <Button onClick={handleCancelEdit}>取消编辑</Button>
-                <Button type="primary" size="large" style={{ paddingLeft: 28, paddingRight: 28 }} onClick={handleSave}>
-                  保存
-                </Button>
+                <Button onClick={handleCancelEdit}>完成</Button>
               </>
             ) : (
               <>
