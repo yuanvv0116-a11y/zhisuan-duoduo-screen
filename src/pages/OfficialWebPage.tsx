@@ -332,7 +332,8 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
                       '2. 设置产品标签的，在右上角展示产品标签的文字。',
                       '3. 设置「默认选中产品」的，该产品默认选中；鼠标悬浮到其他套餐时，选中其他套餐，默认选中套餐不再选中；鼠标不在任何套餐悬浮时，恢复默认状态，选中配置为「默认选中产品」的套餐。',
                       '4. 如未设置划线价，则不展示划线价。',
-                      '5. 点击「立即订阅」：已登录的直接跳转到控制台「Token Plan 概览」页面；未登录的需要登录后跳转。',
+                      '5. 套餐卡片在价格下方展示 Token 量，取自后台套餐配置，如「Token 量：100,000 Tokens」。',
+                      '6. 点击「立即订阅」：已登录的直接跳转到控制台「Token Plan 概览」页面；未登录的需要登录后跳转。',
                     ],
                   },
                 ]}
@@ -502,6 +503,11 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
                     <span style={{ fontSize: 14, color: '#a9b0bd', textDecoration: 'line-through' }}>
                       ¥{originalPrice.toFixed(2)}/月
                     </span>
+                  </div>
+
+                  {/* Token 量：来自后台套餐配置的 totalTokens */}
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 14 }}>
+                    Token 量：{(plan.totalTokens ?? 0).toLocaleString()} Tokens
                   </div>
 
                   <div style={{ borderTop: '1px solid #f0f2f5', paddingTop: 14, marginBottom: 20 }}>
