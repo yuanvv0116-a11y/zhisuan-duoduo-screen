@@ -4,6 +4,7 @@ import { Button, Input, Modal, Popconfirm, Select, Space, Table, Tooltip, Typogr
 import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import PageShell from '../components/PageShell'
+import RequirementDot from '../components/RequirementDot'
 import SearchField from '../components/SearchField'
 import { buildModelRatePool, PROMO_ROW_KEY, useChannels, useModels, usePlanModels } from '../store'
 import type { PlanModelConfig as PlanModelRow, TokenPlan } from '../types'
@@ -365,6 +366,23 @@ export default function PlanModelConfig({ plan, onBack }: { plan: TokenPlan; onB
         listTitle={`已配置模型 ${rows.length} 个`}
         total={filtered.length}
         hideTotal
+        titleExtra={
+          <RequirementDot
+            title="配置模型 — 需求点"
+            sections={[
+              {
+                label: '',
+                items: [
+                  '1. 列表：展示本套餐已配置的模型倍率，列为模型名称（同名合并单元格）、渠道、倍率、操作；每页 10 条，可切换。',
+                  '2. 搜索：模型名称模糊搜索；渠道、倍率下拉筛选。',
+                  '3. 操作列点击「删除」：二次确认后，该模型倍率不再属于本套餐。',
+                  '4. 勾选多行后点击「批量删除」：按钮置灰直至有勾选，二次确认后移除所选模型倍率。',
+                  '5. 点击「添加模型」：打开添加模型弹窗，从未配置的模型池中选择。',
+                ],
+              },
+            ]}
+          />
+        }
         listActions={
           <Space size={8}>
             <Popconfirm
@@ -412,7 +430,24 @@ export default function PlanModelConfig({ plan, onBack }: { plan: TokenPlan; onB
         centered
         destroyOnClose
         width={720}
-        title="添加模型"
+        title={
+          <Space size={6} align="center">
+            添加模型
+            <RequirementDot
+              title="添加模型弹窗 — 需求点"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1. 展示未被本套餐配置的可选模型池：模型名称（同名合并单元格）、渠道、倍率，多选。',
+                    '2. 搜索：模型名称模糊搜索；渠道、倍率下拉筛选；支持重置。',
+                    '3. 点击「确认添加」：未勾选提示「请选择模型倍率」；验证通过加入套餐，提示已添加数量，弹窗关闭、列表刷新。',
+                  ],
+                },
+              ]}
+            />
+          </Space>
+        }
         open={addOpen}
         okText="确认添加"
         cancelText="取消"
