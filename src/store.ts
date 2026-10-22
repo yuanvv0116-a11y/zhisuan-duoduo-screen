@@ -5545,9 +5545,6 @@ export function applyWithdraw(
   const partner = promoPartnerStore.get().find((p) => p.id === partnerId)
   if (!partner) return { ok: false, msg: '合伙人不存在' }
   if (partner.status === 'frozen') return { ok: false, msg: '账号已冻结，暂不可提现' }
-  if (promoWithdrawStore.get().some((w) => w.partnerId === partnerId && w.status === 'pending')) {
-    return { ok: false, msg: '已有提现申请待审核，请等待处理后再申请' }
-  }
   if (amount < PROMO_WITHDRAW_MIN) return { ok: false, msg: `单笔提现需满 ${PROMO_WITHDRAW_MIN} 元` }
   if (roundAmount(amount, 2) > roundAmount(partner.availableCommission, 2)) return { ok: false, msg: '可用佣金余额不足' }
   const now = new Date()

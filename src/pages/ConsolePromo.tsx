@@ -43,8 +43,6 @@ import {
   exchangeCommissionToVoucher,
   isCampaignInPeriod,
   isPromoCampaignActive,
-  loadWithdrawAccountNo,
-  loadWithdrawBankName,
   promoEffectiveRate,
   usePromoCampaigns,
   usePromoCommissions,
@@ -156,7 +154,8 @@ const ACTIVITY_RULES: { title: string; items: string[] }[] = [
   },
 ]
 
-const maskAccountNo = (no: string) => (no.length > 8 ? `${no.slice(0, 4)} **** **** ${no.slice(-4)}` : no)
+/** 绑定打款微信号（演示数据，脱敏展示） */
+const WITHDRAW_WECHAT_MASKED = 'wx_****8866'
 
 const copyText = async (value: string) => {
   if (navigator.clipboard && window.isSecureContext) {
@@ -211,9 +210,6 @@ export default function ConsolePromo() {
   const [withdrawAmount, setWithdrawAmount] = useState<number | null>(null)
   /** 提现 / 兑换记录弹窗（从申请提现弹窗内进入） */
   const [payoutRecordOpen, setPayoutRecordOpen] = useState(false)
-  /** 收款人固定为实名认证本人，不提供输入，防止提现到他人账户 */
-  const [accountNo, setAccountNo] = useState(loadWithdrawAccountNo)
-  const [bankName, setBankName] = useState(loadWithdrawBankName)
   /** 推广活动列表中，当前要生成海报的活动 */
   const [posterForCampaign, setPosterForCampaign] = useState<PromoCampaign | null>(null)
   /** 推广活动列表「查看返佣模型」：当前查看的活动 */
@@ -282,8 +278,6 @@ export default function ConsolePromo() {
         : [],
     [withdraws, me],
   )
-  /** 存在待审核提现申请时不再允许重复提交，与 store 层 applyWithdraw 校验保持一致 */
-  const hasPendingWithdraw = useMemo(() => myWithdraws.some((w) => w.status === 'pending'), [myWithdraws])
   const myExchanges = useMemo(
     () =>
       me
@@ -317,17 +311,6 @@ export default function ConsolePromo() {
     if (onCampaign.length === 0) return null
     return onCampaign.reduce((best, r) => (r.rate > best.rate ? r : best))
   }, [activeRules])
-  const monthPrefix = useMemo(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-  }, [])
-  const monthCommission = useMemo(
-    () =>
-      myCommissions
-        .filter((c) => c.at.startsWith(monthPrefix))
-        .reduce((acc, c) => acc + c.amount, 0),
-    [myCommissions, monthPrefix],
-  )
   useEffect(() => {
     if (!me) enrollPromoPartner(CURRENT_CONSOLE_USER)
   }, [me])
@@ -379,15 +362,7 @@ export default function ConsolePromo() {
 
   const handleWithdraw = () => {
     if (!me) return
-    if (!bankName.trim()) {
-      message.error('请填写开户行')
-      return
-    }
-    if (!accountNo.trim()) {
-      message.error('请填写收款银行账号')
-      return
-    }
-    const res = applyWithdraw(me.id, withdrawAmount ?? 0, CURRENT_CONSOLE_USER.nickname, accountNo.trim(), bankName.trim())
+    const res = applyWithdraw(me.id, withdrawAmount ?? 0, CURRENT_CONSOLE_USER.nickname, '', '')
     if (!res.ok) {
       message.error(res.msg)
       return
@@ -396,7 +371,7 @@ export default function ConsolePromo() {
     setWithdrawAmount(null)
     Modal.success({
       title: '提现申请已提交，请等待审核',
-      content: '进度情况可在【收益明细】》【提现记录】中查看。',
+      content: '进度情况可在【提现申请】》【提现记录 / 兑换记录 ›】中查看。',
       okText: '知道了',
       centered: true,
     })
@@ -701,22 +676,10 @@ export default function ConsolePromo() {
         ),
     },
     {
-      title: '收款人',
-      dataIndex: 'accountName',
-      width: 100,
-      render: (v?: string) => (v ? <Text>{maskName(v)}</Text> : <Text type="secondary">—</Text>),
-    },
-    {
-      title: '开户行',
-      dataIndex: 'bankName',
-      width: 120,
-      render: (v?: string) => (v ? <Text>{v}</Text> : <Text type="secondary">—</Text>),
-    },
-    {
-      title: '收款账号',
-      dataIndex: 'accountNo',
-      width: 150,
-      render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{maskAccountNo(v)}</Text>,
+      title: '收款微信号',
+      key: 'wechat',
+      width: 130,
+      render: () => <Text>{WITHDRAW_WECHAT_MASKED}</Text>,
     },
     {
       title: '状态',
@@ -988,7 +951,7 @@ export default function ConsolePromo() {
             </div>
             <div style={{ display: 'flex', marginTop: 12 }}>
               {[
-                { label: `${monthPrefix} 佣金（元）`, amount: monthCommission },
+                { label: '可提现金额（元）', amount: me.availableCommission },
                 { label: '累计佣金（元）', amount: me.totalCommission },
               ].map((m, idx) => (
                 <div
@@ -1010,9 +973,8 @@ export default function ConsolePromo() {
                             {
                               label: '需求内容',
                               items: [
-                                '1.月佣金：展示当月佣金总额，包括已提现、申请提现和兑换代金券的；',
-                                '2.累计佣金 展示所有获得过的佣金总和，包括已提现、申请提现和兑换代金券的；',
-                                '3.可提现金额=累计佣金-已提现-已申请提现待审核-已兑券的',
+                                '1.累计佣金 展示所有获得过的佣金总和，包括已提现、申请提现和兑换代金券的；',
+                                '2.可提现金额=累计佣金-已提现-已申请提现待审核-已兑券的',
                               ],
                             },
                           ]}
@@ -1024,34 +986,23 @@ export default function ConsolePromo() {
                     <span style={{ fontSize: 20, fontWeight: 600, marginRight: 4 }}>¥</span>
                     {numCn(m.amount)}
                   </div>
-                  {idx === 0 && (
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>月度收益包含已提现和已兑券金额</div>
-                  )}
                 </div>
               ))}
+            </div>
+            <div style={{ fontSize: 8, color: '#fff', opacity: 0.85, marginTop: 16 }}>
+              每日 23:59 统一结算更新当日返佣，以避免单次计佣误差带来的收入损失
             </div>
             <div
               style={{
                 display: 'flex',
-                justifyContent: 'space-between',
                 alignItems: 'center',
                 gap: 16,
                 flexWrap: 'wrap',
-                marginTop: 20,
+                marginTop: 8,
                 paddingTop: 16,
                 borderTop: '1px solid rgba(255,255,255,0.24)',
               }}
             >
-              <Tooltip title={`可兑券或提现的金额，满 ${PROMO_WITHDRAW_MIN} 元可申请提现`}>
-                <div style={{ fontSize: 13, opacity: 0.9 }}>
-                  <WalletOutlined style={{ marginRight: 6 }} />
-                  可提现（元）
-                  <span style={{ fontSize: 20, fontWeight: 700, marginLeft: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, marginRight: 3 }}>¥</span>
-                    {numCn(me.availableCommission)}
-                  </span>
-                </div>
-              </Tooltip>
               <Space wrap>
                 <Button
                   style={{ background: '#fff', color: token.colorPrimary, fontWeight: 500, border: 'none' }}
@@ -1061,15 +1012,13 @@ export default function ConsolePromo() {
                 >
                   兑换代金券
                 </Button>
-                <Tooltip title={hasPendingWithdraw ? '已有提现申请待审核，请等待处理' : undefined}>
-                  <Button
-                    style={{ background: 'rgba(255,255,255,0.16)', color: '#fff', border: '1px solid rgba(255,255,255,0.65)', fontWeight: 500 }}
-                    disabled={frozen || hasPendingWithdraw}
-                    onClick={() => setWithdrawOpen(true)}
-                  >
-                    申请提现
-                  </Button>
-                </Tooltip>
+                <Button
+                  style={{ background: '#fff', color: token.colorPrimary, fontWeight: 500, border: 'none' }}
+                  disabled={frozen}
+                  onClick={() => setWithdrawOpen(true)}
+                >
+                  申请提现
+                </Button>
               </Space>
             </div>
           </div>
@@ -1290,13 +1239,11 @@ export default function ConsolePromo() {
                 {
                   label: '需求内容',
                   items: [
-                    '1.弹窗展示如图，此处展示可提现金额，即佣金总额-已兑换-已申请提现待审核-已提现金额。',
-                    '2.收款人需为当前分销人的实名姓名；不可更改。如为企业实名账户，则可下拉选择收款的为企业/法人/被授权人（法人/被授权人哪个不为空就展示哪个）；\n如当前登录人未实名，“为保证提款安全，收款人须为实名认证本人。”下方不展示收款账户输入信息，展示“请先实名认证”按钮，点击后跳转到实名认证页面。实名认证后方可申请提现。',
-                    '3.开户行和账号均为输入，限制200字；',
-                    '4.如不满足最低提现金额，则提交申请时提示“最低提现金额为100元”',
-                    '5.提交后应检查账户金额是否充足，检查当前人员是否提现权利被冻结。如被冻结提示“当前账户已冻结，暂不支持提现”如成功提交，则提示提交成功，本次提现金额冻结，可提现金额减少。后台展示提现待审核信息。\n如后台通过本次提现，则本次金额真实扣减。\n如驳回，则应返还本次提现金额到可提现账户中；',
-                    '6.提现申请提交成功后，再次申请提现，应展示上次填写的收款人、开户行、银行账号。',
-                    '7.点击提现记录 / 兑换记录 ，展示提现记录 / 兑换记录，并默认选中提现记录，按照申请时间倒序展示，字段如图。提现记录上方应统计已成功提现总金额。\n列表中备注信息为：提现申请通过时间+"审核通过，打款完成"',
+                    '1.系统检测用户是否绑定打款微信，如未绑定，则弹窗展示二维码，并在上方提示“请扫描下方二维码绑定微信，提现审核通过后，佣金将自动发放至该微信账户。”',
+                    '2.如已绑定，弹窗展示如图，此处展示可提现金额，即佣金总额-已兑换-已申请提现待审核-已提现金额。',
+                    '3.如不满足最低提现金额，则提交申请时提示“最低提现金额为100元”',
+                    '4.提交后应检查账户金额是否充足，检查当前人员是否提现权利被冻结。如被冻结提示“当前账户已冻结，暂不支持提现”如成功提交，则提示提交成功，本次提现金额冻结，可提现金额减少。后台展示提现待审核信息。\n如后台通过本次提现，则本次金额真实扣减。\n如驳回，则应返还本次提现金额到可提现账户中；',
+                    '5.点击提现记录 / 兑换记录 ，展示提现记录 / 兑换记录，并默认选中提现记录，按照申请时间倒序展示，字段如图。提现记录上方应统计已成功提现总金额。\n列表中备注信息为：提现申请通过时间+"审核通过，打款完成"',
                   ],
                 },
               ]}
@@ -1314,7 +1261,10 @@ export default function ConsolePromo() {
         <Text type="secondary" style={{ fontSize: 12 }}>
           审核通过后 1-3 个工作日打款，审核未通过时金额自动退回佣金账户。平台按税务要求代扣个税（实际以发放时核算为准）。
         </Text>
-        <div style={{ margin: '12px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ marginTop: 12 }}>
+          收款微信号：<span style={{ fontWeight: 600, color: '#1f2d4d' }}>{WITHDRAW_WECHAT_MASKED}</span>
+        </div>
+        <div style={{ marginTop: 24, marginBottom: 12, fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
           <span>
             可提现金额：<span style={{ fontWeight: 600, color: '#1f2d4d' }}>{money(me.availableCommission)}</span>
             <Text type="secondary">（最低提现金额 {PROMO_WITHDRAW_MIN} 元）</Text>
@@ -1339,22 +1289,6 @@ export default function ConsolePromo() {
           value={withdrawAmount}
           onChange={setWithdrawAmount}
         />
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          为保证提款安全，收款人须为实名认证本人。
-        </Text>
-        <Input
-          style={{ marginTop: 12, marginBottom: 12 }}
-          placeholder="姓名"
-          value={maskName(CURRENT_CONSOLE_USER.nickname)}
-          disabled
-        />
-        <Input
-          style={{ marginBottom: 12 }}
-          placeholder="开户行"
-          value={bankName}
-          onChange={(e) => setBankName(e.target.value)}
-        />
-        <Input placeholder="银行账号" value={accountNo} onChange={(e) => setAccountNo(e.target.value)} />
       </Modal>
 
       <Modal

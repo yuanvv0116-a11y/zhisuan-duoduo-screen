@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Card, Checkbox, Button, Tag, message } from 'antd'
+import { Card, Checkbox, Button, Tag, Switch, message } from 'antd'
 import { WechatOutlined, ArrowLeftOutlined, InfoCircleOutlined, CheckCircleFilled } from '@ant-design/icons'
 import type { AgreementType } from './AgreementPage'
 
@@ -46,7 +46,7 @@ const PURCHASE_RULES = [
   {
     title: '计费规则',
     tag: '计费规则',
-    items: ['订阅模式', '不支持退订'],
+    items: ['包月订阅模式', '不支持退订'],
   },
   {
     title: '变更规则',
@@ -62,6 +62,7 @@ const PURCHASE_RULES = [
 
 export default function EnterpriseCheckoutPage({ plan, onBack, onPay, onOpenAgreement }: Props) {
   const [duration, setDuration] = useState<Duration>('month')
+  const [autoRenew, setAutoRenew] = useState(false)
   const [agreeTerms, setAgreeTerms] = useState(false)
 
   const basePrice = parseFloat(plan.price)
@@ -86,7 +87,7 @@ export default function EnterpriseCheckoutPage({ plan, onBack, onPay, onOpenAgre
 
   const quotaLabel = useMemo(() => {
     const quotaPerMonth = plan.id === 'light' ? '5,000万' : '10万'
-    const unit = 'Tokens/月'
+    const unit = plan.id === 'light' ? 'tokens/月' : '积分/月'
     return `${quotaPerMonth} ${unit}`
   }, [plan.id])
 
@@ -113,7 +114,7 @@ export default function EnterpriseCheckoutPage({ plan, onBack, onPay, onOpenAgre
   }
 
   const QUOTA_PER_MONTH = plan.id === 'light' ? '5,000万' : '10万'
-  const QUOTA_UNIT = 'Tokens'
+  const QUOTA_UNIT = plan.id === 'light' ? 'Token' : '积分'
 
   return (
     <div style={{ background: '#f0f2f5', minHeight: '100vh' }}>
@@ -282,7 +283,7 @@ export default function EnterpriseCheckoutPage({ plan, onBack, onPay, onOpenAgre
                     <>
                       <div style={{ fontSize: 13, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ color: '#52c41a', fontSize: 12 }}>●</span>
-                        每月：{QUOTA_PER_MONTH} {QUOTA_UNIT}
+                        每订阅月：{QUOTA_PER_MONTH} {QUOTA_UNIT}
                       </div>
                       <div style={{ fontSize: 13, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ color: '#52c41a', fontSize: 12 }}>●</span>
@@ -297,7 +298,7 @@ export default function EnterpriseCheckoutPage({ plan, onBack, onPay, onOpenAgre
                     <>
                       <div style={{ fontSize: 13, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ color: '#52c41a', fontSize: 12 }}>●</span>
-                        每月：{QUOTA_PER_MONTH} {QUOTA_UNIT}
+                        每订阅月：{QUOTA_PER_MONTH} {QUOTA_UNIT}
                       </div>
                       <div style={{ fontSize: 13, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ color: '#52c41a', fontSize: 12 }}>●</span>
@@ -371,6 +372,22 @@ export default function EnterpriseCheckoutPage({ plan, onBack, onPay, onOpenAgre
                     )
                   })}
                 </div>
+              </div>
+
+              {/* 自动续费 */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 14, color: '#374151', fontWeight: 500, marginBottom: 4 }}>
+                    自动续费
+                  </div>
+                  <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.5 }}>
+                    到期后将从账户中自动续费，可在订阅管理中随时取消，账户余额不足，会导致扣费失败，无法继续使用。
+                  </div>
+                </div>
+                <Switch
+                  checked={autoRenew}
+                  onChange={(checked) => setAutoRenew(checked)}
+                />
               </div>
             </Card>
           </div>
@@ -460,43 +477,41 @@ export default function EnterpriseCheckoutPage({ plan, onBack, onPay, onOpenAgre
                       onClick={() => onOpenAgreement?.('subscription')}
                       style={{ color: '#2f6bff', margin: '0 4px', cursor: 'pointer' }}
                     >
-                      《服务协议》
+                      《套餐购买协议》
                     </a>
-                    与
                     <a
                       onClick={() => onOpenAgreement?.('renewal')}
                       style={{ color: '#2f6bff', margin: '0 4px', cursor: 'pointer' }}
                     >
-                      《隐私政策》
-                    </a>
-                    ，确认订阅
-                    <a
-                      onClick={() => onOpenAgreement?.('subscription')}
-                      style={{ color: '#2f6bff', margin: '0 4px', cursor: 'pointer' }}
-                    >
-                      《套餐购买协议》
+                      《订阅及续费协议》
                     </a>
                   </span>
                 </Checkbox>
               </div>
 
-              <div style={{ marginTop: 16 }}>
+              <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
+                <Button
+                  size="large"
+                  onClick={onBack}
+                  style={{ flex: 1, height: 44, borderRadius: 8 }}
+                >
+                  取消
+                </Button>
                 <Button
                   type="primary"
                   size="large"
-                  block
                   onClick={handlePay}
                   style={{
+                    flex: 1,
                     height: 44,
-                    borderRadius: 10,
+                    borderRadius: 8,
                     background: '#2f6bff',
                     borderColor: '#2f6bff',
                     fontSize: 15,
-                    fontWeight: 600,
-                    boxShadow: '0 4px 12px rgba(47, 107, 255, 0.25)',
+                    fontWeight: 500,
                   }}
                 >
-                  去支付 ¥{total}
+                  去支付
                 </Button>
               </div>
 
@@ -517,23 +532,6 @@ export default function EnterpriseCheckoutPage({ plan, onBack, onPay, onOpenAgre
                 <span>
                   点击"去支付"即表示同意套餐规则，套餐一经订阅开通不支持退费、降配。实际扣费以账单为准。
                 </span>
-              </div>
-
-              <div
-                style={{
-                  marginTop: 8,
-                  padding: '10px 12px',
-                  background: '#f0f5ff',
-                  borderRadius: 6,
-                  fontSize: 12,
-                  color: '#6b7280',
-                  lineHeight: 1.6,
-                  display: 'flex',
-                  gap: 6,
-                }}
-              >
-                <InfoCircleOutlined style={{ flexShrink: 0, marginTop: 2, color: '#2f6bff' }} />
-                <span>去支付支付成功后将自动开始服务，可在「我的订阅」中查看</span>
               </div>
             </Card>
           </div>

@@ -280,12 +280,14 @@ export const RELEASES: Record<string, ReleaseItem> = {
     ].join('\n'),
   },
 
-  /** ===== 2.4：推广合伙人计划雏形（未发布，仅本地评审） ===== */
+  /** ===== 2.4：推广合伙人计划雏形 ===== */
   '2.4': {
     title: '2.4 推广合伙人：分享一条链接，最高返 20%',
-    routeKeys: ['promoPartnerManage', 'promoRebateConfig', 'promoSettleAudit'],
+    routeKeys: ['promoPartnerManage', 'promoRebateConfig', 'promoCommissionDetail', 'promoSettleAudit', 'promoStats', 'voucherIssueCenter'],
+    consoleKeys: ['tf:overview', 'promo', 'login'],
+    websiteKeys: ['promo'],
     views: ['admin', 'console', 'website'],
-    publishedAt: '',
+    publishedAt: '2026-10-15',
     note: [
       '1. 管理后台 新增一级菜单「分销管理」，下挂三页：',
       '· [promoPartnerManage]推广合伙人：合伙人台账（邀请/实名/首耗漏斗、累计与可用佣金、已兑券·已提现），支持关键词与状态搜索、行内冻结/解冻、行内「佣金明细」弹窗',
@@ -299,13 +301,13 @@ export const RELEASES: Record<string, ReleaseItem> = {
     ].join('\n'),
   },
 
-  /** ===== 2.5：Token工厂 概览数据概览 + 用量统计（未发布，仅本地评审） ===== */
+  /** ===== 2.5：Token工厂 概览数据概览 + 用量统计 ===== */
   '2.5': {
     title: '2.5 Token工厂 概览跳转用量统计',
     routeKeys: [],
     consoleKeys: ['tf:overview', 'tf:plaza', 'tf:usage'],
     views: ['console'],
-    publishedAt: '',
+    publishedAt: '2026-10-15',
     note: [
       '1. [tf:overview]概览：数据概览卡右上角「查看详情」跳转到统计分析 › 用量统计',
       '2. [tf:usage]用量统计：新增页面，统计时间（今日/近7天/近30天/近90天 + 自定义区间）+ 四项统计卡 + 按天用量趋势 + 模型明细分页表',
@@ -313,14 +315,14 @@ export const RELEASES: Record<string, ReleaseItem> = {
     ].join('\n'),
   },
 
-  /** ===== 2.6：分销管理 分佣明细独立页 + 分销数据弹窗 + 佣金兑券可见性（未发布，仅本地评审） ===== */
+  /** ===== 2.6：分销管理 分佣明细独立页 + 分销数据弹窗 + 佣金兑券可见性 ===== */
   '2.6': {
     title: '2.6 分销管理：分佣明细页 & 分销数据 & 分销统计',
     routeKeys: ['promoPartnerManage', 'promoRebateConfig', 'promoCommissionDetail', 'promoSettleAudit', 'promoStats', 'voucherIssueCenter'],
     consoleKeys: ['tf:overview', 'promo', 'login'],
     websiteKeys: ['promo'],
     views: ['admin', 'console', 'website'],
-    publishedAt: '',
+    publishedAt: '2026-10-15',
     note: [
       '1. [promoCommissionDetail]增加分佣明细菜单，只记录消耗返佣的计佣流水。支持按分销员、被邀请人、计佣时间、活动筛选，支持按筛选结果导出',
       '2. [promoPartnerManage]合伙人台账支持查看单个分销员的分销数据，包含邀请与转化消费人数、被邀请人完整名单（含注册后未消费的用户）。行内支持一键跳转该分销员的分佣明细',
