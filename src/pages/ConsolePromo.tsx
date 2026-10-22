@@ -676,7 +676,7 @@ export default function ConsolePromo() {
         ),
     },
     {
-      title: '收款微信号',
+      title: '收款微信',
       key: 'wechat',
       width: 130,
       render: () => <Text>{WITHDRAW_WECHAT_MASKED}</Text>,
