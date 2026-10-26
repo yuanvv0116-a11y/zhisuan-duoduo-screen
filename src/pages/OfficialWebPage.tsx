@@ -616,21 +616,7 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
       <section id="tp-section-resourcePack" style={{ padding: '98px 24px 0', scrollMarginTop: 80 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 30, color: '#1a1a1a', fontWeight: 700 }}>
-            <Space size={8} align="center">
-              低价大额度加油包，赋能业务高效落地
-              <RequirementDot
-                title="加油包宣传区 — 需求点"
-                sections={[
-                  {
-                    label: '',
-                    items: [
-                      '1. 本区域为官网宣传内容：不展示实际加油包产品与价格，不提供购买入口。',
-                      '2. 标题下方以宣传卡片展示加油包价值点（大额补给 / 灵活叠加 / 多模覆盖 / 长效可用）：浅蓝渐变底带上排布白色圆角卡片，卡片含 3D 托盘式图标、标题、描述与底部蓝色装饰短横线，无购买入口。',
-                    ],
-                  },
-                ]}
-              />
-            </Space>
+            低价大额度加油包，赋能业务高效落地
           </Title>
           <Paragraph style={{ textAlign: 'center', color: '#86909c', margin: '10px 0 24px', fontSize: 14 }}>
             大额度一次补足，灵活叠加不清零！
