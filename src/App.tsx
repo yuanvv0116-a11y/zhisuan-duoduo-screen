@@ -1484,15 +1484,7 @@ export default function App() {
                   setLoginMode(true)
                   return
                 }
-                if (getPromoSession()) {
-                  /** 已登录：直接跳转到该套餐的「购买 Token Plan 套餐」结算页 */
-                  setViewMode('console')
-                  setConsoleSubPage('tokenPlan')
-                  setCheckoutPlan(plan)
-                  setPaymentData(null)
-                  return
-                }
-                /** 未登录：先进登录页，登录成功后跳转到该套餐的结算页 */
+                /** 统一先跳转到登录页，登录成功后进入该套餐的「购买 Token Plan 套餐」结算页 */
                 setPendingCheckoutPlan(plan)
                 setLoginReturn('purchaseCheckout')
                 setLoginMode(true)
