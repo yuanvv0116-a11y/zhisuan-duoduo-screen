@@ -751,8 +751,8 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
                     items: [
                       '1. 展示 Token Plan 兼容 OpenAI / Anthropic 协议的主流 AI 工具，仅作品牌展示，无点击跳转与下载入口。',
                       '2. 原「模型普惠，创新到位」Banner 已移除，本区块上移至加油包宣传区之后，作为官网收尾展示区。',
-                      '3. 工具以双行跑马灯形式左右反向流动（首行向左、次行向右），无边框展示：品牌图标 + 品牌色悬浮光晕、名称、两句定位说明与品牌色三点装饰。',
-                      '4. 鼠标悬停单行时该行流动暂停，悬停工具项保留上浮、图标放大、名称变品牌色等交互效果。',
+                      '3. 工具双行静态展示（首行 5 个、次行 4 个，居中排布），无边框：品牌图标 + 品牌色悬浮光晕、名称、两句定位说明与品牌色三点装饰。',
+                      '4. 悬停单个工具项有上浮、图标放大、名称变品牌色等轻量交互效果，无自动轮播动画。',
                     ],
                   },
                 ]}
@@ -776,75 +776,73 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
             .ai-tool-item:hover .ai-tool-dot { transform: scale(1.35); }
             .ai-tool-item:hover .ai-tool-dot:nth-child(2) { transition-delay: 0.06s; }
             .ai-tool-item:hover .ai-tool-dot:nth-child(3) { transition-delay: 0.12s; }
-            .ai-marquee { overflow: hidden; margin-top: 56px; -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%); }
-            .ai-marquee + .ai-marquee { margin-top: 40px; }
-            .ai-marquee-track { display: flex; width: max-content; animation: ai-marquee-left 32s linear infinite; }
-            .ai-marquee-track.reverse { animation: ai-marquee-right 32s linear infinite; }
-            .ai-marquee-track:hover { animation-play-state: paused; }
-            @keyframes ai-marquee-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-            @keyframes ai-marquee-right { from { transform: translateX(-50%); } to { transform: translateX(0); } }
-            @media (prefers-reduced-motion: reduce) {
-              .ai-marquee-track { animation: none; }
-            }
           `}</style>
         </div>
 
-        {/* 双行左右反向流动（悬停暂停） */}
+        {/* 双行静态展示：首行 5 个、次行 4 个，居中排布 */}
         {[AI_TOOLS.slice(0, 5), AI_TOOLS.slice(5)].map((rowTools, rowIdx) => (
-          <div key={rowIdx} className="ai-marquee">
-            <div className={`ai-marquee-track${rowIdx % 2 === 1 ? ' reverse' : ''}`}>
-              {[...rowTools, ...rowTools].map((tool, idx) => (
-                <div
-                  key={`${tool.name}-${idx}`}
-                  className="ai-tool-item"
-                  style={{
-                    flex: '0 0 auto',
-                    width: 248,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    textAlign: 'center',
-                    ...({ '--accent': tool.accent } as Record<string, string>),
-                  }}
-                >
-                  {/* 图标 + 品牌色光晕 */}
-                  <span style={{ position: 'relative', width: 96, height: 96, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span
-                      className="ai-tool-glow"
-                      style={{
-                        position: 'absolute',
-                        bottom: 4,
-                        left: '50%',
-                        width: 92,
-                        height: 24,
-                        borderRadius: '50%',
-                        background: `${tool.accent}40`,
-                        filter: 'blur(9px)',
-                      }}
-                    />
-                    <img
-                      className="ai-tool-icon"
-                      src={tool.icon}
-                      alt={tool.name}
-                      style={{ position: 'relative', width: 72, height: 72, objectFit: 'contain', display: 'block' }}
-                    />
-                  </span>
-                  <div className="ai-tool-name" style={{ fontSize: 19, fontWeight: 700, color: '#1a1a1a', margin: '20px 0 10px' }}>
-                    {tool.name}
-                  </div>
-                  {tool.lines.map((line) => (
-                    <div key={line} style={{ fontSize: 13, color: '#86909c', lineHeight: 1.9 }}>
-                      {line}
-                    </div>
-                  ))}
-                  <span style={{ display: 'inline-flex', gap: 6, marginTop: 16 }}>
-                    {[0.9, 0.45, 0.22].map((o) => (
-                      <span key={o} className="ai-tool-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: tool.accent, opacity: o }} />
-                    ))}
-                  </span>
+          <div
+            key={rowIdx}
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              columnGap: 24,
+              rowGap: 40,
+              marginTop: rowIdx === 0 ? 64 : 44,
+              padding: '0 24px',
+            }}
+          >
+            {rowTools.map((tool) => (
+              <div
+                key={tool.name}
+                className="ai-tool-item"
+                style={{
+                  width: 224,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  ...({ '--accent': tool.accent } as Record<string, string>),
+                }}
+              >
+                {/* 图标 + 品牌色光晕 */}
+                <span style={{ position: 'relative', width: 96, height: 96, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span
+                    className="ai-tool-glow"
+                    style={{
+                      position: 'absolute',
+                      bottom: 4,
+                      left: '50%',
+                      width: 92,
+                      height: 24,
+                      borderRadius: '50%',
+                      background: `${tool.accent}40`,
+                      filter: 'blur(9px)',
+                    }}
+                  />
+                  <img
+                    className="ai-tool-icon"
+                    src={tool.icon}
+                    alt={tool.name}
+                    style={{ position: 'relative', width: 72, height: 72, objectFit: 'contain', display: 'block' }}
+                  />
+                </span>
+                <div className="ai-tool-name" style={{ fontSize: 19, fontWeight: 700, color: '#1a1a1a', margin: '20px 0 10px' }}>
+                  {tool.name}
                 </div>
-              ))}
-            </div>
+                {tool.lines.map((line) => (
+                  <div key={line} style={{ fontSize: 13, color: '#86909c', lineHeight: 1.9 }}>
+                    {line}
+                  </div>
+                ))}
+                <span style={{ display: 'inline-flex', gap: 6, marginTop: 16 }}>
+                  {[0.9, 0.45, 0.22].map((o) => (
+                    <span key={o} className="ai-tool-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: tool.accent, opacity: o }} />
+                  ))}
+                </span>
+              </div>
+            ))}
           </div>
         ))}
       </section>
