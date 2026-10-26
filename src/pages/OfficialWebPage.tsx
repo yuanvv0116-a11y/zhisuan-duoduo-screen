@@ -714,35 +714,17 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
       >
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 42, color: '#1a1a1a', fontWeight: 800, letterSpacing: 1 }}>
-            <Space size={10} align="center">
-              <span>
-                支持的{' '}
-                <span
-                  style={{
-                    background: 'linear-gradient(90deg, #2f6bff 0%, #7b5cff 55%, #22c55e 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}
-                >
-                  AI
-                </span>{' '}
-                工具
-              </span>
-              <RequirementDot
-                title="支持的 AI 工具 — 需求点"
-                sections={[
-                  {
-                    label: '',
-                    items: [
-                      '1. 展示 Token Plan 兼容 OpenAI / Anthropic 协议的主流 AI 工具，仅作品牌展示，无点击跳转与下载入口。',
-                      '2. 原「模型普惠，创新到位」Banner 已移除，本区块上移至加油包宣传区之后，作为官网收尾展示区。',
-                      '3. 工具双行静态展示（首行 5 个、次行 4 个，居中排布），无边框：品牌图标 + 品牌色悬浮光晕、名称、两句定位说明与品牌色三点装饰。',
-                      '4. 悬停单个工具项有上浮、图标放大、名称变品牌色等轻量交互效果，无自动轮播动画。',
-                    ],
-                  },
-                ]}
-              />
-            </Space>
+            支持的{' '}
+            <span
+              style={{
+                background: 'linear-gradient(90deg, #2f6bff 0%, #7b5cff 55%, #22c55e 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              AI
+            </span>{' '}
+            工具
           </Title>
           <Paragraph style={{ textAlign: 'center', color: '#4e5969', margin: '16px 0 0', fontSize: 15 }}>
             Token Plan 支持兼容 <span style={{ color: '#7b5cff', fontWeight: 500 }}>OpenAI</span> /{' '}
