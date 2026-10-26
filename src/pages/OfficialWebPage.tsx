@@ -682,6 +682,7 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
         style={{
           padding: '72px 24px 88px',
           scrollMarginTop: 80,
+          background: '#f7f9fc',
         }}
       >
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -696,7 +697,7 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
                     items: [
                       '1. 展示 Token Plan 兼容 OpenAI / Anthropic 协议的主流 AI 工具，仅作品牌展示，无点击跳转与下载入口。',
                       '2. 原「模型普惠，创新到位」Banner 已移除，本区块上移至加油包宣传区之后，作为官网收尾展示区。',
-                      '3. 卡片采用 3 列大卡片网格（图标 + 名称），放大视觉体量以撑起页面。',
+                      '3. 卡片采用 3 列大卡片网格（品牌图标 + 名称 + 协议说明），以浅灰底色衬托白色卡片，放大视觉体量以撑起页面。',
                     ],
                   },
                 ]}
@@ -712,24 +713,37 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
                 key={tool.name}
                 style={{
                   background: '#fff',
-                  border: '1px solid #eef0f4',
+                  border: '1px solid #edf1f7',
                   borderRadius: 16,
-                  padding: '40px 24px',
+                  padding: '32px 24px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 18,
-                  boxShadow: '0 4px 16px rgba(20, 40, 90, 0.04)',
+                  gap: 14,
+                  boxShadow: '0 6px 20px rgba(31, 62, 130, 0.06)',
                 }}
               >
-                <img
-                  src={tool.icon}
-                  alt={tool.name}
-                  style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'contain', display: 'block' }}
-                />
+                <span
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 20,
+                    background: 'linear-gradient(135deg, #f0f5ff 0%, #e6efff 100%)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <img
+                    src={tool.icon}
+                    alt={tool.name}
+                    style={{ width: 44, height: 44, objectFit: 'contain', display: 'block' }}
+                  />
+                </span>
                 <Text strong style={{ fontSize: 17, color: '#1a1a1a' }}>
                   {tool.name}
                 </Text>
+                <Text style={{ fontSize: 13, color: '#86909c' }}>兼容 OpenAI / Anthropic 协议</Text>
               </div>
             ))}
           </div>
