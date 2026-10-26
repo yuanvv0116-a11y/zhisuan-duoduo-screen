@@ -101,18 +101,21 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
   const currentDuration = durations[Math.min(durationIdx, durations.length - 1)]
   const monthsPerUnit = PLAN_DURATION_UNIT_META[plan.validityUnit]?.monthsPerUnit ?? 1
   const totalMonths = currentDuration.months
-  const unitPrice =
-    (typeof plan.discountPrice === 'number' ? plan.discountPrice : calcPlanDiscountedPrice(plan.price, plan.discount ?? 100)) / monthsPerUnit
-  // 售价按「1 个 validityUnit」对应的金额显示；卡片展示用 /单位 字
-  const pricePerUnit = +(plan.price / monthsPerUnit).toFixed(2)
+  // 售价（每计费周期到手单价）：优先 discountPrice，否则按套餐折扣计算
   const discountedPerUnit = +(
     (typeof plan.discountPrice === 'number' ? plan.discountPrice : calcPlanDiscountedPrice(plan.price, plan.discount ?? 100)) / monthsPerUnit
   ).toFixed(2)
+  // 划线价：仅后台设置划线价（>0）时才有优惠，优惠 = 划线价 − 售价
+  const hasStrike =
+    !!plan.showOriginalPrice && typeof plan.originalPrice === 'number' && plan.originalPrice > 0
+  const strikePerUnit = +(((plan.originalPrice ?? 0) / monthsPerUnit)).toFixed(2)
 
-  const total = currentDuration.finalPrice
-  // 原价 = plan.price × 总时长（以 validityUnit 为基准的个数）
+  // 期数 = 所选时长 / 计费周期
   const totalCount = totalMonths / monthsPerUnit || 1
-  const originalTotal = +(plan.price * totalCount).toFixed(2)
+  // 应付 = 售价 × 期数 × 时长折扣；原价 = 划线价 × 期数（无划线价时不展示）
+  const durationFactor = (currentDuration.discount ?? 100) / 100
+  const total = +(discountedPerUnit * totalCount * durationFactor).toFixed(2)
+  const originalTotal = hasStrike ? +(strikePerUnit * totalCount).toFixed(2) : total
   const savings = Math.max(0, +(originalTotal - total).toFixed(2))
 
   const models: { name: string; type: string }[] = PLAN_MODELS[plan.level ?? ''] || []
@@ -204,12 +207,12 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                   {
                     label: '',
                     items: [
-                      '1. 标题按状态区分：新购显示「购买 Token Plan 套餐」，续费显示「Token Plan 套餐 续费」；续费态购买须知黄条包含现有到期日提示',
+                      '1. 标题按状态区分：新购显示「购买 Token Plan 套餐」，续费显示「Token Plan 套餐 续费」；顶部黄条为「温馨提示」（续费态包含现有到期日提示）',
                       '2. 购买须知三条：计费规则（订阅模式、不支持退订）、使用规则（用量或周期未结束不支持修改，额度用尽后阻断、可购加油包）、抵扣规则（额度周期内用完、到期清零不顺延）',
-                      '3. 套餐配置卡：套餐名称与标签、副标题、单价（折后价 ÷ 计费周期）、划线价、每周期额度（usageLimit Tokens）、支持模型数、适用场景（按档位文案）、独享禁共享提示',
-                      '4. 支持模型展示 4 个，其余「+N」打开全量模型弹窗（与 Token Plan 概览一致，含模型不定期上下架规则提示）',
+                      '3. 套餐配置卡：套餐名称（不展示产品标签）、副标题、售价（折后价 ÷ 计费周期）、有划线价才展示划线价、Token 量（如「Token 量：100,000,000 Tokens」）、支持模型数、适用场景（按档位文案）、独享禁共享提示',
+                      '4. 支持模型展示 4 个，其余「+N 更多」打开全量模型弹窗（与 Token Plan 概览一致，含模型不定期上下架规则提示）',
                       '5. 订阅时长单选，选项来自后台套餐 durations 配置；有折扣的选项显示「X折」角标；默认选中第一项',
-                      '6. 订单摘要：套餐版本、订阅时长 + 到期日（按整数月 + 余数折算 30 天/月计算）、每周期额度、原价合计（单价 × 期数，划线）、优惠金额（优惠 > 0 才显示）、应付金额 = 所选时长到手价',
+                      '6. 订单摘要：有划线价才有优惠，优惠 = 划线价 − 售价；原价 = 划线价 × 期数（未设划线价不展示原价/优惠行）、应付 = 售价 × 期数 × 时长折扣；到期日按整数月 + 余数折算 30 天/月计算',
                       '7. 订单号生成规则：时间戳（YYYYMMDDHHMMSS）+ 4 位随机数',
                       '8. 支付方式默认选中「微信支付」；须勾选《套餐购买协议》方可支付，未勾选点击「去支付」提示「请先阅读并同意《套餐购买协议》」；点击协议名打开订阅协议页',
                     ],
@@ -236,7 +239,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
           }}
         >
           <Tag color="gold" style={{ margin: 0, flexShrink: 0, height: 22, lineHeight: '20px' }}>
-            购买须知
+            温馨提示
           </Tag>
           <span>
             {isRenew
@@ -301,23 +304,11 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                   background: 'linear-gradient(135deg, #f0f7ff 0%, #e0ecff 100%)',
                 }}
               >
-                {/* 标题行 */}
+                {/* 标题行（套餐名后不展示标签） */}
                 <div style={{ marginBottom: 4 }}>
                   <span style={{ fontSize: 16, fontWeight: 600, color: '#111827' }}>
                     {plan.name}
                   </span>
-                  {plan.productTag && (
-                    <Tag
-                      color="blue"
-                      style={{
-                        marginLeft: 8,
-                        fontSize: 11,
-                        padding: '1px 6px',
-                      }}
-                    >
-                      {plan.productTag}
-                    </Tag>
-                  )}
                 </div>
 
                 <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
@@ -330,9 +321,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                     ¥{discountedPerUnit.toFixed(2)}
                   </span>
                   <span style={{ fontSize: 13, color: '#6b7280' }}>/{unitSuffix}</span>
-                  {plan.showOriginalPrice &&
-                  typeof plan.originalPrice === 'number' &&
-                  plan.originalPrice > 0 ? (
+                  {hasStrike && (
                     <span
                       style={{
                         fontSize: 13,
@@ -340,26 +329,16 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                         textDecoration: 'line-through',
                       }}
                     >
-                      ¥{(plan.originalPrice / monthsPerUnit).toFixed(2)}/{unitSuffix}
+                      ¥{strikePerUnit.toFixed(2)}/{unitSuffix}
                     </span>
-                  ) : pricePerUnit > discountedPerUnit ? (
-                    <span
-                      style={{
-                        fontSize: 13,
-                        color: '#9ca3af',
-                        textDecoration: 'line-through',
-                      }}
-                    >
-                      ¥{pricePerUnit.toFixed(2)}/{unitSuffix}
-                    </span>
-                  ) : null}
+                  )}
                 </div>
 
                 {/* 特性列表 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
                   <div style={{ fontSize: 13, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ color: '#52c41a', fontSize: 12 }}>⊙</span>
-                    每{usageUnitSuffix}：{plan.usageLimit.toLocaleString()} Tokens
+                    Token 量：{plan.usageLimit.toLocaleString()} Tokens
                   </div>
                   <div style={{ fontSize: 13, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ color: '#52c41a', fontSize: 12 }}>⊙</span>
@@ -404,7 +383,7 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                           onClick={() => setModelModalOpen(true)}
                           style={{ color: '#2f6bff', cursor: 'pointer', whiteSpace: 'nowrap' }}
                         >
-                          +{models.length - MAX_SHOW}
+                          +{models.length - MAX_SHOW} 更多
                         </a>
                       )}
                     </>
@@ -500,31 +479,35 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
 
               <Divider style={{ margin: '12px 0' }} />
 
-              {/* 价格明细 */}
+              {/* 价格明细：有划线价才展示原价与优惠（优惠 = 划线价 − 售价） */}
               <div style={{ marginBottom: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 13, color: '#6b7280' }}>原价</span>
-                  <span
-                    style={{
-                      fontSize: 13,
-                      color: '#9ca3af',
-                      textDecoration: 'line-through',
-                    }}
-                  >
-                    ¥{originalTotal.toFixed(2)}
-                  </span>
-                </div>
-                {savings > 0 && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginBottom: 6,
-                    }}
-                  >
-                    <span style={{ fontSize: 13, color: '#6b7280' }}>优惠</span>
-                    <span style={{ fontSize: 13, color: '#52c41a' }}>-¥{savings.toFixed(2)}</span>
-                  </div>
+                {hasStrike && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, color: '#6b7280' }}>原价</span>
+                      <span
+                        style={{
+                          fontSize: 13,
+                          color: '#9ca3af',
+                          textDecoration: 'line-through',
+                        }}
+                      >
+                        ¥{originalTotal.toFixed(2)}
+                      </span>
+                    </div>
+                    {savings > 0 && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          marginBottom: 6,
+                        }}
+                      >
+                        <span style={{ fontSize: 13, color: '#6b7280' }}>优惠</span>
+                        <span style={{ fontSize: 13, color: '#52c41a' }}>-¥{savings.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
