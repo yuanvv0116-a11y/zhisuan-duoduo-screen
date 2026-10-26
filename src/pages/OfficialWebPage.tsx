@@ -472,12 +472,21 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
                     )}
                   </div>
 
-                  {/* Token 量：来自后台套餐配置的 totalTokens */}
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 14 }}>
+                  {/* Token 量：价格下方分割线后加粗展示（来自后台套餐配置的 totalTokens） */}
+                  <div
+                    style={{
+                      borderTop: '1px solid #f0f2f5',
+                      paddingTop: 14,
+                      marginBottom: 14,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: '#1a1a1a',
+                    }}
+                  >
                     Token 量：{(plan.totalTokens ?? 0).toLocaleString()} Tokens
                   </div>
 
-                  <div style={{ borderTop: '1px solid #f0f2f5', paddingTop: 14, marginBottom: 20 }}>
+                  <div style={{ marginBottom: 20 }}>
                     {pricingFeatures(plan).map((feat, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: 12, fontSize: 13, color: '#4e5969' }}>
                         <span
@@ -541,8 +550,8 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
                                   borderRadius: 4,
                                   fontSize: 11,
                                   padding: '2px 8px',
-                                  background: 'transparent',
-                                  borderColor: '#e5e7eb',
+                                  background: '#f0f6ff',
+                                  borderColor: '#2f6bff',
                                   color: '#2f6bff',
                                   cursor: 'pointer',
                                 }}

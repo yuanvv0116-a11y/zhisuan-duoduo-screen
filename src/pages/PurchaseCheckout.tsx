@@ -334,12 +334,22 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                   )}
                 </div>
 
+                {/* Token 量：价格下方分割线后加粗展示 */}
+                <div
+                  style={{
+                    borderTop: '1px solid #dbe4f0',
+                    paddingTop: 12,
+                    marginBottom: 12,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: '#111827',
+                  }}
+                >
+                  Token 量：{plan.usageLimit.toLocaleString()} Tokens
+                </div>
+
                 {/* 特性列表 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                  <div style={{ fontSize: 13, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: '#52c41a', fontSize: 12 }}>⊙</span>
-                    Token 量：{plan.usageLimit.toLocaleString()} Tokens
-                  </div>
                   <div style={{ fontSize: 13, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ color: '#52c41a', fontSize: 12 }}>⊙</span>
                     支持 {models.length} 种模型使用
@@ -373,18 +383,30 @@ export default function PurchaseCheckout({ plan, onBack, onPay, onOpenAgreement,
                       {showModels.map((m, i) => (
                         <span key={m.name}>
                           <span style={{ color: '#111827' }}>{m.name}</span>
-                          {(i < showModels.length - 1 || hasMore) && (
+                          {i < showModels.length - 1 && (
                             <span style={{ color: '#c0c4cc', margin: '0 4px' }}>,</span>
                           )}
                         </span>
                       ))}
                       {hasMore && (
-                        <a
+                        <span
                           onClick={() => setModelModalOpen(true)}
-                          style={{ color: '#2f6bff', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          style={{
+                            display: 'inline-block',
+                            marginLeft: 8,
+                            padding: '0 10px',
+                            borderRadius: 4,
+                            border: '1px solid #2f6bff',
+                            background: '#f0f6ff',
+                            color: '#2f6bff',
+                            fontSize: 12,
+                            lineHeight: '20px',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
                         >
                           +{models.length - MAX_SHOW} 更多
-                        </a>
+                        </span>
                       )}
                     </>
                   )
