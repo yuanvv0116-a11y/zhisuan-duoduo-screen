@@ -710,52 +710,9 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
         style={{
           padding: '84px 24px 110px',
           scrollMarginTop: 80,
-          background: 'linear-gradient(180deg, #f2f6fd 0%, #f5f3fb 55%, #edf2fb 100%)',
-          position: 'relative',
-          overflow: 'hidden',
         }}
       >
-        {/* 装饰性模糊色块 */}
-        <span
-          style={{
-            position: 'absolute',
-            top: -40,
-            right: -60,
-            width: 260,
-            height: 260,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(123,92,255,0.25) 0%, rgba(47,107,255,0.12) 45%, rgba(255,255,255,0) 70%)',
-            filter: 'blur(30px)',
-            pointerEvents: 'none',
-          }}
-        />
-        <span
-          style={{
-            position: 'absolute',
-            bottom: -80,
-            left: -80,
-            width: 340,
-            height: 340,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(155,123,255,0.28) 0%, rgba(120,170,255,0.14) 50%, rgba(255,255,255,0) 75%)',
-            filter: 'blur(40px)',
-            pointerEvents: 'none',
-          }}
-        />
-        <span
-          style={{
-            position: 'absolute',
-            top: 160,
-            left: -70,
-            width: 200,
-            height: 200,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(120,190,255,0.22) 0%, rgba(255,255,255,0) 70%)',
-            filter: 'blur(30px)',
-            pointerEvents: 'none',
-          }}
-        />
-        <div style={{ maxWidth: 1100, margin: '0 auto', position: 'relative' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 42, color: '#1a1a1a', fontWeight: 800, letterSpacing: 1 }}>
             <Space size={10} align="center">
               <span>
