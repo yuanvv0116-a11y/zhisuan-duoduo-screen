@@ -9,8 +9,6 @@ import {
   AppstoreOutlined,
   GlobalOutlined,
   DollarOutlined,
-  DatabaseOutlined,
-  RocketOutlined,
   SafetyCertificateOutlined,
   ArrowRightOutlined,
 } from '@ant-design/icons'
@@ -279,67 +277,6 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
               </div>
             )
           })}
-        </div>
-
-        {/* ============ 四大价值点（价格更低 / 额度更大 / 效率更高 / 安全可靠） ============ */}
-        <div
-          style={{
-            maxWidth: 1200,
-            margin: '36px auto 0',
-            background: '#fff',
-            borderRadius: 16,
-            boxShadow: '0 10px 30px rgba(47,107,255,0.08)',
-            padding: '40px 24px',
-            position: 'relative',
-          }}
-        >
-          <div style={{ position: 'absolute', top: 14, right: 18 }}>
-            <RequirementDot
-              title="四大价值点 — 需求点"
-              sections={[
-                {
-                  label: '',
-                  items: [
-                    '1. 定价区上方以白色卡片带展示 Token Plan 四大价值点：价格更低 / 额度更大 / 效率更高 / 安全可靠。',
-                    '2. 每项含圆形图标、名称与两句短说明，纯官网宣传展示，无交互入口。',
-                  ],
-                },
-              ]}
-            />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
-            {[
-              { icon: <DollarOutlined />, name: '价格更低', lines: ['极具性价比，', '降低使用成本'] },
-              { icon: <DatabaseOutlined />, name: '额度更大', lines: ['大额度资源，', '满足高频使用'] },
-              { icon: <RocketOutlined />, name: '效率更高', lines: ['稳定快速响应，', '助力业务提效'] },
-              { icon: <SafetyCertificateOutlined />, name: '安全可靠', lines: ['多重安全保障，', '数据隐私无忧'] },
-            ].map((it) => (
-              <div key={it.name} style={{ textAlign: 'center', padding: '0 12px' }}>
-                <span
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #eaf1ff 0%, #dfeaff 100%)',
-                    color: '#2f6bff',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 24,
-                    marginBottom: 14,
-                  }}
-                >
-                  {it.icon}
-                </span>
-                <div style={{ fontSize: 17, fontWeight: 600, color: '#1a1a1a', marginBottom: 8 }}>{it.name}</div>
-                {it.lines.map((line) => (
-                  <div key={line} style={{ fontSize: 13, color: '#86909c', lineHeight: 1.8 }}>
-                    {line}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* ============ 定价区 ============ */}
