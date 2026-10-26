@@ -21,17 +21,17 @@ const { Title, Text, Paragraph } = Typography
 
 const HERO_BG = new URL('../assets/web-tokenplan-hero.jpg', import.meta.url).href
 
-/** 支持的 AI 工具品牌图标（来自各品牌官网，本地化存放） */
+/** 支持的 AI 工具品牌图标（来自各品牌官网，本地化存放）；accent 为品牌主色，用于图标光晕与三点装饰 */
 const AI_TOOLS = [
-  { name: 'Claude Code', icon: new URL('../assets/ai-tool-claude.png', import.meta.url).href },
-  { name: 'Codex', icon: new URL('../assets/ai-tool-codex.svg', import.meta.url).href },
-  { name: 'WorkBuddy', icon: new URL('../assets/ai-tool-workbuddy.svg', import.meta.url).href },
-  { name: 'TraeWork', icon: new URL('../assets/ai-tool-traework.png', import.meta.url).href },
-  { name: 'CodeBuddy', icon: new URL('../assets/ai-tool-codebuddy.svg', import.meta.url).href },
-  { name: 'TraeCode', icon: new URL('../assets/ai-tool-traecode.png', import.meta.url).href },
-  { name: 'OpenCode', icon: new URL('../assets/ai-tool-opencode.png', import.meta.url).href },
-  { name: 'Cursor', icon: new URL('../assets/ai-tool-cursor.png', import.meta.url).href },
-  { name: 'OpenClaw', icon: new URL('../assets/ai-tool-openclaw.png', import.meta.url).href },
+  { name: 'Claude Code', icon: new URL('../assets/ai-tool-claude.png', import.meta.url).href, accent: '#f0774c', lines: ['Anthropic Claude', '智能编码助手'] },
+  { name: 'Codex', icon: new URL('../assets/ai-tool-codex.svg', import.meta.url).href, accent: '#9aa3af', lines: ['OpenAI 官方', '编码智能体'] },
+  { name: 'WorkBuddy', icon: new URL('../assets/ai-tool-workbuddy.svg', import.meta.url).href, accent: '#2ecf9e', lines: ['你的 AI 编程', '协作伙伴'] },
+  { name: 'TraeWork', icon: new URL('../assets/ai-tool-traework.png', import.meta.url).href, accent: '#9aa3af', lines: ['AI 驱动的', '开发工作流'] },
+  { name: 'CodeBuddy', icon: new URL('../assets/ai-tool-codebuddy.svg', import.meta.url).href, accent: '#7b7bff', lines: ['智能编码助手', '高效编程'] },
+  { name: 'TraeCode', icon: new URL('../assets/ai-tool-traecode.png', import.meta.url).href, accent: '#34d399', lines: ['新一代 AI', '编程工具'] },
+  { name: 'OpenCode', icon: new URL('../assets/ai-tool-opencode.png', import.meta.url).href, accent: '#9aa3af', lines: ['开源 AI 编码', '解决方案'] },
+  { name: 'Cursor', icon: new URL('../assets/ai-tool-cursor.png', import.meta.url).href, accent: '#9aa3af', lines: ['AI 优先的', '代码编辑器'] },
+  { name: 'OpenClaw', icon: new URL('../assets/ai-tool-openclaw.png', import.meta.url).href, accent: '#ef5350', lines: ['开源 AI 模型', '运行平台'] },
 ]
 
 /** 套餐默认模型清单：后台未为该套餐配置模型时回退使用（与控制台订购页一致） */
@@ -680,15 +680,69 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
       <section
         id="tp-section-aiTools"
         style={{
-          padding: '72px 24px 88px',
+          padding: '84px 24px 110px',
           scrollMarginTop: 80,
-          background: '#f7f9fc',
+          background: 'linear-gradient(180deg, #f2f6fd 0%, #f5f3fb 55%, #edf2fb 100%)',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 32, color: '#1a1a1a', fontWeight: 700 }}>
-            <Space size={8} align="center">
-              支持的 AI 工具
+        {/* 装饰性模糊色块 */}
+        <span
+          style={{
+            position: 'absolute',
+            top: -40,
+            right: -60,
+            width: 260,
+            height: 260,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(123,92,255,0.25) 0%, rgba(47,107,255,0.12) 45%, rgba(255,255,255,0) 70%)',
+            filter: 'blur(30px)',
+            pointerEvents: 'none',
+          }}
+        />
+        <span
+          style={{
+            position: 'absolute',
+            bottom: -80,
+            left: -80,
+            width: 340,
+            height: 340,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(155,123,255,0.28) 0%, rgba(120,170,255,0.14) 50%, rgba(255,255,255,0) 75%)',
+            filter: 'blur(40px)',
+            pointerEvents: 'none',
+          }}
+        />
+        <span
+          style={{
+            position: 'absolute',
+            top: 160,
+            left: -70,
+            width: 200,
+            height: 200,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(120,190,255,0.22) 0%, rgba(255,255,255,0) 70%)',
+            filter: 'blur(30px)',
+            pointerEvents: 'none',
+          }}
+        />
+        <div style={{ maxWidth: 1100, margin: '0 auto', position: 'relative' }}>
+          <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 42, color: '#1a1a1a', fontWeight: 800, letterSpacing: 1 }}>
+            <Space size={10} align="center">
+              <span>
+                支持的{' '}
+                <span
+                  style={{
+                    background: 'linear-gradient(90deg, #2f6bff 0%, #7b5cff 55%, #22c55e 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  AI
+                </span>{' '}
+                工具
+              </span>
               <RequirementDot
                 title="支持的 AI 工具 — 需求点"
                 sections={[
@@ -697,57 +751,102 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
                     items: [
                       '1. 展示 Token Plan 兼容 OpenAI / Anthropic 协议的主流 AI 工具，仅作品牌展示，无点击跳转与下载入口。',
                       '2. 原「模型普惠，创新到位」Banner 已移除，本区块上移至加油包宣传区之后，作为官网收尾展示区。',
-                      '3. 卡片采用 3 列大卡片网格（品牌图标 + 名称 + 协议说明），以浅灰底色衬托白色卡片，放大视觉体量以撑起页面。',
+                      '3. 工具以双行跑马灯形式左右反向流动（首行向左、次行向右），无边框展示：品牌图标 + 品牌色悬浮光晕、名称、两句定位说明与品牌色三点装饰。',
+                      '4. 鼠标悬停单行时该行流动暂停，悬停工具项保留上浮、图标放大、名称变品牌色等交互效果。',
                     ],
                   },
                 ]}
               />
             </Space>
           </Title>
-          <Paragraph style={{ textAlign: 'center', color: '#86909c', margin: '12px 0 40px', fontSize: 15 }}>
-            Token Plan 支持兼容 OpenAI / Anthropic 协议的主流工具
+          <Paragraph style={{ textAlign: 'center', color: '#4e5969', margin: '16px 0 0', fontSize: 15 }}>
+            Token Plan 支持兼容 <span style={{ color: '#7b5cff', fontWeight: 500 }}>OpenAI</span> /{' '}
+            <span style={{ color: '#22c55e', fontWeight: 500 }}>Anthropic</span> 协议的主流工具
           </Paragraph>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
-            {AI_TOOLS.map((tool) => (
-              <div
-                key={tool.name}
-                style={{
-                  background: '#fff',
-                  border: '1px solid #edf1f7',
-                  borderRadius: 16,
-                  padding: '32px 24px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 14,
-                  boxShadow: '0 6px 20px rgba(31, 62, 130, 0.06)',
-                }}
-              >
-                <span
+          <style>{`
+            .ai-tool-item { transition: transform 0.35s cubic-bezier(0.22, 0.61, 0.36, 1); }
+            .ai-tool-item:hover { transform: translateY(-10px); }
+            .ai-tool-item .ai-tool-icon { transition: transform 0.35s cubic-bezier(0.22, 0.61, 0.36, 1); }
+            .ai-tool-item:hover .ai-tool-icon { transform: scale(1.15) rotate(-3deg); }
+            .ai-tool-item .ai-tool-glow { opacity: 0.6; transform: translateX(-50%); transition: opacity 0.35s ease, transform 0.35s ease; }
+            .ai-tool-item:hover .ai-tool-glow { opacity: 1; transform: translateX(-50%) scaleX(1.2); }
+            .ai-tool-item .ai-tool-name { transition: color 0.3s ease; }
+            .ai-tool-item:hover .ai-tool-name { color: var(--accent); }
+            .ai-tool-item .ai-tool-dot { transition: transform 0.3s ease; }
+            .ai-tool-item:hover .ai-tool-dot { transform: scale(1.35); }
+            .ai-tool-item:hover .ai-tool-dot:nth-child(2) { transition-delay: 0.06s; }
+            .ai-tool-item:hover .ai-tool-dot:nth-child(3) { transition-delay: 0.12s; }
+            .ai-marquee { overflow: hidden; margin-top: 56px; -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%); }
+            .ai-marquee + .ai-marquee { margin-top: 40px; }
+            .ai-marquee-track { display: flex; width: max-content; animation: ai-marquee-left 32s linear infinite; }
+            .ai-marquee-track.reverse { animation: ai-marquee-right 32s linear infinite; }
+            .ai-marquee-track:hover { animation-play-state: paused; }
+            @keyframes ai-marquee-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+            @keyframes ai-marquee-right { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+            @media (prefers-reduced-motion: reduce) {
+              .ai-marquee-track { animation: none; }
+            }
+          `}</style>
+        </div>
+
+        {/* 双行左右反向流动（悬停暂停） */}
+        {[AI_TOOLS.slice(0, 5), AI_TOOLS.slice(5)].map((rowTools, rowIdx) => (
+          <div key={rowIdx} className="ai-marquee">
+            <div className={`ai-marquee-track${rowIdx % 2 === 1 ? ' reverse' : ''}`}>
+              {[...rowTools, ...rowTools].map((tool, idx) => (
+                <div
+                  key={`${tool.name}-${idx}`}
+                  className="ai-tool-item"
                   style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: 20,
-                    background: 'linear-gradient(135deg, #f0f5ff 0%, #e6efff 100%)',
-                    display: 'inline-flex',
+                    flex: '0 0 auto',
+                    width: 248,
+                    display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
-                    justifyContent: 'center',
+                    textAlign: 'center',
+                    ...({ '--accent': tool.accent } as Record<string, string>),
                   }}
                 >
-                  <img
-                    src={tool.icon}
-                    alt={tool.name}
-                    style={{ width: 44, height: 44, objectFit: 'contain', display: 'block' }}
-                  />
-                </span>
-                <Text strong style={{ fontSize: 17, color: '#1a1a1a' }}>
-                  {tool.name}
-                </Text>
-                <Text style={{ fontSize: 13, color: '#86909c' }}>兼容 OpenAI / Anthropic 协议</Text>
-              </div>
-            ))}
+                  {/* 图标 + 品牌色光晕 */}
+                  <span style={{ position: 'relative', width: 96, height: 96, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span
+                      className="ai-tool-glow"
+                      style={{
+                        position: 'absolute',
+                        bottom: 4,
+                        left: '50%',
+                        width: 92,
+                        height: 24,
+                        borderRadius: '50%',
+                        background: `${tool.accent}40`,
+                        filter: 'blur(9px)',
+                      }}
+                    />
+                    <img
+                      className="ai-tool-icon"
+                      src={tool.icon}
+                      alt={tool.name}
+                      style={{ position: 'relative', width: 72, height: 72, objectFit: 'contain', display: 'block' }}
+                    />
+                  </span>
+                  <div className="ai-tool-name" style={{ fontSize: 19, fontWeight: 700, color: '#1a1a1a', margin: '20px 0 10px' }}>
+                    {tool.name}
+                  </div>
+                  {tool.lines.map((line) => (
+                    <div key={line} style={{ fontSize: 13, color: '#86909c', lineHeight: 1.9 }}>
+                      {line}
+                    </div>
+                  ))}
+                  <span style={{ display: 'inline-flex', gap: 6, marginTop: 16 }}>
+                    {[0.9, 0.45, 0.22].map((o) => (
+                      <span key={o} className="ai-tool-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: tool.accent, opacity: o }} />
+                    ))}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        ))}
       </section>
 
       {/* ============ 页脚版权 ============ */}
