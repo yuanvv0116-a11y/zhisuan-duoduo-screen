@@ -65,8 +65,8 @@ const PLAN_MODELS: Record<string, { name: string; type: string }[]> = {
 }
 
 interface Props {
-  /** 点击「立即订阅」：由外层决定跳转（原型里先进登录页，登录后落控制台 Token Plan 概览） */
-  onSubscribe?: () => void
+  /** 点击「立即订阅」：由外层决定跳转（未登录先进登录页，登录后落到该套餐的结算页；传 null 表示企业版 mock 卡，落 Token Plan 概览） */
+  onSubscribe?: (plan: TokenPlan | null) => void
 }
 
 export default function OfficialWebPage({ onSubscribe }: Props) {
@@ -199,7 +199,7 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
           <Paragraph style={{ fontSize: 15, color: '#4e5969', margin: '16px 0 0' }}>
             低成本畅用主流大模型，AI 创作与开发更高效。
             <a
-              onClick={() => onSubscribe?.()}
+              onClick={() => onSubscribe?.(null)}
               style={{ marginLeft: 12, color: '#2f6bff', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               立即体验 Token Plan <ArrowRightOutlined style={{ transform: 'rotate(-45deg)', fontSize: 12 }} />
@@ -396,7 +396,7 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
                       <Button
                         block
                         size="large"
-                        onClick={() => { if (tp.contactSales) { message.success('已提交咨询，销售将尽快联系您') } else { onSubscribe?.() } }}
+                        onClick={() => { if (tp.contactSales) { message.success('已提交咨询，销售将尽快联系您') } else { onSubscribe?.(null) } }}
                         style={{
                           height: 40,
                           borderRadius: 8,
@@ -554,7 +554,7 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
                   <Button
                     block
                     size="large"
-                    onClick={() => onSubscribe?.()}
+                    onClick={() => onSubscribe?.(plan)}
                     style={{
                       height: 40,
                       borderRadius: 8,

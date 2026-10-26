@@ -599,8 +599,10 @@ export default function App() {
     }
   }
 
-  /** 登录页成功后的回流目标：官网「立即订阅」登录后直达控制台 Token Plan 概览；null 走默认逻辑 */
-  const [loginReturn, setLoginReturn] = useState<'tokenPlanOverview' | null>(null)
+  /** 登录页成功后的回流目标：官网「立即订阅」登录后直达该套餐的结算页（purchaseCheckout）或 Token Plan 概览；null 走默认逻辑 */
+  const [loginReturn, setLoginReturn] = useState<'tokenPlanOverview' | 'purchaseCheckout' | null>(null)
+  /** 官网「立即订阅」点击的套餐：登录成功后进入其结算页 */
+  const [pendingCheckoutPlan, setPendingCheckoutPlan] = useState<TokenPlan | null>(null)
 
   /** 移动端落地页：?mobile=1 引导页、?mobile=partner 合伙人页整屏渲染；被邀请人登录成功后也落入引导页 */
   const [mobileView, setMobileView] = useState<'guide' | 'partner' | null>(() => {
@@ -629,6 +631,16 @@ export default function App() {
           setLoginMode(false)
           setShareCampaignId(null)
           setShareInviteCode(null)
+          if (loginReturn === 'purchaseCheckout') {
+            /** 官网「立即订阅」入口：登录后直达该套餐的「购买 Token Plan 套餐」结算页 */
+            setLoginReturn(null)
+            setViewMode('console')
+            setConsoleSubPage('tokenPlan')
+            setCheckoutPlan(pendingCheckoutPlan)
+            setPendingCheckoutPlan(null)
+            setPaymentData(null)
+            return
+          }
           if (loginReturn === 'tokenPlanOverview') {
             /** 官网「立即订阅」入口：登录后直达控制台 · Token Plan 概览 */
             setLoginReturn(null)
@@ -1465,9 +1477,24 @@ export default function App() {
           </div>
           {websitePage === 'tokenPlan' && (
             <OfficialWebPage
-              onSubscribe={() => {
-                /** 未登录先过登录页，登录成功后落到控制台 · Token Plan 概览 */
-                setLoginReturn('tokenPlanOverview')
+              onSubscribe={(plan) => {
+                if (!plan) {
+                  /** 企业版 mock 卡：保持原逻辑，登录后落控制台 · Token Plan 概览 */
+                  setLoginReturn('tokenPlanOverview')
+                  setLoginMode(true)
+                  return
+                }
+                if (getPromoSession()) {
+                  /** 已登录：直接跳转到该套餐的「购买 Token Plan 套餐」结算页 */
+                  setViewMode('console')
+                  setConsoleSubPage('tokenPlan')
+                  setCheckoutPlan(plan)
+                  setPaymentData(null)
+                  return
+                }
+                /** 未登录：先进登录页，登录成功后跳转到该套餐的结算页 */
+                setPendingCheckoutPlan(plan)
+                setLoginReturn('purchaseCheckout')
                 setLoginMode(true)
               }}
             />
