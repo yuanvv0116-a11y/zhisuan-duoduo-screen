@@ -613,68 +613,6 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
         </div>
       </Modal>
 
-      {/* ============ 蓝色 Banner ============ */}
-      <section style={{ padding: '64px 24px 12px' }}>
-        <div
-          style={{
-            maxWidth: 1200,
-            margin: '0 auto',
-            background: 'linear-gradient(135deg, #e8f0fe 0%, #edf4ff 55%, #e4edfe 100%)',
-            borderRadius: 16,
-            padding: '22px 40px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 32,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flex: '1 1 280px' }}>
-            <span
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 14,
-                background: 'linear-gradient(135deg, #8ab4ff 0%, #4d86ff 100%)',
-                transform: 'rotate(45deg)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                boxShadow: '0 8px 20px rgba(47,107,255,0.3)',
-              }}
-            >
-              <AppstoreOutlined style={{ transform: 'rotate(-45deg)', color: '#fff', fontSize: 30 }} />
-            </span>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }}>
-                模型普惠，创新到位
-              </div>
-              <div style={{ fontSize: 13, color: '#86909c', marginBottom: 12 }}>高性能模型资源，低价即可畅用</div>
-              <Button type="primary" size="large" onClick={() => onSubscribe?.()} style={{ borderRadius: 8, height: 40, padding: '0 28px', fontWeight: 500 }}>
-                立即体验
-              </Button>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            {[
-              { icon: <AppstoreOutlined />, name: '主流模型' },
-              { icon: <LineChartOutlined />, name: '极致性能' },
-              { icon: <ThunderboltOutlined />, name: '便捷接入' },
-              { icon: <SafetyCertificateOutlined />, name: '安全稳定' },
-            ].map((item) => (
-              <div
-                key={item.name}
-                style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', textAlign: 'center', width: 148 }}
-              >
-                <div style={{ color: '#2f6bff', fontSize: 24, marginBottom: 8 }}>{item.icon}</div>
-                <div style={{ fontWeight: 600, fontSize: 15, color: '#1a1a1a' }}>{item.name}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ============ 加油包（官网宣传，无实际产品） ============ */}
       <section id="tp-section-resourcePack" style={{ padding: '68px 24px 0', scrollMarginTop: 80 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -741,6 +679,68 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
             <Tag color="blue" style={{ borderRadius: 999, padding: '4px 16px', fontSize: 14 }}>
               加油包 · 敬请期待
             </Tag>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ 蓝色 Banner ============ */}
+      <section style={{ padding: '64px 24px 12px' }}>
+        <div
+          style={{
+            maxWidth: 1200,
+            margin: '0 auto',
+            background: 'linear-gradient(135deg, #e8f0fe 0%, #edf4ff 55%, #e4edfe 100%)',
+            borderRadius: 16,
+            padding: '22px 40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 32,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flex: '1 1 280px' }}>
+            <span
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, #8ab4ff 0%, #4d86ff 100%)',
+                transform: 'rotate(45deg)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                boxShadow: '0 8px 20px rgba(47,107,255,0.3)',
+              }}
+            >
+              <AppstoreOutlined style={{ transform: 'rotate(-45deg)', color: '#fff', fontSize: 30 }} />
+            </span>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }}>
+                模型普惠，创新到位
+              </div>
+              <div style={{ fontSize: 13, color: '#86909c', marginBottom: 12 }}>高性能模型资源，低价即可畅用</div>
+              <Button type="primary" size="large" onClick={() => onSubscribe?.()} style={{ borderRadius: 8, height: 40, padding: '0 28px', fontWeight: 500 }}>
+                立即体验
+              </Button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            {[
+              { icon: <AppstoreOutlined />, name: '主流模型' },
+              { icon: <LineChartOutlined />, name: '极致性能' },
+              { icon: <ThunderboltOutlined />, name: '便捷接入' },
+              { icon: <SafetyCertificateOutlined />, name: '安全稳定' },
+            ].map((item) => (
+              <div
+                key={item.name}
+                style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', textAlign: 'center', width: 148 }}
+              >
+                <div style={{ color: '#2f6bff', fontSize: 24, marginBottom: 8 }}>{item.icon}</div>
+                <div style={{ fontWeight: 600, fontSize: 15, color: '#1a1a1a' }}>{item.name}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
