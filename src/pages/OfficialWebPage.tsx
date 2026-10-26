@@ -293,7 +293,7 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
                       '1. 展示后台配置的上架的套餐，根据排序数字由小到大（页面从左到右）展示。',
                       '2. 设置产品标签的，在右上角展示产品标签的文字。',
                       '3. 设置「默认选中产品」的，该产品默认选中；鼠标悬浮到其他套餐时，选中其他套餐，默认选中套餐不再选中；鼠标不在任何套餐悬浮时，恢复默认状态，选中配置为「默认选中产品」的套餐。',
-                      '4. 如未设置划线价，则不展示划线价。',
+                      '4. 如未设置划线价，则不展示划线价；不展示划线价时，售价后带单位，如「/月」。',
                       '5. 套餐卡片在价格下方展示 Token 量，取自后台套餐配置，如「Token 量：100,000 Tokens」。',
                       '6. 套餐卡片展示可用模型，与控制台订购页同规则：优先取后台「配置模型」（仅可见、按名称去重），未配置回退默认清单；最多展示 3 个，其余「+N 更多」，点击打开全量模型弹窗，弹窗顶部提示模型不定期上下架规则。',
                       '7. 点击「立即订阅」：已登录的直接跳转到结算页面；未登录的，需要先登录，然后跳转到当前套餐的结算页面。',
@@ -462,9 +462,14 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
                     <span style={{ fontSize: 38, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.1 }}>
                       ¥{discounted.toFixed(2)}
                     </span>
-                    <span style={{ fontSize: 14, color: '#a9b0bd', textDecoration: 'line-through' }}>
-                      ¥{originalPrice.toFixed(2)}/月
-                    </span>
+                    {plan.originalPrice != null && plan.originalPrice > 0 ? (
+                      <span style={{ fontSize: 14, color: '#a9b0bd', textDecoration: 'line-through' }}>
+                        ¥{originalPrice.toFixed(2)}/月
+                      </span>
+                    ) : (
+                      // 未设置划线价时不展示划线价，售价后带单位
+                      <span style={{ fontSize: 14, color: '#86909c' }}>/月</span>
+                    )}
                   </div>
 
                   {/* Token 量：来自后台套餐配置的 totalTokens */}
