@@ -8,7 +8,6 @@ import {
   ThunderboltOutlined,
   AppstoreOutlined,
   GlobalOutlined,
-  LineChartOutlined,
   DollarOutlined,
   SafetyCertificateOutlined,
   ArrowRightOutlined,
@@ -627,7 +626,6 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
                     items: [
                       '1. 本区域为官网宣传内容：不展示实际加油包产品与价格，不提供购买入口。',
                       '2. 标题下方以宣传卡片展示加油包价值点（大额补给 / 灵活叠加 / 多模覆盖 / 长效可用），卡片仅含图标、标题与描述。',
-                      '3. 卡片下方展示「敬请期待」标识；加油包产品上线后，再切换为实际产品展示与购买。',
                     ],
                   },
                 ]}
@@ -635,7 +633,7 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
             </Space>
           </Title>
           <Paragraph style={{ textAlign: 'center', color: '#86909c', margin: '10px 0 24px', fontSize: 14 }}>
-            大额额度一次补足，灵活叠加不清零，业务持续在线！
+            大额度一次补足，灵活叠加不清零！
           </Paragraph>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
             {[
@@ -675,73 +673,6 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
               </div>
             ))}
           </div>
-          <div style={{ textAlign: 'center', marginTop: 28 }}>
-            <Tag color="blue" style={{ borderRadius: 999, padding: '4px 16px', fontSize: 14 }}>
-              加油包 · 敬请期待
-            </Tag>
-          </div>
-        </div>
-      </section>
-
-      {/* ============ 蓝色 Banner ============ */}
-      <section style={{ padding: '64px 24px 12px' }}>
-        <div
-          style={{
-            maxWidth: 1200,
-            margin: '0 auto',
-            background: 'linear-gradient(135deg, #e8f0fe 0%, #edf4ff 55%, #e4edfe 100%)',
-            borderRadius: 16,
-            padding: '22px 40px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 32,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flex: '1 1 280px' }}>
-            <span
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 14,
-                background: 'linear-gradient(135deg, #8ab4ff 0%, #4d86ff 100%)',
-                transform: 'rotate(45deg)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                boxShadow: '0 8px 20px rgba(47,107,255,0.3)',
-              }}
-            >
-              <AppstoreOutlined style={{ transform: 'rotate(-45deg)', color: '#fff', fontSize: 30 }} />
-            </span>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }}>
-                模型普惠，创新到位
-              </div>
-              <div style={{ fontSize: 13, color: '#86909c', marginBottom: 12 }}>高性能模型资源，低价即可畅用</div>
-              <Button type="primary" size="large" onClick={() => onSubscribe?.()} style={{ borderRadius: 8, height: 40, padding: '0 28px', fontWeight: 500 }}>
-                立即体验
-              </Button>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            {[
-              { icon: <AppstoreOutlined />, name: '主流模型' },
-              { icon: <LineChartOutlined />, name: '极致性能' },
-              { icon: <ThunderboltOutlined />, name: '便捷接入' },
-              { icon: <SafetyCertificateOutlined />, name: '安全稳定' },
-            ].map((item) => (
-              <div
-                key={item.name}
-                style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', textAlign: 'center', width: 148 }}
-              >
-                <div style={{ color: '#2f6bff', fontSize: 24, marginBottom: 8 }}>{item.icon}</div>
-                <div style={{ fontWeight: 600, fontSize: 15, color: '#1a1a1a' }}>{item.name}</div>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -749,38 +680,54 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
       <section
         id="tp-section-aiTools"
         style={{
-          padding: '80px 24px 32px',
+          padding: '72px 24px 88px',
           scrollMarginTop: 80,
         }}
       >
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 30, color: '#1a1a1a', fontWeight: 700 }}>
-            支持的 AI 工具
+          <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 32, color: '#1a1a1a', fontWeight: 700 }}>
+            <Space size={8} align="center">
+              支持的 AI 工具
+              <RequirementDot
+                title="支持的 AI 工具 — 需求点"
+                sections={[
+                  {
+                    label: '',
+                    items: [
+                      '1. 展示 Token Plan 兼容 OpenAI / Anthropic 协议的主流 AI 工具，仅作品牌展示，无点击跳转与下载入口。',
+                      '2. 原「模型普惠，创新到位」Banner 已移除，本区块上移至加油包宣传区之后，作为官网收尾展示区。',
+                      '3. 卡片采用 3 列大卡片网格（图标 + 名称），放大视觉体量以撑起页面。',
+                    ],
+                  },
+                ]}
+              />
+            </Space>
           </Title>
-          <Paragraph style={{ textAlign: 'center', color: '#86909c', margin: '10px 0 20px', fontSize: 14 }}>
+          <Paragraph style={{ textAlign: 'center', color: '#86909c', margin: '12px 0 40px', fontSize: 15 }}>
             Token Plan 支持兼容 OpenAI / Anthropic 协议的主流工具
           </Paragraph>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
             {AI_TOOLS.map((tool) => (
               <div
                 key={tool.name}
                 style={{
-                  background: '#f7f8fa',
-                  borderRadius: 12,
-                  padding: '20px 8px 16px',
+                  background: '#fff',
+                  border: '1px solid #eef0f4',
+                  borderRadius: 16,
+                  padding: '40px 24px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 10,
-                  cursor: 'pointer',
+                  gap: 18,
+                  boxShadow: '0 4px 16px rgba(20, 40, 90, 0.04)',
                 }}
               >
                 <img
                   src={tool.icon}
                   alt={tool.name}
-                  style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'contain', display: 'block' }}
+                  style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'contain', display: 'block' }}
                 />
-                <Text strong style={{ fontSize: 14, color: '#1a1a1a' }}>
+                <Text strong style={{ fontSize: 17, color: '#1a1a1a' }}>
                   {tool.name}
                 </Text>
               </div>
