@@ -625,6 +625,18 @@ export default function PurchasePage({
             <span style={{ width: 90, height: 1, background: 'linear-gradient(90deg, transparent, #d6ccff)' }} />
             <span style={{ color: '#7c5cfc', fontSize: 13 }}>✦</span>
             <Text strong style={{ fontSize: 20, color: '#171a2b', letterSpacing: 2 }}>使用步骤</Text>
+            <RequirementDot
+              title="使用步骤 — 需求点"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1. 点击「获取密钥」跳转到我的订阅页面',
+                    '2. 点击「开发调用」也跳转到我的订阅页面，并锚定到可使用模型部分',
+                  ],
+                },
+              ]}
+            />
             <span style={{ color: '#7c5cfc', fontSize: 13 }}>✦</span>
             <span style={{ width: 90, height: 1, background: 'linear-gradient(90deg, #d6ccff, transparent)' }} />
           </div>
