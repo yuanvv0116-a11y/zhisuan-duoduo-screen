@@ -613,7 +613,7 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
       </Modal>
 
       {/* ============ 加油包（官网宣传，无实际产品） ============ */}
-      <section id="tp-section-resourcePack" style={{ padding: '68px 24px 0', scrollMarginTop: 80 }}>
+      <section id="tp-section-resourcePack" style={{ padding: '98px 24px 0', scrollMarginTop: 80 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 30, color: '#1a1a1a', fontWeight: 700 }}>
             <Space size={8} align="center">
