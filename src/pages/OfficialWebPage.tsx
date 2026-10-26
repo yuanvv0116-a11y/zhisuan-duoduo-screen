@@ -625,7 +625,7 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
                     label: '',
                     items: [
                       '1. 本区域为官网宣传内容：不展示实际加油包产品与价格，不提供购买入口。',
-                      '2. 标题下方以宣传卡片展示加油包价值点（大额补给 / 灵活叠加 / 多模覆盖 / 长效可用），卡片仅含图标、标题与描述。',
+                      '2. 标题下方以宣传卡片展示加油包价值点（大额补给 / 灵活叠加 / 多模覆盖 / 长效可用）：浅蓝渐变底带上排布白色圆角卡片，卡片含 3D 托盘式图标、标题、描述与底部蓝色装饰短横线，无购买入口。',
                     ],
                   },
                 ]}
@@ -635,7 +635,17 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
           <Paragraph style={{ textAlign: 'center', color: '#86909c', margin: '10px 0 24px', fontSize: 14 }}>
             大额度一次补足，灵活叠加不清零！
           </Paragraph>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
+          {/* 浅蓝渐变底带 + 白色卡片（1:1 参考图样式） */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 24,
+              background: 'linear-gradient(180deg, #edf3fe 0%, #f2f1fb 100%)',
+              borderRadius: 24,
+              padding: '40px 28px',
+            }}
+          >
             {[
               { icon: <DollarOutlined />, name: '大额补给', desc: '一次性补足 Tokens 额度，减少充值频次，业务持续在线。' },
               { icon: <AppstoreOutlined />, name: '灵活叠加', desc: '额度可与套餐叠加使用，按需补充，互不冲突。' },
@@ -645,31 +655,63 @@ export default function OfficialWebPage({ onSubscribe }: Props) {
               <div
                 key={item.name}
                 style={{
-                  border: '1px solid #eef0f4',
-                  borderRadius: 12,
-                  padding: '28px 20px',
                   background: '#fff',
+                  borderRadius: 16,
+                  padding: '40px 24px 32px',
                   textAlign: 'center',
+                  boxShadow: '0 12px 30px rgba(93,124,255,0.10)',
                 }}
               >
+                {/* 3D 托盘式图标：斜置托盘 + 圆形徽章 + 底部投影 */}
+                <span style={{ position: 'relative', width: 96, height: 88, display: 'inline-block', marginBottom: 20 }}>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      bottom: 4,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: 84,
+                      height: 30,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(180deg, #f0f5ff 0%, #dce7fc 100%)',
+                      boxShadow: '0 10px 18px rgba(93,124,255,0.22)',
+                    }}
+                  />
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: 64,
+                      height: 64,
+                      borderRadius: '50%',
+                      background: 'radial-gradient(circle at 32% 28%, #ffffff 0%, #eef4ff 100%)',
+                      border: '1px solid #e2ebff',
+                      color: '#2f6bff',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 28,
+                      boxShadow: '0 10px 20px rgba(93,124,255,0.16)',
+                    }}
+                  >
+                    {item.icon}
+                  </span>
+                </span>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', marginBottom: 14 }}>{item.name}</div>
+                <div style={{ fontSize: 14, color: '#7a8aa8', lineHeight: 1.9, minHeight: 54 }}>{item.desc}</div>
                 <span
                   style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '50%',
-                    background: '#eef4ff',
-                    color: '#2f6bff',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 20,
-                    marginBottom: 14,
+                    display: 'block',
+                    width: 36,
+                    height: 3,
+                    borderRadius: 2,
+                    background: '#2f6bff',
+                    opacity: 0.85,
+                    margin: '20px auto 0',
                   }}
-                >
-                  {item.icon}
-                </span>
-                <div style={{ fontSize: 16, fontWeight: 600, color: '#1a1a1a', marginBottom: 8 }}>{item.name}</div>
-                <div style={{ fontSize: 13, color: '#86909c', lineHeight: 1.8 }}>{item.desc}</div>
+                />
               </div>
             ))}
           </div>
