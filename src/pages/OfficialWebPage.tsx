@@ -7,12 +7,8 @@ import {
   ThunderboltFilled,
   ThunderboltOutlined,
   AppstoreOutlined,
-  ApiOutlined,
   GlobalOutlined,
   LineChartOutlined,
-  PictureOutlined,
-  AudioOutlined,
-  SoundOutlined,
   DollarOutlined,
   SafetyCertificateOutlined,
   ArrowRightOutlined,
@@ -37,90 +33,6 @@ const AI_TOOLS = [
   { name: 'OpenCode', icon: new URL('../assets/ai-tool-opencode.png', import.meta.url).href },
   { name: 'Cursor', icon: new URL('../assets/ai-tool-cursor.png', import.meta.url).href },
   { name: 'OpenClaw', icon: new URL('../assets/ai-tool-openclaw.png', import.meta.url).href },
-]
-
-/** 加油包（按设计图 8 个） */
-const RESOURCE_PACKS = [
-  {
-    name: 'Qwen-Max特价尊享包',
-    icon: <AppstoreOutlined />,
-    desc: '千亿级旗舰模型，支持 1M 超长上下文，长链任务处理更稳定。',
-    price: '189.00',
-    specs: [
-      { label: 'token总量', value: '1亿 Qwen-Max' },
-      { label: '有效期', value: '3个月' },
-    ],
-  },
-  {
-    name: 'GPT-4o 畅享包',
-    icon: <ApiOutlined />,
-    desc: 'GPT-4o 全能模型，支持多模态理解与生成。',
-    price: '299.00',
-    specs: [
-      { label: 'token总量', value: '5000万 GPT-4o' },
-      { label: '有效期', value: '3个月' },
-    ],
-  },
-  {
-    name: 'Claude-Opus 旗舰包',
-    icon: <GlobalOutlined />,
-    desc: 'Claude 最高性能模型，擅长复杂推理与文本分析，适合深度研究与内容创作。',
-    price: '359.00',
-    specs: [
-      { label: 'token总量', value: '3000万 Claude-Opus' },
-      { label: '有效期', value: '3个月' },
-    ],
-  },
-  {
-    name: 'Deepseek-R1 推理包',
-    icon: <ThunderboltOutlined />,
-    desc: 'Deepseek 推理模型，擅长推理与代码推理，适合复杂逻辑分析与算法辅助场景。',
-    price: '159.00',
-    specs: [
-      { label: 'token总量', value: '8000万 Deepseek-R1' },
-      { label: '有效期', value: '3个月' },
-    ],
-  },
-  {
-    name: '豆包图像创作包',
-    icon: <PictureOutlined />,
-    desc: '豆包图像生成模型，支持多种风格与分辨率，适合营销素材与视觉创意。',
-    price: '99.00',
-    specs: [
-      { label: '图片总量', value: '5000张' },
-      { label: '有效期', value: '1个月' },
-    ],
-  },
-  {
-    name: '豆包声音复刻包',
-    icon: <AudioOutlined />,
-    desc: '豆包声音复刻模型，支持秒级音色克隆与多风格生成，适合配音与有声书场景。',
-    price: '49.00',
-    specs: [
-      { label: '字符总量', value: '200万字符' },
-      { label: '有效期', value: '6个月' },
-    ],
-  },
-  {
-    name: 'Midjourney 绘图包',
-    icon: <PictureOutlined />,
-    desc: 'Midjourney 高质量绘图，美术级图像生成，激发无限灵感。',
-    price: '129.00',
-    specs: [
-      { label: '图片总量', value: '3000张' },
-      { label: '有效期', value: '3个月' },
-    ],
-  },
-  {
-    name: 'Suno 音乐创作包',
-    icon: <SoundOutlined />,
-    desc: 'Suno 音乐生成模型，快速生成高质量音乐，助力创作与商业应用。',
-    price: '79.00',
-    specs: [
-      { label: '歌曲总量', value: '1000首' },
-      { label: '有效期', value: '3个月' },
-    ],
-  },
 ]
 
 /** 套餐默认模型清单：后台未为该套餐配置模型时回退使用（与控制台订购页一致） */
@@ -156,17 +68,15 @@ const PLAN_MODELS: Record<string, { name: string; type: string }[]> = {
 interface Props {
   /** 点击「立即订阅」：由外层决定跳转（原型里先进登录页，登录后落控制台 Token Plan 概览） */
   onSubscribe?: () => void
-  /** 加油包「立即购买」：先进登录页，登录后落控制台 · 加油包管理 */
-  onBuyResourcePack?: () => void
 }
 
-export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Props) {
+export default function OfficialWebPage({ onSubscribe }: Props) {
   const { plans } = useTokenPlans()
   const [subTab, setSubTab] = useState<'personal' | 'team'>('personal')
 
   const displayedPlans = useMemo(() => plans.filter((p) => p.status === 'on' && p.level !== 'max'), [plans])
 
-  /** 卡片悬浮态：套餐区与加油包区共用 */
+  /** 卡片悬浮态：套餐卡片使用 */
   const [hoverPlanId, setHoverPlanId] = useState<string | null>(null)
 
   /** 可用模型：后台「配置模型」优先（可见、按名称去重），未配置回退默认清单——与控制台订购页同规则 */
@@ -765,79 +675,72 @@ export default function OfficialWebPage({ onSubscribe, onBuyResourcePack }: Prop
         </div>
       </section>
 
-      {/* ============ 加油包 ============ */}
+      {/* ============ 加油包（官网宣传，无实际产品） ============ */}
       <section id="tp-section-resourcePack" style={{ padding: '68px 24px 0', scrollMarginTop: 80 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <Title level={2} style={{ textAlign: 'center', margin: 0, fontSize: 30, color: '#1a1a1a', fontWeight: 700 }}>
-            低价大额度加油包，赋能业务高效落地
+            <Space size={8} align="center">
+              低价大额度加油包，赋能业务高效落地
+              <RequirementDot
+                title="加油包宣传区 — 需求点"
+                sections={[
+                  {
+                    label: '',
+                    items: [
+                      '1. 本区域为官网宣传内容：不展示实际加油包产品与价格，不提供购买入口。',
+                      '2. 标题下方以宣传卡片展示加油包价值点（大额补给 / 灵活叠加 / 多模覆盖 / 长效可用），卡片仅含图标、标题与描述。',
+                      '3. 卡片下方展示「敬请期待」标识；加油包产品上线后，再切换为实际产品展示与购买。',
+                    ],
+                  },
+                ]}
+              />
+            </Space>
           </Title>
           <Paragraph style={{ textAlign: 'center', color: '#86909c', margin: '10px 0 24px', fontSize: 14 }}>
-            精选多款旗舰模型，限时优惠进行中！
+            大额额度一次补足，灵活叠加不清零，业务持续在线！
           </Paragraph>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
-            {RESOURCE_PACKS.map((pack) => {
-              const isPackHover = hoverPlanId === `pack-${pack.name}`
-              return (
+            {[
+              { icon: <DollarOutlined />, name: '大额补给', desc: '一次性补足 Tokens 额度，减少充值频次，业务持续在线。' },
+              { icon: <AppstoreOutlined />, name: '灵活叠加', desc: '额度可与套餐叠加使用，按需补充，互不冲突。' },
+              { icon: <GlobalOutlined />, name: '多模覆盖', desc: '文本、图像、语音等多种模型额度通用，一个加油包全搞定。' },
+              { icon: <ThunderboltOutlined />, name: '长效可用', desc: '超长有效期，额度未用完不清零，安心规划业务用量。' },
+            ].map((item) => (
               <div
-                key={pack.name}
-                onMouseEnter={() => setHoverPlanId(`pack-${pack.name}`)}
-                onMouseLeave={() => setHoverPlanId(null)}
+                key={item.name}
                 style={{
-                  border: isPackHover ? '1px solid #2f6bff' : '1px solid #eef0f4',
+                  border: '1px solid #eef0f4',
                   borderRadius: 12,
-                  padding: 16,
+                  padding: '28px 20px',
                   background: '#fff',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  boxShadow: isPackHover ? '0 18px 44px rgba(47,107,255,0.18)' : 'none',
-                  transform: isPackHover ? 'translateY(-6px)' : 'none',
-                  transition: 'transform .25s ease, box-shadow .25s ease, border-color .25s ease',
-                  cursor: 'pointer',
+                  textAlign: 'center',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <span
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #4d86ff 0%, #2f6bff 100%)',
-                      color: '#fff',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 16,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {pack.icon}
-                  </span>
-                  <span style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a', lineHeight: 1.3 }}>{pack.name}</span>
-                </div>
-                <div style={{ fontSize: 12, color: '#86909c', lineHeight: 1.8, marginBottom: 10, minHeight: 40 }}>{pack.desc}</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 10 }}>
-                  <span style={{ fontSize: 13, color: '#ff4d4f', marginRight: 2 }}>¥</span>
-                  <span style={{ fontSize: 26, fontWeight: 700, color: '#ff4d4f', lineHeight: 1 }}>{pack.price}</span>
-                </div>
-                <div style={{ borderTop: '1px solid #f0f2f5', paddingTop: 8, marginBottom: 10 }}>
-                  {pack.specs.map((s) => (
-                    <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                      <span style={{ color: '#a9b0bd' }}>{s.label}</span>
-                      <span style={{ color: '#4e5969', textAlign: 'right' }}>{s.value}</span>
-                    </div>
-                  ))}
-                </div>
-                <Button
-                  type="primary"
-                  block
-                  style={{ height: 32, borderRadius: 8, marginTop: 'auto' }}
-                  onClick={() => (onBuyResourcePack ? onBuyResourcePack() : onSubscribe?.())}
+                <span
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    background: '#eef4ff',
+                    color: '#2f6bff',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 20,
+                    marginBottom: 14,
+                  }}
                 >
-                  立即购买
-                </Button>
+                  {item.icon}
+                </span>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#1a1a1a', marginBottom: 8 }}>{item.name}</div>
+                <div style={{ fontSize: 13, color: '#86909c', lineHeight: 1.8 }}>{item.desc}</div>
               </div>
-              )
-            })}
+            ))}
+          </div>
+          <div style={{ textAlign: 'center', marginTop: 28 }}>
+            <Tag color="blue" style={{ borderRadius: 999, padding: '4px 16px', fontSize: 14 }}>
+              加油包 · 敬请期待
+            </Tag>
           </div>
         </div>
       </section>

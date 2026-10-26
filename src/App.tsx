@@ -600,7 +600,7 @@ export default function App() {
   }
 
   /** 登录页成功后的回流目标：官网「立即订阅」登录后直达控制台 Token Plan 概览；null 走默认逻辑 */
-  const [loginReturn, setLoginReturn] = useState<'tokenPlanOverview' | 'resourcePack' | null>(null)
+  const [loginReturn, setLoginReturn] = useState<'tokenPlanOverview' | null>(null)
 
   /** 移动端落地页：?mobile=1 引导页、?mobile=partner 合伙人页整屏渲染；被邀请人登录成功后也落入引导页 */
   const [mobileView, setMobileView] = useState<'guide' | 'partner' | null>(() => {
@@ -635,16 +635,6 @@ export default function App() {
             setViewMode('console')
             setConsoleSubPage('tokenPlan')
             setTokenPlanSub('overview')
-            setCheckoutPlan(null)
-            setPaymentData(null)
-            return
-          }
-          if (loginReturn === 'resourcePack') {
-            /** 官网加油包「立即购买」入口：登录后直达控制台 · 加油包管理 */
-            setLoginReturn(null)
-            setViewMode('console')
-            setConsoleSubPage('tokenPlan')
-            setTokenPlanSub('resourcePack')
             setCheckoutPlan(null)
             setPaymentData(null)
             return
@@ -1478,11 +1468,6 @@ export default function App() {
               onSubscribe={() => {
                 /** 未登录先过登录页，登录成功后落到控制台 · Token Plan 概览 */
                 setLoginReturn('tokenPlanOverview')
-                setLoginMode(true)
-              }}
-              onBuyResourcePack={() => {
-                /** 未登录先过登录页，登录成功后落到控制台 · 加油包管理 */
-                setLoginReturn('resourcePack')
                 setLoginMode(true)
               }}
             />
