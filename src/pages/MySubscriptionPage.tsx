@@ -337,7 +337,18 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             gap: 24,
           }}
         >
-          <div style={{ fontSize: 18, color: '#1f2937', fontWeight: 600 }}>您还未订阅 Token Plan</div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 18, color: '#1f2937', fontWeight: 600 }}>您还未订阅 Token Plan</span>
+            <RequirementDot
+              title="我的订阅 · 未订阅空状态需求说明"
+              sections={[
+                {
+                  label: '',
+                  items: ['当前账户，即无有效token plan 也无有效资源包，则展示如图'],
+                },
+              ]}
+            />
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <Button
               size="large"
