@@ -575,6 +575,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                         '1. 展示当前套餐已用token 和总token，已消耗百分比=总token-已用/总token；',
                         '2. 已消耗>90%时，整个进度条展示为红色。',
                         '3. 无有效加油包时，展示去购买按钮。点击后展示购买加油包页面。\n    加油包为后台设置；加油包适用的模型与tokenplan一致。仅作为token plan的额度补充。',
+                        '4. 点击用量统计，跳转到用量统计页面；',
                       ],
                     },
                   ]}
