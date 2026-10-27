@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { DatePicker, Empty, Segmented, Select, message } from 'antd'
+import { Button, DatePicker, Empty, Segmented, Select, message } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { MODEL_DATA } from './MySubscriptionPage'
@@ -62,6 +62,12 @@ export default function UsageStatsPage({ onBack }: Props) {
     dayjs(DEFAULT_RANGE['按小时查询'][0]),
     dayjs(DEFAULT_RANGE['按小时查询'][1]),
   ])
+  // 点击「搜索」后才生效的查询条件（不做实时过滤）
+  const [applied, setApplied] = useState<{
+    models: string[]
+    mode: QueryMode
+    range: [dayjs.Dayjs, dayjs.Dayjs]
+  }>({ models, mode, range })
 
   const handleModeChange = (v: QueryMode) => {
     setMode(v)
@@ -70,9 +76,9 @@ export default function UsageStatsPage({ onBack }: Props) {
   }
 
   const buckets = useMemo(() => {
-    const [start, end] = range
-    const activeModels = models.includes(ALL_MODELS) ? MODEL_DATA.map((m) => m.model) : models
-    if (mode === '按小时查询') {
+    const [start, end] = applied.range
+    const activeModels = applied.models.includes(ALL_MODELS) ? MODEL_DATA.map((m) => m.model) : applied.models
+    if (applied.mode === '按小时查询') {
       const list: UsageBucket[] = Array.from({ length: 24 }, (_, h) => ({
         date: '',
         label: `${h}:00`,
@@ -115,7 +121,7 @@ export default function UsageStatsPage({ onBack }: Props) {
       })
     })
     return list
-  }, [models, mode, range])
+  }, [applied])
 
   const totalCached = buckets.reduce((s, b) => s + b.cached, 0)
   const totalUncached = buckets.reduce((s, b) => s + b.uncached, 0)
@@ -198,6 +204,9 @@ export default function UsageStatsPage({ onBack }: Props) {
               setRange([v[0], v[1]])
             }}
           />
+          <Button type="primary" onClick={() => setApplied({ models, mode, range })}>
+            搜索
+          </Button>
         </div>
 
         {/* 统计卡 */}
@@ -266,7 +275,7 @@ export default function UsageStatsPage({ onBack }: Props) {
                   {buckets.map((b) => {
                     const total = b.cached + b.uncached + b.output
                     const barH = (total / maxTotal) * CHART_H
-                    const barW = mode === '按小时查询' ? 20 : 36
+                    const barW = applied.mode === '按小时查询' ? 20 : 36
                     return (
                       <div key={b.label} style={{ flex: 1, position: 'relative', height: '100%' }}>
                         <div
@@ -327,7 +336,7 @@ export default function UsageStatsPage({ onBack }: Props) {
                       flex: 1,
                       textAlign: 'center',
                       color: '#475569',
-                      fontSize: mode === '按小时查询' ? 11 : 13,
+                      fontSize: applied.mode === '按小时查询' ? 11 : 13,
                     }}
                   >
                     {b.label}
