@@ -5,7 +5,6 @@ import {
   Form,
   Input,
   Modal,
-  Popconfirm,
   Progress,
   Radio,
   Space,
@@ -17,7 +16,6 @@ import {
 } from 'antd'
 import {
   CopyOutlined,
-  DeleteOutlined,
   ExclamationCircleFilled,
   EyeInvisibleOutlined,
   EyeOutlined,
@@ -236,16 +234,6 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
       addForm.resetFields()
       setAddModalOpen(false)
     })
-  }
-
-  function handleDeleteKey(id: string) {
-    updateApiKeys((prev) => prev.filter((k) => k.id !== id))
-    setVisibleKeyIds((prev) => {
-      const next = new Set(prev)
-      next.delete(id)
-      return next
-    })
-    message.success('已删除')
   }
 
   function handleResetKey(id: string) {
@@ -1096,26 +1084,6 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                   >
                     <ReloadOutlined /> 重置
                   </a>
-                  <Popconfirm
-                    title="确认删除该 API Key？"
-                    description="删除后将立即失效，无法恢复"
-                    okText="删除"
-                    cancelText="取消"
-                    okButtonProps={{ danger: true }}
-                    onConfirm={() => handleDeleteKey(record.id)}
-                  >
-                    <a
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        color: '#ef4444',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <DeleteOutlined /> 删除
-                    </a>
-                  </Popconfirm>
                 </Space>
               ),
             },
