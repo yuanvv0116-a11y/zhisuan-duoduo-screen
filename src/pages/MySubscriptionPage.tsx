@@ -1235,9 +1235,9 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
               ),
             },
             {
-              title: '倍率',
+              title: '模型档位',
               dataIndex: 'multiplier',
-              width: 80,
+              width: 90,
               render: (v: number) => <Text style={{ color: '#475569' }}>{v}x</Text>,
             },
             {
