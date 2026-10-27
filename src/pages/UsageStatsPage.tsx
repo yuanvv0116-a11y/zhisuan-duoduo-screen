@@ -3,6 +3,7 @@ import { Button, DatePicker, Empty, Segmented, Select, message } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { MODEL_DATA } from './MySubscriptionPage'
+import RequirementDot from '../components/RequirementDot'
 
 const { RangePicker } = DatePicker
 
@@ -207,6 +208,20 @@ export default function UsageStatsPage({ onBack }: Props) {
           <Button type="primary" onClick={() => setApplied({ models, mode, range })}>
             搜索
           </Button>
+          <RequirementDot
+            title="用量统计 · 查询条件需求说明"
+            sections={[
+              {
+                label: '',
+                items: [
+                  '1.默认按小时查询，当前时间至前24h数据；',
+                  '2.按小时搜索最多选择24h；',
+                  '3.点击按天查询，默认搜索最近7天。按天搜索最多支持选择30天；',
+                  '4.缓存命中率=缓存token/总token',
+                ],
+              },
+            ]}
+          />
         </div>
 
         {/* 统计卡 */}
