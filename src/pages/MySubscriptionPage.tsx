@@ -564,7 +564,22 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
             }}
           >
             <div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: '#1f2937' }}>套餐额度</div>
+              <Space size={8} align="center">
+                <span style={{ fontSize: 20, fontWeight: 600, color: '#1f2937' }}>套餐额度</span>
+                <RequirementDot
+                  title="我的订阅 · 套餐额度需求说明"
+                  sections={[
+                    {
+                      label: '',
+                      items: [
+                        '1. 展示当前套餐已用token 和总token，已消耗百分比=总token-已用/总token；',
+                        '2. 已消耗>90%时，整个进度条展示为红色。',
+                        '3. 无有效加油包时，展示去购买按钮。点击后展示购买加油包页面。\n    加油包为后台设置；加油包适用的模型与tokenplan一致。仅作为token plan的额度补充。',
+                      ],
+                    },
+                  ]}
+                />
+              </Space>
               <div style={{ marginTop: 4, fontSize: 12, color: '#94a3b8' }}>
                 套餐周期内未用完的额度不作结转
               </div>
