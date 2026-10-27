@@ -232,9 +232,6 @@ export default function UsageStatsPage({ onBack }: Props) {
             <div style={{ color: '#1f2937', fontSize: 26, fontWeight: 600, lineHeight: 1.2 }}>
               {totalTokens}
             </div>
-            <div style={{ color: '#64748b', fontSize: 13, marginTop: 8 }}>
-              输入: {totalInput}　输出: {totalOutput}　缓存: {totalCached}
-            </div>
           </div>
           <div style={{ flex: 1, background: '#f2f3f5', borderRadius: 8, padding: '16px 20px' }}>
             <div style={{ color: '#475569', fontSize: 14, marginBottom: 8 }}>缓存命中率</div>
