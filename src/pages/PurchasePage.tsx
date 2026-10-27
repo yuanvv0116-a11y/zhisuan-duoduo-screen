@@ -537,7 +537,7 @@ export default function PurchasePage({
                     onClick={() => handleSubscribe(plan.id)}
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-                      {purchased[plan.id] ? '✓ 已订阅' : isStandard ? '推荐订阅 →' : '立即订阅'}
+                      {purchased[plan.id] ? '✓ 已订阅' : '立即订阅'}
                     </span>
                   </Button>
                 </div>
