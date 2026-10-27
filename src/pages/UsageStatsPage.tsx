@@ -218,6 +218,7 @@ export default function UsageStatsPage({ onBack }: Props) {
                   '2.按小时搜索最多选择24h；',
                   '3.点击按天查询，默认搜索最近7天。按天搜索最多支持选择30天；',
                   '4.缓存命中率=缓存token/总token',
+                  '5.模型默认该账户使用的全部，支持搜索其中某一个。',
                 ],
               },
             ]}
