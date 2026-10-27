@@ -121,27 +121,29 @@ export type ModelRow = {
   brand: string
   model: string
   capability: string
+  /** 倍率：套餐内该模型的计费倍率（mock 值） */
+  multiplier: number
   nightDiscount?: boolean
 }
 
 export const MODEL_DATA: ModelRow[] = [
-  { brand: '千问', model: 'qwen3.8-max', capability: '文本生成、推理模型、视觉理解', nightDiscount: true },
-  { brand: '千问', model: 'qwen3.7-plus', capability: '文本生成、推理模型、视觉理解' },
-  { brand: '千问', model: 'qwen3.7-max', capability: '文本生成、推理模型' },
-  { brand: '千问', model: 'qwen3.6-flash', capability: '文本生成、推理模型、视觉理解' },
-  { brand: '千问', model: 'qwen-image-3.0-pro', capability: '图片生成' },
-  { brand: '千问', model: 'qwen-audio-3.0-asr-flash', capability: '语音识别' },
-  { brand: '千问', model: 'qwen-audio-3.0-tts-plus', capability: '实时语音合成、语音合成' },
-  { brand: '千问', model: 'qwen-audio-3.0-realtime-plus', capability: '实时语音对话' },
-  { brand: '万相', model: 'wan2.7-image', capability: '图片生成' },
-  { brand: '万相', model: 'wan2.7-image-pro', capability: '图片生成' },
-  { brand: 'HappyHorse', model: 'happyhorse-1.1-i2v', capability: '视频生成' },
-  { brand: 'HappyHorse', model: 'happyhorse-1.1-t2v', capability: '视频生成' },
-  { brand: 'HappyHorse', model: 'happyhorse-1.1-r2v', capability: '视频生成' },
-  { brand: 'DeepSeek', model: 'deepseek-v4-pro-0813', capability: '文本生成、推理模型', nightDiscount: true },
-  { brand: 'DeepSeek', model: 'deepseek-v4-pro', capability: '文本生成、推理模型' },
-  { brand: 'DeepSeek', model: 'deepseek-v4-flash-0731', capability: '文本生成、推理模型' },
-  { brand: '智谱 AI', model: 'glm-5.2', capability: '文本生成、推理模型' },
+  { brand: '千问', model: 'qwen3.8-max', capability: '文本生成、推理模型、视觉理解', multiplier: 2, nightDiscount: true },
+  { brand: '千问', model: 'qwen3.7-plus', capability: '文本生成、推理模型、视觉理解', multiplier: 1 },
+  { brand: '千问', model: 'qwen3.7-max', capability: '文本生成、推理模型', multiplier: 2 },
+  { brand: '千问', model: 'qwen3.6-flash', capability: '文本生成、推理模型、视觉理解', multiplier: 0.5 },
+  { brand: '千问', model: 'qwen-image-3.0-pro', capability: '图片生成', multiplier: 3 },
+  { brand: '千问', model: 'qwen-audio-3.0-asr-flash', capability: '语音识别', multiplier: 1 },
+  { brand: '千问', model: 'qwen-audio-3.0-tts-plus', capability: '实时语音合成、语音合成', multiplier: 1 },
+  { brand: '千问', model: 'qwen-audio-3.0-realtime-plus', capability: '实时语音对话', multiplier: 2 },
+  { brand: '万相', model: 'wan2.7-image', capability: '图片生成', multiplier: 2 },
+  { brand: '万相', model: 'wan2.7-image-pro', capability: '图片生成', multiplier: 3 },
+  { brand: 'HappyHorse', model: 'happyhorse-1.1-i2v', capability: '视频生成', multiplier: 3 },
+  { brand: 'HappyHorse', model: 'happyhorse-1.1-t2v', capability: '视频生成', multiplier: 3 },
+  { brand: 'HappyHorse', model: 'happyhorse-1.1-r2v', capability: '视频生成', multiplier: 3 },
+  { brand: 'DeepSeek', model: 'deepseek-v4-pro-0813', capability: '文本生成、推理模型', multiplier: 2, nightDiscount: true },
+  { brand: 'DeepSeek', model: 'deepseek-v4-pro', capability: '文本生成、推理模型', multiplier: 2 },
+  { brand: 'DeepSeek', model: 'deepseek-v4-flash-0731', capability: '文本生成、推理模型', multiplier: 1 },
+  { brand: '智谱 AI', model: 'glm-5.2', capability: '文本生成、推理模型', multiplier: 1 },
 ]
 
 function copyToClipboard(text: string, label = '内容') {
@@ -1182,10 +1184,8 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                 {
                   label: '',
                   items: [
-                    '1. 展示当前订阅套餐支持的模型清单：品牌（连续同品牌单元格合并、仅首行展示）、模型、模型能力',
-                    '2. 顶部提示：为保证效率最优，可能不定期更新部分模型，届时将发送站内消息',
-                    '3. 每行提供「接入信息」：弹窗展示 Base URL、API Endpoints、Model ID，均支持一键复制',
-                    '4. 「查看模型详情」跳转 Token 工厂模型广场对应模型详情页',
+                    '1.展示当前套餐配置的模型，信息如下；',
+                    '2.点击查看模型详情，跳转到模型详情页面；',
                   ],
                 },
               ]}
@@ -1232,6 +1232,12 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                   {v}
                 </span>
               ),
+            },
+            {
+              title: '倍率',
+              dataIndex: 'multiplier',
+              width: 80,
+              render: (v: number) => <Text style={{ color: '#475569' }}>{v}x</Text>,
             },
             {
               title: '模型能力',
