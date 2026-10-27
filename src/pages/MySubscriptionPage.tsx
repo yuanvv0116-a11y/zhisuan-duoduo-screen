@@ -1186,6 +1186,7 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                   items: [
                     '1.展示当前套餐配置的模型，信息如下；',
                     '2.点击查看模型详情，跳转到模型详情页面；',
+                    '3.如能限制每个模型只开放一个渠道，则此处无需展示倍率相关信息列',
                   ],
                 },
               ]}
