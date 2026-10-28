@@ -291,7 +291,7 @@ export default function TokenPlanListPage() {
           <div style={{ maxWidth: 200 }}>
             {items.map((s, i) => (
               <div key={i} style={{ fontSize: 12, color: '#666', lineHeight: 1.8 }}>
-                • {s}
+                {s}
               </div>
             ))}
           </div>
@@ -300,23 +300,21 @@ export default function TokenPlanListPage() {
         ),
     },
     {
-      title: '售价',
+      title: '售价（元）',
       dataIndex: 'price',
       key: 'price',
       width: 100,
       align: 'right',
-      render: (v: number) => `¥${v.toFixed(2)}`,
+      render: (v: number) => v.toFixed(2),
     },
     {
-      title: '划线原价',
+      title: '划线原价（元）',
       key: 'originalPrice',
       width: 110,
       align: 'right',
       render: (_, r: TokenPlan) =>
         r.showOriginalPrice && typeof r.originalPrice === 'number' && r.originalPrice > 0 ? (
-          <Text type="secondary" style={{ textDecoration: 'line-through' }}>
-            ¥{r.originalPrice.toFixed(2)}
-          </Text>
+          <Text type="secondary">{r.originalPrice.toFixed(2)}</Text>
         ) : (
           <Text type="secondary">—</Text>
         ),
@@ -345,8 +343,7 @@ export default function TokenPlanListPage() {
       key: 'productTag',
       width: 90,
       align: 'center',
-      render: (v?: string) =>
-        v ? <Tag color="blue">{v}</Tag> : <Text type="secondary">—</Text>,
+      render: (v?: string) => (v ? v : <Text type="secondary">—</Text>),
     },
     {
       title: '套餐总Token量',
