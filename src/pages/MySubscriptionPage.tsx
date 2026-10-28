@@ -727,7 +727,22 @@ export default function MySubscriptionPage({ onOpenUsageStats, variant = 'normal
                 marginBottom: 20,
               }}
             >
-              <span style={{ fontSize: 16, fontWeight: 500, color: '#475569' }}>加油包补充额度</span>
+              <Space size={8}>
+                <span style={{ fontSize: 16, fontWeight: 500, color: '#475569' }}>加油包补充额度</span>
+                <RequirementDot
+                  title="我的订阅 · 加油包补充额度需求说明"
+                  sections={[
+                    {
+                      label: '',
+                      items: [
+                        '1. 展示加油包已用额度和总额度，消耗百分比=（总额度-已用）/总额度；',
+                        '    加油包到期时间为购买时间+套餐有效期天数（的23:59:59）；',
+                        '2. 加油包详情展示如图。模型与套餐模型一致；',
+                      ],
+                    },
+                  ]}
+                />
+              </Space>
               <a
                 onClick={() => setPackDetailOpen(true)}
                 style={{
