@@ -12,6 +12,7 @@ import {
   Button,
   Form,
   message,
+  Popconfirm,
 } from 'antd'
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -262,6 +263,9 @@ export default function TokenPlanListPage() {
     setModalOpen(false)
   }
 
+  /* 下架二次确认：记录待确认的套餐 id */
+  const [pendingOffId, setPendingOffId] = useState<string | null>(null)
+
   /* 列表列 */
   const columns: ColumnsType<TokenPlan> = [
     {
@@ -365,16 +369,33 @@ export default function TokenPlanListPage() {
       width: 90,
       align: 'center',
       render: (v: 'on' | 'off', r) => (
-        <Switch
-          size="small"
-          checked={v === 'on'}
-          checkedChildren="上架"
-          unCheckedChildren="下架"
-          onChange={(checked) => {
-            updatePlan(r.id, { status: checked ? 'on' : 'off' })
-            message.success(checked ? '套餐已上架' : '套餐已下架')
+        <Popconfirm
+          title="是否确认下架当前套餐"
+          open={pendingOffId === r.id}
+          okText="确认"
+          cancelText="取消"
+          onConfirm={() => {
+            updatePlan(r.id, { status: 'off' })
+            message.success('套餐已下架')
+            setPendingOffId(null)
           }}
-        />
+          onCancel={() => setPendingOffId(null)}
+        >
+          <Switch
+            size="small"
+            checked={v === 'on'}
+            checkedChildren="上架"
+            unCheckedChildren="下架"
+            onChange={(checked) => {
+              if (checked) {
+                updatePlan(r.id, { status: 'on' })
+                message.success('套餐已上架')
+              } else {
+                setPendingOffId(r.id)
+              }
+            }}
+          />
+        </Popconfirm>
       ),
     },
     {
