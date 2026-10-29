@@ -185,9 +185,7 @@ export default function ResourcePackPage() {
       width: 110,
       render: (_, r) =>
         r.originalPrice && r.originalPrice > r.price ? (
-          <Text delete type="secondary">
-            ¥{r.originalPrice}
-          </Text>
+          <Text type="secondary">¥{r.originalPrice}</Text>
         ) : (
           <Text type="secondary">—</Text>
         ),
