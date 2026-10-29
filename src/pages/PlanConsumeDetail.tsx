@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Button, Input, Select, Space, Table, Typography, message } from 'antd'
+import { Button, DatePicker, Input, Select, Space, Table, Typography, message } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import type { Dayjs } from 'dayjs'
 import PageShell from '../components/PageShell'
 import RequirementDot from '../components/RequirementDot'
 import {
@@ -22,11 +23,18 @@ function csvCell(value: string | number): string {
 
 interface Query {
   user: string
+  orderNo: string
+  productName: string
   productKind?: ProductKind
   model?: string
+  /** 调用时间范围（含端点），格式 YYYY-MM-DD HH:mm:ss */
+  timeFrom?: string
+  timeTo?: string
 }
 
-const emptyQuery: Query = { user: '' }
+const emptyQuery: Query = { user: '', orderNo: '', productName: '' }
+
+const TIME_FMT = 'YYYY-MM-DD HH:mm:ss'
 
 /** 由「套餐用量查询 › 查看消耗明细」跳转带入的查询条件：按订单号精确过滤到当前人的当前套餐 */
 export interface PlanConsumeFilter {
@@ -39,10 +47,13 @@ interface Props {
 }
 
 export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
-  const seeded: Query = initialFilter ? { ...emptyQuery, user: initialFilter.orderNo } : emptyQuery
+  const seeded: Query = initialFilter ? { ...emptyQuery, orderNo: initialFilter.orderNo } : emptyQuery
   const [user, setUser] = useState(seeded.user)
+  const [orderNo, setOrderNo] = useState(seeded.orderNo)
+  const [productName, setProductName] = useState(seeded.productName)
   const [productKind, setProductKind] = useState<ProductKind>()
   const [model, setModel] = useState<string>()
+  const [timeRange, setTimeRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [query, setQuery] = useState<Query>(seeded)
 
   const modelOptions = useMemo(() => {
@@ -59,22 +70,42 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
             r.userName.toLowerCase().includes(kw) ||
             r.phone.includes(kw) ||
             maskPhone(r.phone).includes(kw) ||
-            r.orderNo.toLowerCase().includes(kw)
+            r.accountId.toLowerCase().includes(kw)
           if (!hit) return false
+        }
+        if (query.orderNo && !r.orderNo.toLowerCase().includes(query.orderNo.trim().toLowerCase())) {
+          return false
+        }
+        if (query.productName && !r.productName.toLowerCase().includes(query.productName.trim().toLowerCase())) {
+          return false
         }
         if (query.productKind && r.productKind !== query.productKind) return false
         if (query.model && r.model !== query.model) return false
+        if (query.timeFrom && r.callTime < query.timeFrom) return false
+        if (query.timeTo && r.callTime > query.timeTo) return false
         return true
       }),
     [query],
   )
 
-  const handleSearch = () => setQuery({ user, productKind, model })
+  const handleSearch = () =>
+    setQuery({
+      user,
+      orderNo,
+      productName,
+      productKind,
+      model,
+      timeFrom: timeRange?.[0]?.startOf('day').format(TIME_FMT),
+      timeTo: timeRange?.[1]?.endOf('day').format(TIME_FMT),
+    })
 
   const handleReset = () => {
     setUser('')
+    setOrderNo('')
+    setProductName('')
     setProductKind(undefined)
     setModel(undefined)
+    setTimeRange(null)
     setQuery(emptyQuery)
   }
 
@@ -252,11 +283,18 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
       searchFields={
         <>
           <Input
-            placeholder="用户姓名 / 手机号 / 订单号"
+            placeholder="用户姓名 / 手机号 / 账户ID"
             allowClear
             style={{ width: 220 }}
             value={user}
             onChange={(e) => setUser(e.target.value)}
+          />
+          <Input
+            placeholder="订单ID"
+            allowClear
+            style={{ width: 180 }}
+            value={orderNo}
+            onChange={(e) => setOrderNo(e.target.value)}
           />
           <Select
             placeholder="全部产品类型"
@@ -269,6 +307,13 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
               value: k,
             }))}
           />
+          <Input
+            placeholder="套餐名称"
+            allowClear
+            style={{ width: 180 }}
+            value={productName}
+            onChange={(e) => setProductName(e.target.value)}
+          />
           <Select
             placeholder="全部模型"
             allowClear
@@ -276,6 +321,13 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
             value={model}
             onChange={setModel}
             options={modelOptions}
+          />
+          <DatePicker.RangePicker
+            allowClear
+            style={{ width: 260 }}
+            value={timeRange}
+            onChange={(v) => setTimeRange(v)}
+            placeholder={['调用开始时间', '调用结束时间']}
           />
         </>
       }
