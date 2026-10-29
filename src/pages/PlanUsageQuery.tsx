@@ -25,11 +25,18 @@ interface Props {
 
 export default function PlanUsageQuery({ onViewConsume }: Props) {
   const [user, setUser] = useState('')
+  const [planName, setPlanName] = useState('')
+  const [orderNo, setOrderNo] = useState('')
   const [productKind, setProductKind] = useState<ProductKind>()
   const [status, setStatus] = useState<UsageStatus>()
-  const [query, setQuery] = useState<{ user: string; productKind?: ProductKind; status?: UsageStatus }>({
-    user: '',
-  })
+  const [query, setQuery] = useState<{
+    user: string;
+    planName: string;
+    orderNo: string;
+    productKind?: ProductKind;
+    status?: UsageStatus;
+  }>({ user: '', planName: '', orderNo: '' })
+
   const filtered = useMemo(
     () =>
       USAGE_ROWS.filter((r) => {
@@ -39,8 +46,14 @@ export default function PlanUsageQuery({ onViewConsume }: Props) {
             r.userName.toLowerCase().includes(kw) ||
             r.phone.includes(kw) ||
             maskPhone(r.phone).includes(kw) ||
-            r.orderNo.toLowerCase().includes(kw)
+            r.accountId.toLowerCase().includes(kw)
           if (!hit) return false
+        }
+        if (query.planName && !r.productName.toLowerCase().includes(query.planName.trim().toLowerCase())) {
+          return false
+        }
+        if (query.orderNo && !r.orderNo.toLowerCase().includes(query.orderNo.trim().toLowerCase())) {
+          return false
         }
         if (query.productKind && r.productKind !== query.productKind) return false
         if (query.status && r.status !== query.status) return false
@@ -49,13 +62,15 @@ export default function PlanUsageQuery({ onViewConsume }: Props) {
     [query],
   )
 
-  const handleSearch = () => setQuery({ user, productKind, status })
+  const handleSearch = () => setQuery({ user, planName, orderNo, productKind, status })
 
   const handleReset = () => {
     setUser('')
+    setPlanName('')
+    setOrderNo('')
     setProductKind(undefined)
     setStatus(undefined)
-    setQuery({ user: '' })
+    setQuery({ user: '', planName: '', orderNo: '' })
   }
 
   const columns: ColumnsType<UsageRow> = [
@@ -89,7 +104,7 @@ export default function PlanUsageQuery({ onViewConsume }: Props) {
       render: (v: ProductKind) => PRODUCT_KIND_LABEL[v],
     },
     {
-      title: '花费金额',
+      title: '订单实付',
       dataIndex: 'amount',
       align: 'right',
       width: 110,
@@ -180,11 +195,25 @@ export default function PlanUsageQuery({ onViewConsume }: Props) {
       searchFields={
         <>
           <Input
-            placeholder="用户姓名 / 手机号 / 订单号"
+            placeholder="用户姓名 / 手机号 / 账户ID"
             allowClear
             style={{ width: 220 }}
             value={user}
             onChange={(e) => setUser(e.target.value)}
+          />
+          <Input
+            placeholder="套餐名称"
+            allowClear
+            style={{ width: 180 }}
+            value={planName}
+            onChange={(e) => setPlanName(e.target.value)}
+          />
+          <Input
+            placeholder="订单编号"
+            allowClear
+            style={{ width: 180 }}
+            value={orderNo}
+            onChange={(e) => setOrderNo(e.target.value)}
           />
           <Select
             placeholder="全部产品类型"
