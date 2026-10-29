@@ -116,7 +116,7 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
       '用户姓名',
       '手机号',
       '账户ID',
-      '套餐信息',
+      '订单信息',
       '产品类型',
       '使用模型',
       'Endpoint',
@@ -182,7 +182,7 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
       ),
     },
     {
-      title: '套餐信息',
+      title: '订单信息',
       key: 'source',
       width: 220,
       render: (_, r) => (
