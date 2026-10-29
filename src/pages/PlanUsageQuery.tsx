@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Button, Input, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Button, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from 'antd'
+import { DownloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import PageShell from '../components/PageShell'
 import RequirementDot from '../components/RequirementDot'
@@ -17,6 +18,11 @@ import {
 } from '../planUsageData'
 
 const { Text } = Typography
+
+/** CSV 单元格：统一加引号并转义内部双引号 */
+function csvCell(value: string | number): string {
+  return `"${String(value).replace(/"/g, '""')}"`
+}
 
 interface Props {
   /** 「查看消耗明细」：跳转到「套餐消耗明细」页，并按当前订单号过滤到当前人的当前套餐 */
@@ -71,6 +77,67 @@ export default function PlanUsageQuery({ onViewConsume }: Props) {
     setProductKind(undefined)
     setStatus(undefined)
     setQuery({ user: '', planName: '', orderNo: '' })
+  }
+
+  /** 按当前筛选结果导出 CSV（不只当前页），字段与列表一致 */
+  const handleExport = () => {
+    if (!filtered.length) {
+      message.warning('当前筛选结果为空，暂无可导出数据')
+      return
+    }
+    const header = [
+      '订单号',
+      '用户姓名',
+      '手机号',
+      '账户ID',
+      '购买产品',
+      '产品类型',
+      '订单实付（元）',
+      'Tokens 总量',
+      '已用 Tokens',
+      '已用百分比（%）',
+      '剩余 Tokens',
+      '有效期开始',
+      '有效期截止',
+      '当前状态',
+    ]
+    const lines = [header.map(csvCell).join(',')]
+    filtered.forEach((r) => {
+      const percent = Math.min(100, Math.round((r.usedTokens / r.totalTokens) * 100))
+      lines.push(
+        [
+          r.orderNo,
+          r.userName,
+          maskPhone(r.phone),
+          r.accountId,
+          r.productName,
+          PRODUCT_KIND_LABEL[r.productKind],
+          r.amount.toFixed(2),
+          r.totalTokens,
+          r.usedTokens,
+          percent,
+          remainingTokens(r),
+          r.validFrom,
+          r.validTo,
+          USAGE_STATUS_LABEL[r.status],
+        ]
+          .map(csvCell)
+          .join(','),
+      )
+    })
+    /** 前置 BOM，保证 Excel 直接打开时中文不乱码 */
+    const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const ts = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    a.download = `套餐用量_${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    message.success(`已导出 ${filtered.length} 条记录`)
   }
 
   const columns: ColumnsType<UsageRow> = [
@@ -192,6 +259,11 @@ export default function PlanUsageQuery({ onViewConsume }: Props) {
       }
       onSearch={handleSearch}
       onReset={handleReset}
+      listActions={
+        <Button icon={<DownloadOutlined />} onClick={handleExport}>
+          导出
+        </Button>
+      }
       searchFields={
         <>
           <Input
