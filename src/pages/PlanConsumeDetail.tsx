@@ -52,14 +52,9 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
   const [orderNo, setOrderNo] = useState(seeded.orderNo)
   const [productName, setProductName] = useState(seeded.productName)
   const [productKind, setProductKind] = useState<ProductKind>()
-  const [model, setModel] = useState<string>()
+  const [model, setModel] = useState('')
   const [timeRange, setTimeRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [query, setQuery] = useState<Query>(seeded)
-
-  const modelOptions = useMemo(() => {
-    const codes = Array.from(new Set(CONSUME_ROWS.map((r) => r.model)))
-    return codes.map((c) => ({ label: c, value: c }))
-  }, [])
 
   const filtered = useMemo(
     () =>
@@ -80,7 +75,9 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
           return false
         }
         if (query.productKind && r.productKind !== query.productKind) return false
-        if (query.model && r.model !== query.model) return false
+        if (query.model && !r.model.toLowerCase().includes(query.model.trim().toLowerCase())) {
+          return false
+        }
         if (query.timeFrom && r.callTime < query.timeFrom) return false
         if (query.timeTo && r.callTime > query.timeTo) return false
         return true
@@ -104,7 +101,7 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
     setOrderNo('')
     setProductName('')
     setProductKind(undefined)
-    setModel(undefined)
+    setModel('')
     setTimeRange(null)
     setQuery(emptyQuery)
   }
@@ -314,13 +311,12 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
             value={productName}
             onChange={(e) => setProductName(e.target.value)}
           />
-          <Select
-            placeholder="全部模型"
+          <Input
+            placeholder="模型名称"
             allowClear
             style={{ width: 190 }}
             value={model}
-            onChange={setModel}
-            options={modelOptions}
+            onChange={(e) => setModel(e.target.value)}
           />
           <DatePicker.RangePicker
             allowClear
