@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Input, Select, Space, Table, Typography } from 'antd'
+import { Button, Input, Select, Space, Table, Typography, message } from 'antd'
+import { DownloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import PageShell from '../components/PageShell'
 import RequirementDot from '../components/RequirementDot'
@@ -13,6 +14,11 @@ import {
 } from '../planUsageData'
 
 const { Text } = Typography
+
+/** CSV 单元格：统一加引号并转义内部双引号 */
+function csvCell(value: string | number): string {
+  return `"${String(value).replace(/"/g, '""')}"`
+}
 
 interface Query {
   user: string
@@ -72,6 +78,68 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
     setQuery(emptyQuery)
   }
 
+  /** 按当前筛选结果导出 CSV（不只当前页），字段与列表一致 */
+  const handleExport = () => {
+    if (!filtered.length) {
+      message.warning('当前筛选结果为空，暂无可导出数据')
+      return
+    }
+    const header = [
+      '用户姓名',
+      '手机号',
+      '账户ID',
+      '套餐信息',
+      '产品类型',
+      '使用模型',
+      'Endpoint',
+      '账号别名',
+      '调用时间',
+      '倍率',
+      '输入 Tokens',
+      '输出 Tokens',
+      '缓存创建 Tokens',
+      '缓存读取 Tokens',
+      '成本价（元）',
+    ]
+    const lines = [header.map(csvCell).join(',')]
+    filtered.forEach((r) => {
+      lines.push(
+        [
+          r.userName,
+          maskPhone(r.phone),
+          r.accountId,
+          `${r.productName}（${r.orderNo}）`,
+          PRODUCT_KIND_LABEL[r.productKind],
+          r.model,
+          r.endpoint,
+          r.accountAlias,
+          r.callTime,
+          `${r.rate}x`,
+          r.inputTokens,
+          r.outputTokens,
+          r.cacheCreateTokens,
+          r.cacheReadTokens,
+          r.cost.toFixed(4),
+        ]
+          .map(csvCell)
+          .join(','),
+      )
+    })
+    /** 前置 BOM，保证 Excel 直接打开时中文不乱码 */
+    const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const ts = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    a.download = `套餐消耗明细_${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    message.success(`已导出 ${filtered.length} 条记录`)
+  }
+
   const columns: ColumnsType<ConsumeRow> = [
     {
       title: '用户信息',
@@ -86,7 +154,7 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
       ),
     },
     {
-      title: '扣费来源',
+      title: '套餐信息',
       key: 'source',
       width: 220,
       render: (_, r) => (
@@ -97,7 +165,7 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
       ),
     },
     {
-      title: '扣费类型',
+      title: '产品类型',
       dataIndex: 'productKind',
       width: 100,
       render: (v: ProductKind) => PRODUCT_KIND_LABEL[v],
@@ -176,6 +244,11 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
       }
       onSearch={handleSearch}
       onReset={handleReset}
+      listActions={
+        <Button icon={<DownloadOutlined />} onClick={handleExport}>
+          导出
+        </Button>
+      }
       searchFields={
         <>
           <Input
@@ -186,7 +259,7 @@ export default function PlanConsumeDetail({ initialFilter }: Props = {}) {
             onChange={(e) => setUser(e.target.value)}
           />
           <Select
-            placeholder="全部扣费类型"
+            placeholder="全部产品类型"
             allowClear
             style={{ width: 150 }}
             value={productKind}
