@@ -156,17 +156,17 @@ function OverviewCard() {
       <Row gutter={[16, 16]}>
         <Col span={8}>
           <div style={{ textAlign: 'center' }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>总成本</Text>
-            <div style={{ fontSize: 22, fontWeight: 600, color: '#fa541c', marginTop: 4 }}>
-              ¥{totalCost.toLocaleString()}
+            <Text type="secondary" style={{ fontSize: 12 }}>总销售金额</Text>
+            <div style={{ fontSize: 22, fontWeight: 600, color: '#2f6bff', marginTop: 4 }}>
+              ¥{totalSoldAmount.toLocaleString()}
             </div>
           </div>
         </Col>
         <Col span={8}>
           <div style={{ textAlign: 'center' }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>总销售金额</Text>
-            <div style={{ fontSize: 22, fontWeight: 600, color: '#2f6bff', marginTop: 4 }}>
-              ¥{totalSoldAmount.toLocaleString()}
+            <Text type="secondary" style={{ fontSize: 12 }}>总成本</Text>
+            <div style={{ fontSize: 22, fontWeight: 600, color: '#fa541c', marginTop: 4 }}>
+              ¥{totalCost.toLocaleString()}
             </div>
           </div>
         </Col>
