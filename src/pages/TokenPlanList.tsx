@@ -176,10 +176,14 @@ export default function TokenPlanListPage() {
       name: plan.name,
       subtitle: plan.subtitle ?? '',
       summaryItems: plan.summaryItems ?? [],
-      price: plan.price,
+      // 打折销售开启时售价是折后价，表单售价回填划线前的原价
+      price:
+        plan.showOriginalPrice && (plan.originalPrice ?? 0) > 0
+          ? plan.originalPrice ?? 0
+          : plan.price,
       highlight: plan.highlight ?? false,
       discountPrice: plan.price,
-      discount: 100,
+      discount: plan.showOriginalPrice ? plan.discount ?? 95 : 100,
       durations: plan.durations?.length
         ? plan.durations.map((d) => ({
             ...d,
@@ -212,8 +216,8 @@ export default function TokenPlanListPage() {
       message.error('折扣价不能为负数')
       return
     }
-    if (form.showOriginalPrice && (form.originalPrice < 0 || Number.isNaN(form.originalPrice))) {
-      message.error('请输入有效的划线原价')
+    if (form.showOriginalPrice && !(form.discount > 0 && form.discount < 100)) {
+      message.error('请输入有效的折扣，范围 0.01～0.99')
       return
     }
     if (form.totalTokens <= 0) {
@@ -226,16 +230,21 @@ export default function TokenPlanListPage() {
     }
 
     const editingPlan = editingId ? plans.find((p) => p.id === editingId) : undefined
+    // 打折销售：填写的售价变划线价，折后价作为实际售价
+    const discountedPrice = +(
+      (form.price * (form.showOriginalPrice ? form.discount : 100)) /
+      100
+    ).toFixed(2)
     const payload = {
       name: form.name.trim(),
       subtitle: form.subtitle.trim() || undefined,
       // 套餐版本字段已从表单移除：编辑保留原值，新增默认个人版
       planType: editingPlan?.planType ?? 'personal',
       summaryItems: form.summaryItems.filter((s) => s.trim()),
-      price: form.price,
+      price: form.showOriginalPrice ? discountedPrice : form.price,
       highlight: form.highlight,
-      discountPrice: form.price,
-      discount: 100,
+      discountPrice: discountedPrice,
+      discount: form.showOriginalPrice ? form.discount : 100,
       durations: form.durations,
       productTag: form.productTag.trim(),
       totalTokens: form.totalTokens,
@@ -250,7 +259,7 @@ export default function TokenPlanListPage() {
       // 包含模型改由列表「配置模型」页维护，表单不再配置：编辑保留原值，新增置空
       modelIds: editingPlan?.modelIds ?? [],
       showOriginalPrice: form.showOriginalPrice,
-      originalPrice: form.originalPrice,
+      originalPrice: form.showOriginalPrice ? form.price : 0,
     }
 
     if (editingId) {
@@ -603,15 +612,16 @@ export default function TokenPlanListPage() {
               value={form.price}
               onChange={(v) => {
                 const price = v ?? 0
-                const discountPrice = price
+                const salePrice = form.showOriginalPrice
+                  ? +(price * (form.discount / 100)).toFixed(2)
+                  : price
                 setForm({
                   ...form,
                   price,
-                  discountPrice,
-                  discount: 100,
+                  discountPrice: salePrice,
                   durations: form.durations.map((d) => ({
                     ...d,
-                    finalPrice: +(price * d.months * (d.discount / 100)).toFixed(2),
+                    finalPrice: +(salePrice * d.months * (d.discount / 100)).toFixed(2),
                   })),
                 })
               }}
@@ -621,31 +631,48 @@ export default function TokenPlanListPage() {
             />
           </Form.Item>
 
-          {/* 是否展示原价 Switch + 条件展示划线原价 */}
-          <Form.Item label="展示划线原价" style={{ marginBottom: 16 }}>
+          {/* 打折销售：开启后填写的售价作为划线价，实际售价 = 售价 × 折扣 */}
+          <Form.Item label="打折销售" style={{ marginBottom: 16 }}>
             <Space size={[16, 0]} align="center">
               <Switch
                 checked={form.showOriginalPrice}
-                onChange={(checked) =>
-                  setForm({ ...form, showOriginalPrice: checked })
-                }
+                onChange={(checked) => {
+                  const discount = checked ? 95 : 100
+                  setForm({
+                    ...form,
+                    showOriginalPrice: checked,
+                    discount,
+                    discountPrice: +(form.price * (discount / 100)).toFixed(2),
+                  })
+                }}
               />
               <Text type="secondary" style={{ fontSize: 12 }}>
-                开启后，前台卡片会以划线形式展示对比原价
+                开启后，售价将会变为划线价
               </Text>
             </Space>
           </Form.Item>
           {form.showOriginalPrice && (
-            <Form.Item label="划线原价（元）" required style={{ marginBottom: 16 }}>
-              <InputNumber
-                style={{ width: 220 }}
-                value={form.originalPrice}
-                onChange={(v) => setForm({ ...form, originalPrice: v ?? 0 })}
-                min={0}
-                precision={2}
-                prefix="¥"
-                placeholder="请输入划线展示的原价"
-              />
+            <Form.Item label="折扣" style={{ marginBottom: 16 }}>
+              <Space size={[12, 0]} align="center">
+                <InputNumber
+                  style={{ width: 140 }}
+                  value={form.discount / 100}
+                  onChange={(v) => {
+                    const discount = Math.round((v ?? 1) * 10000) / 100
+                    setForm({
+                      ...form,
+                      discount,
+                      discountPrice: +(form.price * (discount / 100)).toFixed(2),
+                    })
+                  }}
+                  min={0.01}
+                  max={0.99}
+                  step={0.01}
+                />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  折扣后售价 ¥{(form.price * (form.discount / 100)).toFixed(2)}（划线价 ¥{form.price.toFixed(2)}）
+                </Text>
+              </Space>
             </Form.Item>
           )}
 
