@@ -250,8 +250,9 @@ export default function TokenPlanListPage() {
           ? {
               ...d,
               months: displayUnitsToMonths(form.validityValue, form.validityUnit),
+              // 打折销售的折扣已计入套餐售价（price/discountPrice），时长折扣仍记 100，避免下单页重复打折
               discount: 100,
-              finalPrice: +(form.price * form.validityValue).toFixed(2),
+              finalPrice: +(discountedPrice * form.validityValue).toFixed(2),
             }
           : d
       ),
@@ -755,8 +756,12 @@ export default function TokenPlanListPage() {
                 const unitMeta = PLAN_DURATION_UNIT_META[form.validityUnit]
                 // 总金额 = 行内显示的数量 × 售价（折扣前原价）
                 const totalAmount = +(form.price * displayUnits).toFixed(2)
-                const rowDiscount = isBase ? 100 : dur.discount
-                const rowFinalPrice = isBase ? totalAmount : dur.finalPrice
+                // 打折销售的折扣要体现在首行：折扣取全局折扣，折后价 = 总金额 × 折扣
+                const globalDiscount = form.showOriginalPrice ? form.discount : 100
+                const rowDiscount = isBase ? globalDiscount : dur.discount
+                const rowFinalPrice = isBase
+                  ? +(totalAmount * (globalDiscount / 100)).toFixed(2)
+                  : dur.finalPrice
                 return (
                   <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <Input
