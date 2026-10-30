@@ -188,13 +188,13 @@ export default function ResourcePackPage() {
       title: '价格',
       key: 'price',
       width: 110,
-      // 打折销售存的是折后价，价格列仍展示打折前的售价，折后见「折后价」列
+      // 打折销售存的是折后价，价格列仍展示打折前的售价，折后见「折扣价」列
       render: (_, r) => (
         <Text>¥{r.originalPrice && r.originalPrice > r.price ? r.originalPrice : r.price}</Text>
       ),
     },
     {
-      title: '折后价',
+      title: '折扣价',
       key: 'discountedPrice',
       width: 110,
       render: (_, r) =>
