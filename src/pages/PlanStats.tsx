@@ -252,6 +252,7 @@ function OverviewCard() {
 
 function SummaryBlock({
   title,
+  subject,
   soldCount,
   soldAmount,
   cost,
@@ -260,6 +261,8 @@ function SummaryBlock({
   icon,
 }: {
   title: string
+  /** 统计主体，用于指标口径说明文案（套餐 / 加油包） */
+  subject: string
   soldCount: number
   soldAmount: number
   cost: number
@@ -301,6 +304,7 @@ function SummaryBlock({
           <div style={{ background: '#f7f9fc', borderRadius: 10, padding: '14px 16px' }}>
             <div style={{ marginBottom: 6 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>销售数量</Text>
+              <MetricTip text={`成功支付的${subject}数量`} />
             </div>
             <div style={{ fontSize: 22, fontWeight: 600, color: '#333' }}>
               {soldCount.toLocaleString()}
@@ -312,6 +316,7 @@ function SummaryBlock({
           <div style={{ background: '#f7f9fc', borderRadius: 10, padding: '14px 16px' }}>
             <div style={{ marginBottom: 6 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>销售金额</Text>
+              <MetricTip text={`成功支付的${subject}总额`} />
             </div>
             <div style={{ fontSize: 22, fontWeight: 600, color }}>
               ¥{soldAmount.toLocaleString()}
@@ -322,6 +327,7 @@ function SummaryBlock({
           <div style={{ background: '#f7f9fc', borderRadius: 10, padding: '14px 16px' }}>
             <div style={{ marginBottom: 6 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>成本</Text>
+              <MetricTip text={`成功支付的${subject}截止到当前使用的总成本`} />
             </div>
             <div style={{ fontSize: 22, fontWeight: 600, color: '#fa541c' }}>
               ¥{cost.toLocaleString()}
@@ -525,6 +531,7 @@ export default function PlanStats() {
         <Col xs={24} lg={12}>
           <SummaryBlock
             title="套餐销售统计"
+            subject="套餐"
             icon={<RocketOutlined />}
             color="#722ed1"
             soldCount={PLAN_SUMMARY.soldCount}
@@ -536,6 +543,7 @@ export default function PlanStats() {
         <Col xs={24} lg={12}>
           <SummaryBlock
             title="加油包销售统计"
+            subject="加油包"
             icon={<AppstoreOutlined />}
             color="#2f6bff"
             soldCount={RESOURCE_PACK_SUMMARY.soldCount}
