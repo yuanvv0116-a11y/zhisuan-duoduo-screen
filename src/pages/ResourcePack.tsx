@@ -37,10 +37,12 @@ interface FormState {
   name: string
   subtitle: string
   status: 'on' | 'off'
-  /** 价格（元） */
+  /** 售价（元）；打折销售开启后即为划线价 */
   price: number
-  /** 划线价格（元），0 表示未配置 */
-  originalPrice: number
+  /** 打折销售 */
+  showOriginalPrice: boolean
+  /** 折扣 0-100（95 = 95 折） */
+  discount: number
   /** 额度（Token 数量） */
   quota: number
   validityValue: number
@@ -52,7 +54,8 @@ const emptyForm: FormState = {
   subtitle: '',
   status: 'on',
   price: 0,
-  originalPrice: 0,
+  showOriginalPrice: false,
+  discount: 100,
   quota: 0,
   validityValue: 1,
   validityUnit: 'month',
@@ -98,13 +101,16 @@ export default function ResourcePackPage() {
   }
 
   const openEdit = (pack: ResourcePack) => {
+    // 划线价高于售价 = 打折销售，回填划线价（售价输入框）与折扣
+    const discounted = !!pack.originalPrice && pack.originalPrice > pack.price
     setEditingId(pack.id)
     setForm({
       name: pack.name,
       subtitle: pack.subtitle ?? '',
       status: pack.status,
-      price: pack.price,
-      originalPrice: pack.originalPrice ?? 0,
+      price: discounted ? pack.originalPrice! : pack.price,
+      showOriginalPrice: discounted,
+      discount: discounted ? +((pack.price / pack.originalPrice!) * 100).toFixed(2) : 100,
       quota: pack.quota,
       validityValue: pack.validityValue,
       validityUnit: pack.validityUnit,
@@ -118,11 +124,11 @@ export default function ResourcePackPage() {
       return
     }
     if (!(form.price > 0)) {
-      message.error('请输入加油包价格')
+      message.error('请输入加油包售价')
       return
     }
-    if (form.originalPrice > 0 && form.originalPrice < form.price) {
-      message.error('划线价格不能低于价格')
+    if (form.showOriginalPrice && !(form.discount > 0 && form.discount < 100)) {
+      message.error('请输入有效的折扣，范围 0.01～0.99')
       return
     }
     if (!(form.quota > 0)) {
@@ -134,12 +140,17 @@ export default function ResourcePackPage() {
       return
     }
 
+    // 打折销售：填写的售价变划线价，折后价作为实际售价
+    const discountedPrice = +(
+      (form.price * (form.showOriginalPrice ? form.discount : 100)) /
+      100
+    ).toFixed(2)
     const payload = {
       name: form.name.trim(),
       subtitle: form.subtitle.trim() || undefined,
       status: form.status,
-      price: form.price,
-      originalPrice: form.originalPrice > 0 ? form.originalPrice : undefined,
+      price: discountedPrice,
+      originalPrice: form.showOriginalPrice ? form.price : undefined,
       quota: form.quota,
       validityValue: form.validityValue,
       validityUnit: form.validityUnit,
@@ -374,30 +385,60 @@ export default function ResourcePackPage() {
             />
           </Form.Item>
 
-          <Space size={16} style={{ display: 'flex' }} align='start'>
-            <Form.Item label="价格（元）" required style={{ flex: 1, minWidth: 200 }}>
-              <InputNumber
-                value={form.price}
-                onChange={(v) => setForm({ ...form, price: v ?? 0 })}
-                min={0}
-                precision={2}
-                prefix="¥"
-                style={{ width: '100%' }}
-                placeholder="请输入价格"
+          <Form.Item label="售价（元）" required>
+            <InputNumber
+              value={form.price}
+              onChange={(v) => setForm({ ...form, price: v ?? 0 })}
+              min={0}
+              precision={2}
+              prefix="¥"
+              style={{ width: 220 }}
+              placeholder="请输入售价"
+            />
+          </Form.Item>
+
+          {/* 打折销售：开启后填写的售价作为划线价，实际售价 = 售价 × 折扣 */}
+          <Form.Item label="打折销售">
+            <Space size={[16, 0]} align="center">
+              <Switch
+                checked={form.showOriginalPrice}
+                onChange={(checked) =>
+                  setForm({
+                    ...form,
+                    showOriginalPrice: checked,
+                    discount: checked ? 95 : 100,
+                  })
+                }
               />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                开启后，售价将会变为划线价
+              </Text>
+            </Space>
+          </Form.Item>
+          {form.showOriginalPrice && (
+            <Form.Item label="折扣">
+              <Space size={[12, 0]} align="center">
+                <InputNumber
+                  style={{ width: 140 }}
+                  value={form.discount / 100}
+                  onChange={(v) =>
+                    setForm({ ...form, discount: Math.round((v ?? 1) * 10000) / 100 })
+                  }
+                  min={0.01}
+                  max={0.99}
+                  step={0.01}
+                />
+                <span style={{ fontSize: 12 }}>
+                  <Text strong style={{ fontSize: 12, color: '#ff4d4f' }}>
+                    折扣后售价 ¥{(form.price * (form.discount / 100)).toFixed(2)}
+                  </Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    （划线价 ¥{form.price.toFixed(2)}）
+                  </Text>
+                </span>
+              </Space>
             </Form.Item>
-            <Form.Item label="划线价格（元）" style={{ flex: 1, minWidth: 200 }}>
-              <InputNumber
-                value={form.originalPrice || undefined}
-                onChange={(v) => setForm({ ...form, originalPrice: v ?? 0 })}
-                min={0}
-                precision={2}
-                prefix="¥"
-                style={{ width: '100%' }}
-                placeholder="选填，不填则不展示划线价"
-              />
-            </Form.Item>
-          </Space>
+          )}
 
           <Form.Item label="额度（Tokens）" required>
             <InputNumber
