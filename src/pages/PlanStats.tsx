@@ -336,6 +336,12 @@ function RankingTable({
   dataSource: RankItem[]
   title: string
 }) {
+  /** 榜单统一按成功支付的订单数量（销售数量）从多到少排列，取前五并重排名次 */
+  const ranked = [...dataSource]
+    .sort((a, b) => b.soldCount - a.soldCount)
+    .slice(0, 5)
+    .map((r, i) => ({ ...r, rank: i + 1 }))
+
   const columns: ColumnsType<RankItem> = [
     {
       title: '排名',
@@ -425,7 +431,7 @@ function RankingTable({
     >
       <Table<RankItem>
         rowKey="rank"
-        dataSource={dataSource}
+        dataSource={ranked}
         pagination={false}
         size="small"
         columns={columns}
@@ -533,9 +539,7 @@ export default function PlanStats() {
         <Col xs={24} lg={12}>
           <RankingTable
             dataSource={
-              SHOW_ENTERPRISE
-                ? HOT_PLANS
-                : HOT_PLANS.filter((p) => p.type !== '企业版').map((p, i) => ({ ...p, rank: i + 1 }))
+              SHOW_ENTERPRISE ? HOT_PLANS : HOT_PLANS.filter((p) => p.type !== '企业版')
             }
             title="热门套餐 TOP 5"
           />
