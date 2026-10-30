@@ -669,9 +669,14 @@ export default function TokenPlanListPage() {
                   max={0.99}
                   step={0.01}
                 />
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  折扣后售价 ¥{(form.price * (form.discount / 100)).toFixed(2)}（划线价 ¥{form.price.toFixed(2)}）
-                </Text>
+                <span style={{ fontSize: 12 }}>
+                  <Text strong style={{ fontSize: 12, color: '#ff4d4f' }}>
+                    折扣后售价 ¥{(form.price * (form.discount / 100)).toFixed(2)}
+                  </Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    （划线价 ¥{form.price.toFixed(2)}）
+                  </Text>
+                </span>
               </Space>
             </Form.Item>
           )}
