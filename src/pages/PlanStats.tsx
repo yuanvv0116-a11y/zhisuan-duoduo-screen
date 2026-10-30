@@ -178,7 +178,7 @@ function OverviewCard() {
         <Col span={8}>
           <div style={{ textAlign: 'center' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>总成本</Text>
-            <MetricTip text="使用的模型的总成本" />
+            <MetricTip text="已消耗的token的总成本" />
             <div style={{ fontSize: 22, fontWeight: 600, color: '#fa541c', marginTop: 4 }}>
               ¥{totalCost.toLocaleString()}
             </div>
@@ -187,7 +187,7 @@ function OverviewCard() {
         <Col span={8}>
           <div style={{ textAlign: 'center' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              总利润 <MetricTip text="总销售金额-总成本" />
+              总利润 <MetricTip text="总销售金额-总成本（此处因部分token未使用，可能存在误差）" />
             </Text>
             <div style={{ fontSize: 22, fontWeight: 600, color: '#52c41a', marginTop: 4 }}>
               ¥{totalProfit.toLocaleString()}
