@@ -328,16 +328,18 @@ export default function TokenPlanListPage() {
       key: 'price',
       width: 100,
       align: 'right',
-      render: (v: number) => v.toFixed(2),
+      // 打折销售开启时售价存的是折后价，列表仍展示打折前的售价，折后价见「折扣价」列
+      render: (v: number, r: TokenPlan) =>
+        (r.showOriginalPrice && (r.originalPrice ?? 0) > 0 ? r.originalPrice ?? v : v).toFixed(2),
     },
     {
-      title: '划线原价（元）',
-      key: 'originalPrice',
+      title: '折扣价（元）',
+      key: 'discountPrice',
       width: 110,
       align: 'right',
       render: (_, r: TokenPlan) =>
         r.showOriginalPrice && typeof r.originalPrice === 'number' && r.originalPrice > 0 ? (
-          <Text type="secondary">{r.originalPrice.toFixed(2)}</Text>
+          <Text>{r.price.toFixed(2)}</Text>
         ) : (
           <Text type="secondary">—</Text>
         ),
