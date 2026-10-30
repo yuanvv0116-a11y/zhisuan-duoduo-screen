@@ -515,21 +515,24 @@ export default function PlanBill() {
       key: 'action',
       width: 160,
       fixed: 'right',
-      render: (_v, r) => (
-        <Space size={4}>
-          <Button
-            type="link"
-            style={{ padding: 0, color: '#2f6bff' }}
-            onClick={() => {
-              setCallDetailRow(r)
-              setCallDetailData(generateCallDetails(r))
-              setCallDetailOpen(true)
-            }}
-          >
-            消耗明细
-          </Button>
-        </Space>
-      ),
+      render: (_v, r) =>
+        r.status === 'paid' ? (
+          <Space size={4}>
+            <Button
+              type="link"
+              style={{ padding: 0, color: '#2f6bff' }}
+              onClick={() => {
+                setCallDetailRow(r)
+                setCallDetailData(generateCallDetails(r))
+                setCallDetailOpen(true)
+              }}
+            >
+              消耗明细
+            </Button>
+          </Space>
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
     },
   ]
 
