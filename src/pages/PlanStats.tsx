@@ -462,6 +462,17 @@ export default function PlanStats() {
                 { label: '全部时间', value: 'all' },
               ]}
             />
+            <RequirementDot
+              title="统计周期 — 需求点"
+              sections={[
+                {
+                  label: '',
+                  items: [
+                    '1.默认按照全部时间搜索。 近30天为从当日-30天到当日；本月为从本月1日到此刻；',
+                  ],
+                },
+              ]}
+            />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
