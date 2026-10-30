@@ -9,11 +9,13 @@ import {
   Tag,
   Segmented,
   DatePicker,
+  Tooltip,
 } from 'antd'
 import {
   AppstoreOutlined,
   RocketOutlined,
   TrophyOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { SHOW_ENTERPRISE } from '../constants'
@@ -21,6 +23,15 @@ import RequirementDot from '../components/RequirementDot'
 
 const { Text } = Typography
 const { RangePicker } = DatePicker
+
+/** 概览指标口径说明：标签后的解释图标，鼠标悬浮展示 */
+function MetricTip({ text }: { text: string }) {
+  return (
+    <Tooltip title={text}>
+      <InfoCircleOutlined style={{ fontSize: 12, color: '#8c8c8c', marginLeft: 4 }} />
+    </Tooltip>
+  )
+}
 
 /* ---------------- 加油包销售统计 ---------------- */
 const RESOURCE_PACK_SUMMARY = {
@@ -111,6 +122,7 @@ function OverviewCard() {
           <div>
             <div style={{ marginBottom: 4 }}>
               <Text type="secondary" style={{ fontSize: 13 }}>Token Plan套餐总数</Text>
+              <MetricTip text="创建且未删除的套餐总数" />
             </div>
             <div>
               <span style={{ fontSize: 26, fontWeight: 600, color: '#333' }}>{SHOW_ENTERPRISE ? 5 : 3}</span>
@@ -141,6 +153,7 @@ function OverviewCard() {
           <div>
             <div style={{ marginBottom: 4 }}>
               <Text type="secondary" style={{ fontSize: 13 }}>加油包总数</Text>
+              <MetricTip text="创建且未删除的加油包总数" />
             </div>
             <div>
               <span style={{ fontSize: 26, fontWeight: 600, color: '#333' }}>5</span>
@@ -157,6 +170,7 @@ function OverviewCard() {
         <Col span={8}>
           <div style={{ textAlign: 'center' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>总销售金额</Text>
+            <MetricTip text="套餐和加油包支付成功的订单总额" />
             <div style={{ fontSize: 22, fontWeight: 600, color: '#2f6bff', marginTop: 4 }}>
               ¥{totalSoldAmount.toLocaleString()}
             </div>
@@ -165,6 +179,7 @@ function OverviewCard() {
         <Col span={8}>
           <div style={{ textAlign: 'center' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>总成本</Text>
+            <MetricTip text="使用的模型的总成本" />
             <div style={{ fontSize: 22, fontWeight: 600, color: '#fa541c', marginTop: 4 }}>
               ¥{totalCost.toLocaleString()}
             </div>
@@ -173,7 +188,8 @@ function OverviewCard() {
         <Col span={8}>
           <div style={{ textAlign: 'center' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              总利润 <Tag color={Number(profitRate) >= 50 ? 'green' : 'orange'} style={{ borderRadius: 4, marginLeft: 4 }}>
+              总利润 <MetricTip text="总销售金额-总成本" />
+              <Tag color={Number(profitRate) >= 50 ? 'green' : 'orange'} style={{ borderRadius: 4, marginLeft: 4 }}>
                 {profitRate}%
               </Tag>
             </Text>
@@ -191,6 +207,7 @@ function OverviewCard() {
         <Col span={6}>
           <div style={{ textAlign: 'center' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>总 Token 数</Text>
+            <MetricTip text="套餐和加油包支付成功的套餐的token总数" />
             <div style={{ fontSize: 20, fontWeight: 600, color: '#333', marginTop: 4 }}>
               {formatToken(TOKEN_STATS.total)}
             </div>
@@ -199,6 +216,7 @@ function OverviewCard() {
         <Col span={6}>
           <div style={{ textAlign: 'center' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>已消耗 Token 数</Text>
+            <MetricTip text="消耗的token总数" />
             <div style={{ fontSize: 20, fontWeight: 600, color: '#2f6bff', marginTop: 4 }}>
               {formatToken(TOKEN_STATS.consumed)}
             </div>
@@ -207,6 +225,7 @@ function OverviewCard() {
         <Col span={6}>
           <div style={{ textAlign: 'center' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>已失效 Token 数</Text>
+            <MetricTip text="过期状态的套餐和加油包的token总剩余数量" />
             <div style={{ fontSize: 20, fontWeight: 600, color: '#fa541c', marginTop: 4 }}>
               {formatToken(TOKEN_STATS.expired)}
             </div>
@@ -216,6 +235,7 @@ function OverviewCard() {
           <div style={{ textAlign: 'center' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
               Token 失效率
+              <MetricTip text="已失效 Token 数/过期状态的套餐和加油包的token总量" />
               <Tag color={Number(tokenFailRate) >= 20 ? 'red' : Number(tokenFailRate) >= 10 ? 'orange' : 'green'} style={{ borderRadius: 4, marginLeft: 4 }}>
                 {tokenFailRate}%
               </Tag>
