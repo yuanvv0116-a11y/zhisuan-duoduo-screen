@@ -395,26 +395,6 @@ function RankingTable({
       align: 'right',
       render: (v: number) => <span style={{ color: '#333' }}>¥{v.toLocaleString()}</span>,
     },
-    {
-      title: '利润',
-      dataIndex: 'profit',
-      key: 'profit',
-      width: 150,
-      align: 'right',
-      render: (v: number, r) => {
-        const good = r.profitRate >= 50
-        return (
-          <div>
-            <div style={{ color: good ? '#52c41a' : '#fa541c', fontWeight: 600 }}>
-              ¥{v.toLocaleString()}
-            </div>
-            <Tag color={good ? 'green' : 'orange'} style={{ borderRadius: 4, marginTop: 2 }}>
-              利润率 {r.profitRate}%
-            </Tag>
-          </div>
-        )
-      },
-    },
   ]
 
   return (
