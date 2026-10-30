@@ -206,7 +206,7 @@ function OverviewCard() {
       <Row gutter={[16, 16]}>
         <Col span={6}>
           <div style={{ textAlign: 'center' }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>总 Token 数</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>套餐包含token总数</Text>
             <MetricTip text="套餐和加油包支付成功的套餐的token总数" />
             <div style={{ fontSize: 20, fontWeight: 600, color: '#333', marginTop: 4 }}>
               {formatToken(TOKEN_STATS.total)}
@@ -256,7 +256,6 @@ function SummaryBlock({
   soldCount,
   soldAmount,
   cost,
-  profit,
   color,
   icon,
 }: {
@@ -266,11 +265,9 @@ function SummaryBlock({
   soldCount: number
   soldAmount: number
   cost: number
-  profit: number
   color: string
   icon: React.ReactNode
 }) {
-  const profitRate = ((profit / soldAmount) * 100).toFixed(1)
   return (
     <Card variant="borderless" styles={{ body: { padding: 20 } }}>
       <div
@@ -300,7 +297,7 @@ function SummaryBlock({
       </div>
 
       <Row gutter={[16, 16]}>
-        <Col span={12}>
+        <Col span={8}>
           <div style={{ background: '#f7f9fc', borderRadius: 10, padding: '14px 16px' }}>
             <div style={{ marginBottom: 6 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>销售数量</Text>
@@ -312,7 +309,7 @@ function SummaryBlock({
             </div>
           </div>
         </Col>
-        <Col span={12}>
+        <Col span={8}>
           <div style={{ background: '#f7f9fc', borderRadius: 10, padding: '14px 16px' }}>
             <div style={{ marginBottom: 6 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>销售金额</Text>
@@ -323,28 +320,14 @@ function SummaryBlock({
             </div>
           </div>
         </Col>
-        <Col span={12}>
+        <Col span={8}>
           <div style={{ background: '#f7f9fc', borderRadius: 10, padding: '14px 16px' }}>
             <div style={{ marginBottom: 6 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>成本</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>截止到当前日期消耗token总成本</Text>
               <MetricTip text={`成功支付的${subject}截止到当前使用的总成本`} />
             </div>
             <div style={{ fontSize: 22, fontWeight: 600, color: '#fa541c' }}>
               ¥{cost.toLocaleString()}
-            </div>
-          </div>
-        </Col>
-        <Col span={12}>
-          <div style={{ background: '#f7f9fc', borderRadius: 10, padding: '14px 16px' }}>
-            <div style={{ marginBottom: 6 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                利润 <Tag color={Number(profitRate) >= 50 ? 'green' : 'orange'} style={{ borderRadius: 4, marginLeft: 4 }}>
-                  {profitRate}%
-                </Tag>
-              </Text>
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 600, color: '#52c41a' }}>
-              ¥{profit.toLocaleString()}
             </div>
           </div>
         </Col>
@@ -537,7 +520,6 @@ export default function PlanStats() {
             soldCount={PLAN_SUMMARY.soldCount}
             soldAmount={PLAN_SUMMARY.soldAmount}
             cost={PLAN_SUMMARY.cost}
-            profit={PLAN_SUMMARY.profit}
           />
         </Col>
         <Col xs={24} lg={12}>
@@ -549,7 +531,6 @@ export default function PlanStats() {
             soldCount={RESOURCE_PACK_SUMMARY.soldCount}
             soldAmount={RESOURCE_PACK_SUMMARY.soldAmount}
             cost={RESOURCE_PACK_SUMMARY.cost}
-            profit={RESOURCE_PACK_SUMMARY.profit}
           />
         </Col>
       </Row>
