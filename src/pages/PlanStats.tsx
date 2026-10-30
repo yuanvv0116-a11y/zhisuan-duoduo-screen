@@ -90,7 +90,6 @@ function OverviewCard() {
   const totalCost = RESOURCE_PACK_SUMMARY.cost + PLAN_SUMMARY.cost
   const totalSoldAmount = RESOURCE_PACK_SUMMARY.soldAmount + PLAN_SUMMARY.soldAmount
   const totalProfit = RESOURCE_PACK_SUMMARY.profit + PLAN_SUMMARY.profit
-  const profitRate = ((totalProfit / totalSoldAmount) * 100).toFixed(1)
   const tokenFailRate = ((TOKEN_STATS.expired / TOKEN_STATS.total) * 100).toFixed(1)
 
   const formatToken = (v: number) => {
@@ -189,9 +188,6 @@ function OverviewCard() {
           <div style={{ textAlign: 'center' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
               总利润 <MetricTip text="总销售金额-总成本" />
-              <Tag color={Number(profitRate) >= 50 ? 'green' : 'orange'} style={{ borderRadius: 4, marginLeft: 4 }}>
-                {profitRate}%
-              </Tag>
             </Text>
             <div style={{ fontSize: 22, fontWeight: 600, color: '#52c41a', marginTop: 4 }}>
               ¥{totalProfit.toLocaleString()}
@@ -236,9 +232,6 @@ function OverviewCard() {
             <Text type="secondary" style={{ fontSize: 12 }}>
               Token 失效率
               <MetricTip text="已失效 Token 数/过期状态的套餐和加油包的token总量" />
-              <Tag color={Number(tokenFailRate) >= 20 ? 'red' : Number(tokenFailRate) >= 10 ? 'orange' : 'green'} style={{ borderRadius: 4, marginLeft: 4 }}>
-                {tokenFailRate}%
-              </Tag>
             </Text>
             <div style={{ fontSize: 20, fontWeight: 600, color: Number(tokenFailRate) >= 20 ? '#ff4d4f' : Number(tokenFailRate) >= 10 ? '#fa8c16' : '#52c41a', marginTop: 4 }}>
               {tokenFailRate}%
