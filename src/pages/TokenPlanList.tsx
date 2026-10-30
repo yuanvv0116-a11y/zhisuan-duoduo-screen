@@ -245,7 +245,16 @@ export default function TokenPlanListPage() {
       highlight: form.highlight,
       discountPrice: discountedPrice,
       discount: form.showOriginalPrice ? form.discount : 100,
-      durations: form.durations,
+      durations: form.durations.map((d, i) =>
+        i === 0
+          ? {
+              ...d,
+              months: displayUnitsToMonths(form.validityValue, form.validityUnit),
+              discount: 100,
+              finalPrice: +(form.price * form.validityValue).toFixed(2),
+            }
+          : d
+      ),
       productTag: form.productTag.trim(),
       totalTokens: form.totalTokens,
       // 用量限制已从表单移除：编辑保留原值，新增不限量
@@ -737,11 +746,17 @@ export default function TokenPlanListPage() {
           <Form.Item label="订阅时长（不同时长不同折扣）" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {form.durations.map((dur, idx) => {
-                const displayUnits = durationToDisplayUnits(dur.months, form.validityUnit)
+                // 第一条订阅时长由「有效期 + 售价」自动推导，除名称外不可修改
+                const isBase = idx === 0
+                const displayUnits = isBase
+                  ? form.validityValue
+                  : durationToDisplayUnits(dur.months, form.validityUnit)
                 const autoLabel = buildDurationLabel(displayUnits, form.validityUnit)
                 const unitMeta = PLAN_DURATION_UNIT_META[form.validityUnit]
                 // 总金额 = 行内显示的数量 × 售价（折扣前原价）
                 const totalAmount = +(form.price * displayUnits).toFixed(2)
+                const rowDiscount = isBase ? 100 : dur.discount
+                const rowFinalPrice = isBase ? totalAmount : dur.finalPrice
                 return (
                   <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <Input
@@ -760,6 +775,7 @@ export default function TokenPlanListPage() {
                       size="small"
                       placeholder={unitMeta.formLabel}
                       value={displayUnits}
+                      disabled={isBase}
                       onChange={(v) => {
                         const newDisplayUnits = Math.max(1, v ?? 1)
                         const months = displayUnitsToMonths(newDisplayUnits, form.validityUnit)
@@ -794,7 +810,8 @@ export default function TokenPlanListPage() {
                       style={{ width: 100 }}
                       size="small"
                       placeholder="折扣"
-                      value={dur.discount}
+                      value={rowDiscount}
+                      disabled={isBase}
                       onChange={(v) => {
                         const discount = v ?? 100
                         const next = [...form.durations]
@@ -815,7 +832,8 @@ export default function TokenPlanListPage() {
                       style={{ width: 110 }}
                       size="small"
                       placeholder="折后价"
-                      value={dur.finalPrice}
+                      value={rowFinalPrice}
+                      disabled={isBase}
                       onChange={(v) => {
                         const finalPrice = v ?? 0
                         const next = [...form.durations]
@@ -837,7 +855,7 @@ export default function TokenPlanListPage() {
                         Number(value?.replace(/¥\s?|,/g, '') || 0) as 0
                       }
                     />
-                    {form.durations.length > 1 && (
+                    {!isBase && form.durations.length > 1 && (
                       <Button
                         type="text"
                         size="small"
